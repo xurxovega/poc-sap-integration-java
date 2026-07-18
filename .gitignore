@@ -1,0 +1,41 @@
+# Build
+target/
+!.mvn/wrapper/maven-wrapper.jar
+!**/src/main/**/target/
+!**/src/test/**/target/
+
+# IDE
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/
+.settings/
+.project
+.classpath
+.factorypath
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Maven
+.mvn/timeline.properties
+.mvn/wrapper/MavenWrapperDownloader.java
+*.versionsBackup
+
+# Logs
+*.log
+logs/
+
+# Env / secrets
+.env
+.env.local
+*.secret
+application-local.yml
+application-secrets.yml
+
+# Coverage
+coverage/
+*.exec

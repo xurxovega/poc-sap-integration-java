@@ -1,0 +1,49 @@
+# Configuracion comun SAP y observabilidad (TECH.md §8, §9)
+# Cada dominio sobreescribe lo que necesite en su application.yml.
+
+sap:
+  cloud-sdk:
+    local-destination:
+      enabled: ${SAP_CLOUD_SDK_LOCAL_DESTINATION_ENABLED:false}
+  btp:
+    base-url: ${SAP_BTP_BASE_URL:https://default-tenant.example.eu10.xsuaa.hana.ondemand.com}
+    xsuaa:
+      client-id: ${SAP_BTP_CLIENT_ID:}
+      client-secret: ${SAP_BTP_CLIENT_SECRET:}
+      token-url: ${SAP_BTP_TOKEN_URL:}
+  s4:
+    base-url: ${SAP_S4_BASE_URL:https://my12345-api.s4hana.cloud.sap}
+    auth:
+      type: ${SAP_S4_AUTH_TYPE:oauth2}
+      token-url: ${SAP_S4_TOKEN_URL:}
+      client-id: ${SAP_S4_CLIENT_ID:}
+      client-secret: ${SAP_S4_CLIENT_SECRET:}
+      username: ${SAP_S4_USERNAME:}
+      password: ${SAP_S4_PASSWORD:}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,metrics
+  endpoint:
+    prometheus:
+      enabled: true
+  metrics:
+    tags:
+      application: sap-integration
+  tracing:
+    sampling:
+      probability: 1.0
+
+otel:
+  exporter:
+    otlp:
+      endpoint: ${OTEL_EXPORTER_OTLP_ENDPOINT:http://localhost:4317}
+  service:
+    name: sap-integration
+
+spring:
+  threads:
+    virtual:
+      enabled: true

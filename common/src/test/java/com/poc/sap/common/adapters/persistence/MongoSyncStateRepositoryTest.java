@@ -1,0 +1,98 @@
+package com.poc.sap.common.adapters.persistence;
+
+import com.poc.sap.common.domain.SyncState;
+import com.poc.sap.common.domain.SyncStateTransition;
+import com.poc.sap.common.domain.port.SyncStateRepositoryPort;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+
+import java.time.Instant;
+import java.util.List;
+import java.util.Optional;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.*;
+
+/**
+ * Test unit del {@link MongoSyncStateRepository} (SPEC.md §8; TECH.md §7).
+ * Mockea el Spring Data Mongo repo para no levantar Testcontainers.
+ */
+@ExtendWith(MockitoExtension.class)
+class MongoSyncStateRepositoryTest {
+
+    @Mock SyncStateMongoRepository mongo;
+    private SyncStateRepositoryPort repo;
+
+    @BeforeEach
+    void setUp() {
+        repo = new MongoSyncStateRepository(mongo);
+    }
+
+    private SyncStateTransition transition(SyncState to, Instant ts) {
+        return new SyncStateTransition(
+                "A-1", "article",
+                SyncState.INDEXED, to,
+                "cdc", "h-1", ts);
+    }
+
+    @Test
+    void currentStateEmptyWhenNoHistory() {
+        when(mongo.findByDomainAndEntityIdOrderByTimestampDesc("article", "A-1"))
+                .thenReturn(List.of());
+
+        Optional<SyncState> current = repo.currentState("article", "A-1");
+
+        assertThat(current).isEmpty();
+    }
+
+    @Test
+    void currentStateResolvesToLatestState() {
+        SyncStateTransition t = transition(SyncState.INDEXED, Instant.parse("2026-01-01T00:00:00Z"));
+        SyncStateDoc doc = SyncStateDoc.from("article", "A-1", t, SyncState.INDEXED.code());
+        when(mongo.findByDomainAndEntityIdOrderByTimestampDesc("article", "A-1"))
+                .thenReturn(List.of(doc));
+
+        Optional<SyncState> current = repo.currentState("article", "A-1");
+
+        assertThat(current).contains(SyncState.INDEXED);
+    }
+
+    @Test
+    void transitionFromExistingStatePersistsAndReturns() {
+        SyncStateTransition prev = transition(SyncState.INDEXED, Instant.parse("2026-01-01T00:00:00Z"));
+        when(mongo.findByDomainAndEntityIdOrderByTimestampDesc("article", "A-1"))
+                .thenReturn(List.of(SyncStateDoc.from("article", "A-1", prev, SyncState.INDEXED.code())));
+
+        SyncStateTransition t = transition(SyncState.SENDING_SAP,
+                Instant.parse("2026-01-02T00:00:00Z"));
+
+        SyncState result = repo.transition("article", "A-1", t);
+
+        assertThat(result).isEqualTo(SyncState.SENDING_SAP);
+        ArgumentCaptor<SyncStateDoc> save = ArgumentCaptor.forClass(SyncStateDoc.class);
+        verify(mongo).save(save.capture());
+        assertThat(save.getValue().stateCode()).isEqualTo(SyncState.SENDING_SAP.code());
+    }
+
+    @Test
+    void historyMapsAndSortsByTimestampAscending() {
+        Instant t1 = Instant.parse("2026-01-01T00:00:00Z");
+        Instant t2 = Instant.parse("2026-01-02T00:00:00Z");
+        SyncStateDoc d2 = SyncStateDoc.from("article", "A-1",
+                transition(SyncState.INDEXED, t2), SyncState.INDEXED.code());
+        SyncStateDoc d1 = SyncStateDoc.from("article", "A-1",
+                transition(SyncState.RECEIVED, t1), SyncState.RECEIVED.code());
+        // el repo devuelve en ASC por orden Mongo; el adapter reordena por timestamp
+        when(mongo.findByDomainAndEntityIdOrderByTimestampAsc("article", "A-1"))
+                .thenReturn(List.of(d2, d1));
+
+        List<SyncStateTransition> history = repo.history("article", "A-1");
+
+        assertThat(history).extracting(SyncStateTransition::timestamp)
+                .containsExactly(t1, t2);
+    }
+}
