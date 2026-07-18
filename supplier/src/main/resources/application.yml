@@ -1,0 +1,13 @@
+server:
+  port: ${SUPPLIER_SERVER_PORT:8083}
+
+spring:
+  application:
+    name: supplier-app
+  main:
+    lazy-initialization: true
+
+supplier:
+  kafka:
+    topic: outbox.SUPPLIER
+    group: supplier-consumer

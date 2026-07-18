@@ -1,0 +1,53 @@
+server:
+  port: ${CUSTOMER_SERVER_PORT:8081}
+
+spring:
+  application:
+    name: customer-app
+  config:
+    import: "application-common.yml"
+  datasource:
+    url: ${SQLSERVER_URL:jdbc:sqlserver://localhost:1433;databaseName=poc;encrypt=true;trustServerCertificate=true}
+    username: ${SQLSERVER_USER:sa}
+    password: ${SQLSERVER_PASSWORD:SqlServer_Pa55w0rd!}
+    driver-class-name: com.microsoft.sqlserver.jdbc.SQLServerDriver
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.SQLServerDialect
+  data:
+    mongodb:
+      uri: ${MONGO_URL:mongodb://localhost:27017/customer}
+    elasticsearch:
+      endpoints: ${ES_URL:http://localhost:9200}
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP:kafka:9092}
+    consumer:
+      group-id: customer-consumer
+      auto-offset-reset: earliest
+      properties:
+        isolation.level: read_committed
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,metrics
+  endpoint:
+    health:
+      show-details: always
+
+customer:
+  kafka:
+    topic: outbox.CUSTOMER
+    group: customer-consumer
+
+sap:
+  customer:
+    btp:
+      path: /sap/btp/odata/Customer
+  mandate:
+    s4:
+      path: /sap/opu/odata/sap/API_CUSTOMER_MANDATE
