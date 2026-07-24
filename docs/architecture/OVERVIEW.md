@@ -389,5 +389,8 @@ com.poc.sap.<dominio>/
 
 - `docs/specs/SPEC.md` — especificación funcional agnóstica a tecnología.
 - `docs/specs/TECH.md` — stack tecnológico detallado.
+- `docs/specs/sap/API_BUSINESS_PARTNER.yaml` — especificación OpenAPI oficial SAP (SAP_COM_0008).
+- `docs/architecture/FLOWS.md` — flujos de integración con nombres de clase: CDC, consulta BP, creación BP, pull vía BTP, push vs pull, mapa de rutas.
+- `docs/integrations/SAP_CLOUD_SDK.md` — guía de integración con SAP Cloud SDK (fases de implementación).
 - `docs/testing/TESTING.md` — estrategia y catálogo de tests.
 - `README.md` — intro, requisitos, comandos, debug VS Code.

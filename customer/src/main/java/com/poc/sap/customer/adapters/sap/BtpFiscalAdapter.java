@@ -3,6 +3,8 @@ package com.poc.sap.customer.adapters.sap;
 import com.poc.sap.common.domain.port.SapOutboundPort.SapResponse;
 import com.poc.sap.common.sap.SapClient;
 import com.poc.sap.common.sap.SapDestination;
+import com.poc.sap.common.sap.json.SapJsonMapper;
+import com.poc.sap.customer.adapters.sap.dto.BtpFiscalDto;
 import com.poc.sap.customer.domain.feature.fiscal.FiscalData;
 import com.poc.sap.customer.domain.port.FiscalSapPort;
 import org.springframework.beans.factory.annotation.Value;
@@ -23,16 +25,7 @@ public class BtpFiscalAdapter implements FiscalSapPort {
 
     @Override
     public SapResponse send(String entityId, String payloadHash, FiscalData f) {
-        String body = f == null ? "{}" : toJson(f);
+        String body = f == null ? "{}" : SapJsonMapper.write(BtpFiscalDto.from(f));
         return sapClient.send(SapDestination.BTP, path, entityId, payloadHash, body);
     }
-
-    private String toJson(FiscalData f) {
-        return """
-                {"BusinessPartner":"%s","TaxNumber":"%s","VATNumber":"%s","LegalName":"%s","TaxResidency":"%s"}"""
-                .formatted("", n(f.taxId()), n(f.vatNumber()),
-                        n(f.legalName()), n(f.taxResidency()));
-    }
-
-    private static String n(String s) { return s == null ? "" : s; }
 }

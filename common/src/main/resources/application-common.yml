@@ -2,9 +2,34 @@
 # Cada dominio sobreescribe lo que necesite en su application.yml.
 
 sap:
+  integration:
+    mode: ${SAP_INTEGRATION_MODE:push}   # push | pull | both
   cloud-sdk:
     local-destination:
       enabled: ${SAP_CLOUD_SDK_LOCAL_DESTINATION_ENABLED:false}
+  odata:
+    enabled: ${SAP_ODATA_ENABLED:false}
+    address:
+      enabled: ${SAP_ODATA_ADDRESS_ENABLED:false}
+    fiscal:
+      enabled: ${SAP_ODATA_FISCAL_ENABLED:false}
+    contact:
+      enabled: ${SAP_ODATA_CONTACT_ENABLED:false}
+    banking:
+      enabled: ${SAP_ODATA_BANKING_ENABLED:false}
+    customer:
+      enabled: ${SAP_ODATA_CUSTOMER_ENABLED:false}
+    read:
+      enabled: ${SAP_ODATA_READ_ENABLED:false}
+    address-path: /sap/opu/odata/sap/API_BUSINESS_PARTNER/A_BusinessPartnerAddress
+    fiscal-path: /sap/opu/odata/sap/API_BUSINESS_PARTNER/A_BusinessPartnerTaxNumber
+    contact-path: /sap/opu/odata/sap/API_BUSINESS_PARTNER/A_BusinessPartnerContact
+    banking-path: /sap/opu/odata/sap/API_BUSINESS_PARTNER/A_BusinessPartnerBank
+    customer-path: /sap/opu/odata/sap/API_BUSINESS_PARTNER/A_BusinessPartner
+    bp-path: /sap/opu/odata/sap/API_BUSINESS_PARTNER/A_BusinessPartner
+  s4:
+    csrf:
+      enabled: ${SAP_S4_CSRF_ENABLED:false}
   btp:
     base-url: ${SAP_BTP_BASE_URL:https://default-tenant.example.eu10.xsuaa.hana.ondemand.com}
     xsuaa:

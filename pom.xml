@@ -13,6 +13,7 @@
     <description>Reactor multi-modulo para integracion con SAP S/4 Public Cloud</description>
 
     <modules>
+        <module>sap-api-models</module>
         <module>common</module>
         <module>customer</module>
         <module>article</module>
@@ -63,6 +64,12 @@
             <dependency>
                 <groupId>com.poc.sap</groupId>
                 <artifactId>common</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>com.poc.sap</groupId>
+                <artifactId>sap-api-models</artifactId>
                 <version>${project.version}</version>
             </dependency>
 

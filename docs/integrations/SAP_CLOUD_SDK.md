@@ -193,6 +193,24 @@ mvn -pl common test -Dtest=SapCloudSdkLocalDestinationTest
 
 **Fase 2**: implementar `CloudSdkSapClientAdapter` que use el destino local para enviar peticiones HTTP a SAP, manteniendo el puerto `SapClient` existente.
 
+## Fases implementadas (complementarias)
+
+Las fases posteriores al spike se implementaron como parte de la arquitectura hexagonal
+sin depender directamente del SAP Cloud SDK para las llamadas HTTP:
+
+| Fase | Estado | Qué se implementó |
+|---|---|---|
+| DTOs Jackson | ✅ | `customer/adapters/sap/dto/Btp*Dto.java` — reemplazo de `String.format` por `SapJsonMapper.write(dto)` |
+| SapClient expandido | ✅ | `get()`, `patch()`, `delete()` en `SapClient` + `WebClientSapClient.exchange()` |
+| OData support | ✅ | `ODataPayload` (wrapper `d:`), `CsrfTokenProvider`, `S4CsrfTokenProvider` en `common/sap/odata/` |
+| Adaptadores OData | ✅ | 5 `BusinessPartner*ODataAdapter.java` en `customer/adapters/sap/odata/` — refactorizados a modelos generados |
+| Puerto de lectura | ✅ | `BusinessPartnerReadPort` + `BusinessPartnerReadAdapter` para GET/search |
+| Push vs Pull | ✅ | Modos `push|pull|both` documentados en `FLOWS.md` y configurados via `sap.integration.mode` |
+| Modelos SAP generados | ✅ | Módulo `sap-api-models` con `openapi-generator-maven-plugin` + spec `API_BUSINESS_PARTNER.yaml`. Modelos en `target/generated-sources/` |
+| Casos de uso CRUD | 🔜 | `LookupCustomerUseCase`, `CreateBusinessPartnerUseCase`, `UpdateBusinessPartnerUseCase`, `BtpPendingQueryUseCase`, `BtpResultProcessingUseCase` — pendientes de implementar |
+
+Ver [`docs/architecture/FLOWS.md`](../architecture/FLOWS.md) para el mapa completo de flujos de integración.
+
 ## Enlaces útiles
 
 - [Getting Started — SAP Cloud SDK Java](https://sap.github.io/cloud-sdk/docs/java/getting-started)

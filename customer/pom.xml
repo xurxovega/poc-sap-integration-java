@@ -21,6 +21,10 @@
             <groupId>com.poc.sap</groupId>
             <artifactId>common</artifactId>
         </dependency>
+        <dependency>
+            <groupId>com.poc.sap</groupId>
+            <artifactId>sap-api-models</artifactId>
+        </dependency>
 
         <dependency>
             <groupId>org.springframework.boot</groupId>

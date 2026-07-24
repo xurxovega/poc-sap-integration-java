@@ -2,6 +2,7 @@ package com.poc.sap.common.sap.cloudsdk;
 
 import com.sap.cloud.sdk.cloudplatform.connectivity.Destination;
 import com.sap.cloud.sdk.cloudplatform.connectivity.DestinationAccessor;
+import com.sap.cloud.sdk.cloudplatform.connectivity.DestinationProperty;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.TestPropertySource;
@@ -22,6 +23,7 @@ class SapCloudSdkLocalDestinationTest {
                 SapCloudSdkLocalDestinationConfig.LOCAL_DESTINATION_NAME);
 
         assertThat(destination).isNotNull();
-        assertThat(destination.getUri().toString()).isEqualTo("http://localhost:8080");
+        String uri = destination.get(DestinationProperty.URI).getOrElse("");
+        assertThat(uri).isEqualTo("http://localhost:8080");
     }
 }

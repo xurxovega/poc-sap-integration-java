@@ -8,7 +8,9 @@ legacy hacia **SAP S/4 Public Cloud**. Migración del POC Python a
 
 - [`docs/specs/SPEC.md`](docs/specs/SPEC.md) — especificación funcional agnóstica a tecnología: objetivo, dominios, fuentes de entrada, destinos SAP, máquina de estados, criterios de aceptación.
 - [`docs/specs/TECH.md`](docs/specs/TECH.md) — stack tecnológico: Java 25 + Spring Boot 4.0 + Maven, puertos y adaptadores, persistencia, observabilidad, testing.
+- [`docs/specs/sap/`](docs/specs/sap/) — [API_BUSINESS_PARTNER.yaml](docs/specs/sap/API_BUSINESS_PARTNER.yaml) (especificación OpenAPI oficial SAP S/4HANA, SAP_COM_0008) y [README.md](docs/specs/sap/README.md) (catálogo de endpoints y mapping features↔API).
 - [`docs/architecture/OVERVIEW.md`](docs/architecture/OVERVIEW.md) — mapas y esquemas del aplicativo: módulos, aggregate Customer, flujos CDC/REST/feature, puertos y adaptadores, máquina de estados, deployment, convención de paquetes.
+- [`docs/architecture/FLOWS.md`](docs/architecture/FLOWS.md) — flujos de integración SAP con nombres de clase para navegar el código: CDC completo, consulta BP, creación BP, callback BTP, mapa de rutas BTP vs directo, actualización BP.
 - [`docs/integrations/SAP_CLOUD_SDK.md`](docs/integrations/SAP_CLOUD_SDK.md) — guía de integración con SAP Cloud SDK: OData VDM (Business Partner), OpenAPI (APIs propias de SAP y callbacks), BTP destinations, arquitectura hexagonal, módulos Maven.
 - [`docs/testing/TESTING.md`](docs/testing/TESTING.md) — estrategia y catálogo de la suite de tests (191 tests, tipos, convenciones, contratos SAP, issues conocidos).
 - [`docs/GLOSSARY.md`](docs/GLOSSARY.md) — glosario de términos del proyecto con definiciones y enlaces.
@@ -21,6 +23,7 @@ shared kernel `common`. Diagrama completo en
 
 ```
 sap-integration-java/
+├── sap-api-models/ # modelos SAP generados desde specs OpenAPI oficiales
 ├── common/      # shared kernel (jar): dominio base, clientes SAP, observabilidad
 ├── customer/    # customer-app (Spring Boot jar)
 ├── article/     # article-app

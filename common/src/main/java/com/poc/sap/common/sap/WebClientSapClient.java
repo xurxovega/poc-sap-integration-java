@@ -48,6 +48,34 @@ public class WebClientSapClient implements SapClient {
                             String entityId,
                             String payloadHash,
                             String body) {
+        return exchange(destination, path, entityId, payloadHash, body, "POST");
+    }
+
+    @Override
+    public SapResponse get(SapDestination destination, String path) {
+        return exchange(destination, path, null, null, null, "GET");
+    }
+
+    @Override
+    public SapResponse patch(SapDestination destination,
+                             String path,
+                             String entityId,
+                             String payloadHash,
+                             String body) {
+        return exchange(destination, path, entityId, payloadHash, body, "PATCH");
+    }
+
+    @Override
+    public SapResponse delete(SapDestination destination, String path) {
+        return exchange(destination, path, null, null, null, "DELETE");
+    }
+
+    private SapResponse exchange(SapDestination destination,
+                                  String path,
+                                  String entityId,
+                                  String payloadHash,
+                                  String body,
+                                  String method) {
         WebClient client = clients.get(destination);
         SapAuthProvider auth = authProviders.get(destination);
         if (client == null || auth == null) {
@@ -57,25 +85,39 @@ public class WebClientSapClient implements SapClient {
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
         headers.setBearerAuth(auth.accessToken());
-        headers.set("Idempotency-Key", payloadHash);
+        if (payloadHash != null) {
+            headers.set("Idempotency-Key", payloadHash);
+        }
 
-        Mono<SapResponse> call = client.post()
-                .uri(path)
-                .headers(h -> h.addAll(headers))
-                .bodyValue(body)
-                .exchangeToMono(resp -> resp.bodyToMono(String.class)
-                        .defaultIfEmpty("")
-                        .map(b -> new SapResponse(
-                                resp.statusCode().value(),
-                                b,
-                                resp.headers().asHttpHeaders().getFirst("Location"))))
-                .onErrorResume(e -> {
-                    log.error("Error enviando a SAP {} entityId={} path={}", destination, entityId, path, e);
-                    return Mono.just(new SapResponse(0, e.getMessage(), null));
-                });
+        Mono<SapResponse> call = switch (method) {
+            case "GET"    -> client.get().uri(path).headers(h -> h.addAll(headers))
+                    .exchangeToMono(WebClientSapClient::toResponse);
+            case "DELETE" -> client.delete().uri(path).headers(h -> h.addAll(headers))
+                    .exchangeToMono(WebClientSapClient::toResponse);
+            case "PATCH"  -> client.patch().uri(path).headers(h -> h.addAll(headers))
+                    .bodyValue(body != null ? body : "{}")
+                    .exchangeToMono(WebClientSapClient::toResponse);
+            default       -> client.post().uri(path).headers(h -> h.addAll(headers))
+                    .bodyValue(body != null ? body : "{}")
+                    .exchangeToMono(WebClientSapClient::toResponse);
+        };
+
+        Mono<SapResponse> resilient = call.onErrorResume(e -> {
+            log.error("Error SAP {} {} entityId={}", method, destination, entityId, e);
+            return Mono.just(new SapResponse(0, e.getMessage(), null));
+        });
 
         return Retry.decorateSupplier(retry,
                 () -> CircuitBreaker.decorateSupplier(circuitBreaker,
-                        call::block).get()).get();
+                        resilient::block).get()).get();
+    }
+
+    private static Mono<SapResponse> toResponse(org.springframework.web.reactive.function.client.ClientResponse resp) {
+        return resp.bodyToMono(String.class)
+                .defaultIfEmpty("")
+                .map(b -> new SapResponse(
+                        resp.statusCode().value(),
+                        b,
+                        resp.headers().asHttpHeaders().getFirst("Location")));
     }
 }

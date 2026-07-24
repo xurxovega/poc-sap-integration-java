@@ -3,6 +3,8 @@ package com.poc.sap.customer.adapters.sap;
 import com.poc.sap.common.domain.port.SapOutboundPort.SapResponse;
 import com.poc.sap.common.sap.SapClient;
 import com.poc.sap.common.sap.SapDestination;
+import com.poc.sap.common.sap.json.SapJsonMapper;
+import com.poc.sap.customer.adapters.sap.dto.BtpContactDto;
 import com.poc.sap.customer.domain.feature.contact.ContactData;
 import com.poc.sap.customer.domain.port.ContactSapPort;
 import org.springframework.beans.factory.annotation.Value;
@@ -23,15 +25,7 @@ public class BtpContactAdapter implements ContactSapPort {
 
     @Override
     public SapResponse send(String entityId, String payloadHash, ContactData c) {
-        String body = c == null ? "{}" : toJson(c);
+        String body = c == null ? "{}" : SapJsonMapper.write(BtpContactDto.from(c));
         return sapClient.send(SapDestination.BTP, path, entityId, payloadHash, body);
     }
-
-    private String toJson(ContactData c) {
-        return """
-                {"BusinessPartner":"%s","Email":"%s","Phone":"%s","Fax":"%s","Website":"%s"}"""
-                .formatted("", n(c.email()), n(c.phone()), n(c.fax()), n(c.website()));
-    }
-
-    private static String n(String s) { return s == null ? "" : s; }
 }

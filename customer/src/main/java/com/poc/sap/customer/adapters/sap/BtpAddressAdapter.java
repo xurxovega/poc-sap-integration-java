@@ -3,6 +3,8 @@ package com.poc.sap.customer.adapters.sap;
 import com.poc.sap.common.domain.port.SapOutboundPort.SapResponse;
 import com.poc.sap.common.sap.SapClient;
 import com.poc.sap.common.sap.SapDestination;
+import com.poc.sap.common.sap.json.SapJsonMapper;
+import com.poc.sap.customer.adapters.sap.dto.BtpAddressDto;
 import com.poc.sap.customer.domain.feature.address.AddressData;
 import com.poc.sap.customer.domain.port.AddressSapPort;
 import org.springframework.beans.factory.annotation.Value;
@@ -10,7 +12,8 @@ import org.springframework.stereotype.Component;
 
 /**
  * Adaptador SAP BTP para la feature ADDRESS (SPEC.md §5, TECH.md §8).
- * Mapea AddressData al contrato BTP y delega en {@link SapClient} de common.
+ * Mapea AddressData al contrato BTP via {@link BtpAddressDto} y delega en
+ * {@link SapClient} de common.
  */
 @Component
 public class BtpAddressAdapter implements AddressSapPort {
@@ -26,18 +29,7 @@ public class BtpAddressAdapter implements AddressSapPort {
 
     @Override
     public SapResponse send(String entityId, String payloadHash, AddressData a) {
-        String body = a == null ? "{}" : toJson(a);
+        String body = a == null ? "{}" : SapJsonMapper.write(BtpAddressDto.from(a));
         return sapClient.send(SapDestination.BTP, path, entityId, payloadHash, body);
     }
-
-    private String toJson(AddressData a) {
-        return """
-                {"BusinessPartner":"%s","Street":"%s","City":"%s","PostalCode":"%s","Country":"%s","Region":"%s"}"""
-                .formatted(
-                        "",
-                        n(a.street()), n(a.city()), n(a.postalCode()),
-                        n(a.country()), n(a.region()));
-    }
-
-    private static String n(String s) { return s == null ? "" : s; }
 }

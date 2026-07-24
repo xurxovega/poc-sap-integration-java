@@ -3,6 +3,8 @@ package com.poc.sap.customer.adapters.sap;
 import com.poc.sap.common.domain.port.SapOutboundPort.SapResponse;
 import com.poc.sap.common.sap.SapClient;
 import com.poc.sap.common.sap.SapDestination;
+import com.poc.sap.common.sap.json.SapJsonMapper;
+import com.poc.sap.customer.adapters.sap.dto.S4BankingDto;
 import com.poc.sap.customer.domain.feature.banking.BankingData;
 import com.poc.sap.customer.domain.port.BankingSapPort;
 import org.springframework.beans.factory.annotation.Value;
@@ -26,16 +28,7 @@ public class S4BankingAdapter implements BankingSapPort {
 
     @Override
     public SapResponse send(String entityId, String payloadHash, BankingData b) {
-        String body = b == null ? "{}" : toJson(b);
+        String body = b == null ? "{}" : SapJsonMapper.write(S4BankingDto.from(b));
         return sapClient.send(SapDestination.S4_NATIVE, path, entityId, payloadHash, body);
     }
-
-    private String toJson(BankingData b) {
-        String mandates = b.mandateIds() == null ? "" : String.join(",", b.mandateIds());
-        return """
-                {"CustomerID":"%s","IBAN":"%s","BIC":"%s","Mandates":"%s"}"""
-                .formatted("", n(b.iban()), n(b.bic()), mandates);
-    }
-
-    private static String n(String s) { return s == null ? "" : s; }
 }
