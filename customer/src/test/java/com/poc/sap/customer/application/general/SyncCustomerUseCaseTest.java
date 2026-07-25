@@ -57,6 +57,8 @@ class SyncCustomerUseCaseTest {
         useCase = new SyncCustomerUseCase(
                 legacyRepo, imageStore, historyIndexer, stateRepo, metrics,
                 address, fiscal, contact, banking);
+        lenient().when(stateRepo.alreadySent(anyString(), anyString(), anyString()))
+                .thenReturn(false);
     }
 
     @Test
@@ -141,6 +143,19 @@ class SyncCustomerUseCaseTest {
         SyncState result = useCase.execute(CustomerFixtures.ingestionMessage());
 
         assertThat(result).isEqualTo(SyncState.SAP_ERROR);
+    }
+
+    @Test
+    void alreadySentPayloadSkipsPipelineAndReturnsSentSap() {
+        when(stateRepo.alreadySent("customer", "C-1", "hash-001")).thenReturn(true);
+
+        SyncState result = useCase.execute(CustomerFixtures.ingestionMessage());
+
+        assertThat(result).isEqualTo(SyncState.SENT_SAP);
+        verify(legacyRepo, never()).fetch(anyString());
+        verify(imageStore, never()).save(anyString(), any());
+        verify(stateRepo, never()).transition(anyString(), anyString(), any());
+        verify(address, never()).execute(any(), anyString());
     }
 
     @Test

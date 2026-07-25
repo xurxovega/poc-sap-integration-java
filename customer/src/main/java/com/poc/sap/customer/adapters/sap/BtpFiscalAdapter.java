@@ -8,10 +8,12 @@ import com.poc.sap.customer.adapters.sap.dto.BtpFiscalDto;
 import com.poc.sap.customer.domain.feature.fiscal.FiscalData;
 import com.poc.sap.customer.domain.port.FiscalSapPort;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
-/** Adaptador SAP BTP para la feature FISCAL. */
+/** Adaptador SAP BTP para la feature FISCAL. Excluyente con el adaptador OData equivalente. */
 @Component
+@ConditionalOnProperty(name = "sap.odata.fiscal.enabled", havingValue = "false", matchIfMissing = true)
 public class BtpFiscalAdapter implements FiscalSapPort {
 
     private final SapClient sapClient;
@@ -25,7 +27,7 @@ public class BtpFiscalAdapter implements FiscalSapPort {
 
     @Override
     public SapResponse send(String entityId, String payloadHash, FiscalData f) {
-        String body = f == null ? "{}" : SapJsonMapper.write(BtpFiscalDto.from(f));
+        String body = f == null ? "{}" : SapJsonMapper.write(BtpFiscalDto.from(entityId, f));
         return sapClient.send(SapDestination.BTP, path, entityId, payloadHash, body);
     }
 }

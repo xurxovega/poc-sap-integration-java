@@ -1,5 +1,6 @@
 package com.poc.sap.article.bootstrap.kafka;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.poc.sap.article.application.SyncArticleUseCase;
 import com.poc.sap.common.domain.IngestionMessage;
 import com.poc.sap.common.domain.IngestionOrigin;
@@ -12,7 +13,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.*;
@@ -38,7 +39,7 @@ class ArticleKafkaListenerTest {
     }
 
     @Test
-    void parsesMessageAndInvokesUseCase() {
+    void parsesMessageAndInvokesUseCase() throws JsonProcessingException {
         String payload = """
                 {"entityId":"A-1","operation":"UPDATE","payloadHash":"h-1","payload":{}}
                 """;
@@ -55,7 +56,7 @@ class ArticleKafkaListenerTest {
     }
 
     @Test
-    void defaultsOperationToUpdateWhenMissing() {
+    void defaultsOperationToUpdateWhenMissing() throws JsonProcessingException {
         String payload = """
                 {"entityId":"A-2","payloadHash":"h-2","payload":{}}
                 """;
@@ -68,19 +69,9 @@ class ArticleKafkaListenerTest {
     }
 
     @Test
-    void malformedJsonDoesNotPropagateException() {
-        ConsumerRecord<String, String> record =
-                new ConsumerRecord<>(TOPIC, 0, 0L, "A-X", "not json");
-
-        listener.onMessage(record);
-
-        verify(syncUseCase, never()).execute(any());
-    }
-
-    @Test
-    void invalidOperationValueDoesNotPropagateException() {
+    void deleteOperationIsDiscardedWithoutInvokingUseCase() throws JsonProcessingException {
         String payload = """
-                {"entityId":"A-3","operation":"BOGUS","payloadHash":"h-3","payload":{}}
+                {"entityId":"A-3","operation":"DELETE","payloadHash":"h-3","payload":{}}
                 """;
         ConsumerRecord<String, String> record =
                 new ConsumerRecord<>(TOPIC, 0, 0L, "A-3", payload);
@@ -88,5 +79,45 @@ class ArticleKafkaListenerTest {
         listener.onMessage(record);
 
         verify(syncUseCase, never()).execute(any());
+    }
+
+    @Test
+    void malformedJsonPropagatesException() {
+        ConsumerRecord<String, String> record =
+                new ConsumerRecord<>(TOPIC, 0, 0L, "A-X", "not json");
+
+        assertThatThrownBy(() -> listener.onMessage(record))
+                .isInstanceOf(JsonProcessingException.class);
+
+        verify(syncUseCase, never()).execute(any());
+    }
+
+    @Test
+    void invalidOperationValuePropagatesException() {
+        String payload = """
+                {"entityId":"A-4","operation":"BOGUS","payloadHash":"h-4","payload":{}}
+                """;
+        ConsumerRecord<String, String> record =
+                new ConsumerRecord<>(TOPIC, 0, 0L, "A-4", payload);
+
+        assertThatThrownBy(() -> listener.onMessage(record))
+                .isInstanceOf(IllegalArgumentException.class);
+
+        verify(syncUseCase, never()).execute(any());
+    }
+
+    @Test
+    void useCaseFailurePropagatesException() {
+        when(syncUseCase.execute(any(IngestionMessage.class)))
+                .thenThrow(new IllegalStateException("boom"));
+        String payload = """
+                {"entityId":"A-5","operation":"UPDATE","payloadHash":"h-5","payload":{}}
+                """;
+        ConsumerRecord<String, String> record =
+                new ConsumerRecord<>(TOPIC, 0, 0L, "A-5", payload);
+
+        assertThatThrownBy(() -> listener.onMessage(record))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage("boom");
     }
 }

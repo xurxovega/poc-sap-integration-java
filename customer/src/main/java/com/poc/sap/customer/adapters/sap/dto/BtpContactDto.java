@@ -13,9 +13,9 @@ public record BtpContactDto(
         @JsonProperty("Fax")             String fax,
         @JsonProperty("Website")         String website
 ) {
-    public static BtpContactDto from(ContactData c) {
+    public static BtpContactDto from(String entityId, ContactData c) {
         return new BtpContactDto(
-                "",
+                n(entityId),
                 n(c.email()),
                 n(c.phone()),
                 n(c.fax()),

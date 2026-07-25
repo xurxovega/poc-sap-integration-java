@@ -20,15 +20,18 @@ spring:
   data:
     mongodb:
       uri: ${MONGO_URL:mongodb://localhost:27017/customer}
-    elasticsearch:
-      endpoints: ${ES_URL:http://localhost:9200}
+  elasticsearch:
+    uris: ${ES_URL:http://localhost:9200}
   kafka:
-    bootstrap-servers: ${KAFKA_BOOTSTRAP:kafka:9092}
+    bootstrap-servers: ${KAFKA_BOOTSTRAP:localhost:9092}
     consumer:
       group-id: customer-consumer
       auto-offset-reset: earliest
       properties:
         isolation.level: read_committed
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
 
 management:
   endpoints:

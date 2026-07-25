@@ -13,9 +13,9 @@ public record BtpFiscalDto(
         @JsonProperty("LegalName")       String legalName,
         @JsonProperty("TaxResidency")    String taxResidency
 ) {
-    public static BtpFiscalDto from(FiscalData f) {
+    public static BtpFiscalDto from(String entityId, FiscalData f) {
         return new BtpFiscalDto(
-                "",
+                n(entityId),
                 n(f.taxId()),
                 n(f.vatNumber()),
                 n(f.legalName()),

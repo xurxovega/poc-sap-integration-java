@@ -43,6 +43,7 @@ class BtpContactAdapterTest {
         verify(sapClient).send(eq(SapDestination.BTP), eq(PATH), eq("C-1"), eq("h"),
                 body.capture());
         assertThat(body.getValue())
+                .contains("\"BusinessPartner\":\"C-1\"")
                 .contains("\"Email\":\"info@acme.com\"")
                 .contains("\"Phone\":\"+34 600000000\"")
                 .contains("\"Fax\":\"fax\"")

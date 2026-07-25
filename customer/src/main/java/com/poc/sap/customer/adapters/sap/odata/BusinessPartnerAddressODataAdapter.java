@@ -4,7 +4,6 @@ import com.poc.sap.common.domain.port.SapOutboundPort.SapResponse;
 import com.poc.sap.common.sap.SapClient;
 import com.poc.sap.common.sap.SapDestination;
 import com.poc.sap.common.sap.json.SapJsonMapper;
-import com.poc.sap.common.sap.odata.ODataPayload;
 import com.poc.sap.customer.domain.feature.address.AddressData;
 import com.poc.sap.customer.domain.port.AddressSapPort;
 import com.poc.sap.integration.api.customer.model.APIBUSINESSPARTNERABusinessPartnerAddressTypeCreate;
@@ -35,13 +34,13 @@ public class BusinessPartnerAddressODataAdapter implements AddressSapPort {
         if (a == null) {
             return sapClient.send(SapDestination.S4_NATIVE, path, entityId, payloadHash, "{}");
         }
-        String body = SapJsonMapper.write(ODataPayload.wrap(toSapPayload(a)));
+        String body = SapJsonMapper.write(toSapPayload(entityId, a));
         return sapClient.send(SapDestination.S4_NATIVE, path, entityId, payloadHash, body);
     }
 
-    private APIBUSINESSPARTNERABusinessPartnerAddressTypeCreate toSapPayload(AddressData a) {
+    private APIBUSINESSPARTNERABusinessPartnerAddressTypeCreate toSapPayload(String entityId, AddressData a) {
         var addr = new APIBUSINESSPARTNERABusinessPartnerAddressTypeCreate();
-        addr.setBusinessPartner("");
+        addr.setBusinessPartner(entityId);
         addr.setStreetName(n(a.street()));
         addr.setCityName(n(a.city()));
         addr.setPostalCode(n(a.postalCode()));

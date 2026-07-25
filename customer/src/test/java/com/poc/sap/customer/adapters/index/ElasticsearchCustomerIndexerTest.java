@@ -45,7 +45,7 @@ class ElasticsearchCustomerIndexerTest {
     }
 
     @Test
-    void historyMapsAndSortsById() {
+    void historyKeepsTimestampDescOrderFromRepo() {
         Customer c1 = CustomerFixtures.validCustomer();
         Customer c2 = new Customer("C-2", "CUST-002", "Beta", Customer.Status.ACTIVE,
                 c1.address(), c1.fiscal(), c1.contact(), c1.banking());
@@ -56,7 +56,8 @@ class ElasticsearchCustomerIndexerTest {
 
         List<Customer> history = indexer.history("C-1");
 
-        assertThat(history).extracting(Customer::id).containsExactly("C-1", "C-2");
+        // el repo ya devuelve orden timestamp desc: el mas reciente primero
+        assertThat(history).extracting(Customer::id).containsExactly("C-2", "C-1");
     }
 
     @Test

@@ -47,6 +47,7 @@ class S4BankingAdapterTest {
         verify(sapClient).send(eq(SapDestination.S4_NATIVE), eq(PATH), eq("C-1"), eq("h"),
                 body.capture());
         assertThat(body.getValue())
+                .contains("\"CustomerID\":\"C-1\"")
                 .contains("\"IBAN\":\"ES7621000418401234567890\"")
                 .contains("\"BIC\":\"BBVAESMM\"")
                 .contains("\"Mandates\":\"M-1,M-2\"");

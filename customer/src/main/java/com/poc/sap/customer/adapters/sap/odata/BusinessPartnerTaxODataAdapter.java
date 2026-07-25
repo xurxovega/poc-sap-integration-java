@@ -4,7 +4,6 @@ import com.poc.sap.common.domain.port.SapOutboundPort.SapResponse;
 import com.poc.sap.common.sap.SapClient;
 import com.poc.sap.common.sap.SapDestination;
 import com.poc.sap.common.sap.json.SapJsonMapper;
-import com.poc.sap.common.sap.odata.ODataPayload;
 import com.poc.sap.customer.domain.feature.fiscal.FiscalData;
 import com.poc.sap.customer.domain.port.FiscalSapPort;
 import com.poc.sap.integration.api.customer.model.APIBUSINESSPARTNERABusinessPartnerTaxNumberTypeCreate;
@@ -22,12 +21,15 @@ public class BusinessPartnerTaxODataAdapter implements FiscalSapPort {
 
     private final SapClient sapClient;
     private final String path;
+    private final String taxType;
 
     public BusinessPartnerTaxODataAdapter(
             SapClient sapClient,
-            @Value("${sap.odata.fiscal-path:/sap/opu/odata/sap/API_BUSINESS_PARTNER/A_BusinessPartnerTaxNumber}") String path) {
+            @Value("${sap.odata.fiscal-path:/sap/opu/odata/sap/API_BUSINESS_PARTNER/A_BusinessPartnerTaxNumber}") String path,
+            @Value("${sap.odata.fiscal.tax-type:ES0}") String taxType) {
         this.sapClient = sapClient;
         this.path = path;
+        this.taxType = taxType;
     }
 
     @Override
@@ -35,13 +37,14 @@ public class BusinessPartnerTaxODataAdapter implements FiscalSapPort {
         if (f == null) {
             return sapClient.send(SapDestination.S4_NATIVE, path, entityId, payloadHash, "{}");
         }
-        String body = SapJsonMapper.write(ODataPayload.wrap(toSapPayload(f)));
+        String body = SapJsonMapper.write(toSapPayload(entityId, f));
         return sapClient.send(SapDestination.S4_NATIVE, path, entityId, payloadHash, body);
     }
 
-    private APIBUSINESSPARTNERABusinessPartnerTaxNumberTypeCreate toSapPayload(FiscalData f) {
+    private APIBUSINESSPARTNERABusinessPartnerTaxNumberTypeCreate toSapPayload(String entityId, FiscalData f) {
         var tax = new APIBUSINESSPARTNERABusinessPartnerTaxNumberTypeCreate();
-        tax.setBusinessPartner("");
+        tax.setBusinessPartner(entityId);
+        tax.setBpTaxType(taxType);
         tax.setBpTaxNumber(n(f.taxId()));
         return tax;
     }

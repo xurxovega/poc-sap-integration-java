@@ -8,14 +8,17 @@ import com.poc.sap.customer.adapters.sap.dto.BtpCustomerDto;
 import com.poc.sap.customer.domain.Customer;
 import com.poc.sap.customer.domain.port.CustomerSapOutboundPort;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
 /**
  * Adaptador SAP BTP para el aggregate Customer (operaciones generales como
  * DELETE OData). Las features parciales (address/fiscal/contact/banking) tienen
  * sus propios adapters.
+ * Excluyente con el adaptador OData equivalente (sap.odata.customer.enabled).
  */
 @Component
+@ConditionalOnProperty(name = "sap.odata.customer.enabled", havingValue = "false", matchIfMissing = true)
 public class BtpCustomerAdapter implements CustomerSapOutboundPort {
 
     private final SapClient sapClient;

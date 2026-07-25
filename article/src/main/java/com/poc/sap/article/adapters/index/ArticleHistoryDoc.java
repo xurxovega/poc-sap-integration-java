@@ -8,7 +8,9 @@ import org.springframework.data.elasticsearch.annotations.FieldType;
 
 import java.time.Instant;
 
-@Document(indexName = "articles_history")
+// createIndex=false: el indice no se crea en el arranque (permite bootear sin ES;
+// ES lo crea en la primera escritura o lo gestiona operaciones con template propio)
+@Document(indexName = "articles_history", createIndex = false)
 public class ArticleHistoryDoc {
 
     @Id

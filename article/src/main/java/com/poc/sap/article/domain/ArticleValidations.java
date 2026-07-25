@@ -20,7 +20,7 @@ public final class ArticleValidations {
                 "description obligatoria");
         r = r.and(v -> a.unit() != null && !a.unit().isBlank(), "unit obligatoria");
         r = r.and(v -> a.status() != null, "status obligatorio");
-        r = r.and(v -> a.category() == null || !a.category().isBlank() || true,
+        r = r.and(v -> a.category() == null || !a.category().isBlank(),
                 "category invalida");
         return r;
     }

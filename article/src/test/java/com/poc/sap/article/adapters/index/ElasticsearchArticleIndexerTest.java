@@ -45,7 +45,7 @@ class ElasticsearchArticleIndexerTest {
     }
 
     @Test
-    void historyMapsAndSortsById() {
+    void historyKeepsTimestampDescOrderFromRepo() {
         ArticleHistoryDoc d2 = ArticleHistoryDoc.from(
                 new Article("A-2", "SKU-002", "Tuerca", "Hardware", "UN",
                         Article.Status.ACTIVE),
@@ -57,7 +57,8 @@ class ElasticsearchArticleIndexerTest {
 
         List<Article> history = indexer.history("A-1");
 
-        assertThat(history).extracting(Article::id).containsExactly("A-1", "A-2");
+        // el repo ya devuelve orden timestamp desc: el mas reciente primero
+        assertThat(history).extracting(Article::id).containsExactly("A-2", "A-1");
     }
 
     @Test

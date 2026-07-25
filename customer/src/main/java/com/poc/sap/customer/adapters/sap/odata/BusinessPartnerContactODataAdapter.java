@@ -4,7 +4,6 @@ import com.poc.sap.common.domain.port.SapOutboundPort.SapResponse;
 import com.poc.sap.common.sap.SapClient;
 import com.poc.sap.common.sap.SapDestination;
 import com.poc.sap.common.sap.json.SapJsonMapper;
-import com.poc.sap.common.sap.odata.ODataPayload;
 import com.poc.sap.customer.domain.feature.contact.ContactData;
 import com.poc.sap.customer.domain.port.ContactSapPort;
 import com.poc.sap.integration.api.customer.model.APIBUSINESSPARTNERABusinessPartnerContactTypeCreate;
@@ -35,16 +34,14 @@ public class BusinessPartnerContactODataAdapter implements ContactSapPort {
         if (c == null) {
             return sapClient.send(SapDestination.S4_NATIVE, path, entityId, payloadHash, "{}");
         }
-        String body = SapJsonMapper.write(ODataPayload.wrap(toSapPayload(c)));
+        String body = SapJsonMapper.write(toSapPayload(entityId, c));
         return sapClient.send(SapDestination.S4_NATIVE, path, entityId, payloadHash, body);
     }
 
-    private APIBUSINESSPARTNERABusinessPartnerContactTypeCreate toSapPayload(ContactData c) {
+    private APIBUSINESSPARTNERABusinessPartnerContactTypeCreate toSapPayload(String entityId, ContactData c) {
         var contact = new APIBUSINESSPARTNERABusinessPartnerContactTypeCreate();
-        contact.setBusinessPartnerCompany("");
+        contact.setBusinessPartnerCompany(entityId);
         contact.setRelationshipCategory("BUR001");   // contact person
         return contact;
     }
-
-    private static String n(String s) { return s == null ? "" : s; }
 }

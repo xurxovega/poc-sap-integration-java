@@ -15,9 +15,9 @@ public record BtpAddressDto(
         @JsonProperty("Country")         String country,
         @JsonProperty("Region")          String region
 ) {
-    public static BtpAddressDto from(AddressData a) {
+    public static BtpAddressDto from(String entityId, AddressData a) {
         return new BtpAddressDto(
-                "",
+                n(entityId),
                 n(a.street()),
                 n(a.city()),
                 n(a.postalCode()),

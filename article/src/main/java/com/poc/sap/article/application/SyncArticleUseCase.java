@@ -51,6 +51,11 @@ public class SyncArticleUseCase {
     }
 
     public SyncState execute(IngestionMessage message) {
+        if (stateRepo.alreadySent(DOMAIN, message.entityId(), message.payloadHash())) {
+            log.info("SyncArticle dedupe entityId={} payloadHash={} ya enviado a SAP, se omite",
+                    message.entityId(), message.payloadHash());
+            return SyncState.SENT_SAP;
+        }
         log.info("SyncArticle inicio entityId={} origin={}", message.entityId(), message.origin());
         transition(message, null, SyncState.RECEIVED);
         transition(message, SyncState.RECEIVED, SyncState.FETCHING);

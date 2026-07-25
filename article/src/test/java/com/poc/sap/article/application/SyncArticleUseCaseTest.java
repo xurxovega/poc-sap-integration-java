@@ -39,6 +39,8 @@ class SyncArticleUseCaseTest {
     void setUp() {
         useCase = new SyncArticleUseCase(legacyRepo, imageStore, historyIndexer,
                 sapOutbound, stateRepo, metrics);
+        lenient().when(stateRepo.alreadySent(anyString(), anyString(), anyString()))
+                .thenReturn(false);
     }
 
     private Article validArticle() {
@@ -84,6 +86,18 @@ class SyncArticleUseCaseTest {
 
         assertThat(result).isEqualTo(SyncState.INVALID);
         verify(sapOutbound, never()).send(any(), any(), any());
+    }
+
+    @Test
+    void alreadySentPayloadSkipsPipelineAndReturnsSentSap() {
+        when(stateRepo.alreadySent("article", "A-1", "hash-a")).thenReturn(true);
+
+        SyncState result = useCase.execute(ingestion());
+
+        assertThat(result).isEqualTo(SyncState.SENT_SAP);
+        verify(legacyRepo, never()).fetch(anyString());
+        verify(sapOutbound, never()).send(any(), any(), any());
+        verify(stateRepo, never()).transition(anyString(), anyString(), any());
     }
 
     @Test

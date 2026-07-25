@@ -4,7 +4,6 @@ import com.poc.sap.common.domain.port.SapOutboundPort.SapResponse;
 import com.poc.sap.common.sap.SapClient;
 import com.poc.sap.common.sap.SapDestination;
 import com.poc.sap.common.sap.json.SapJsonMapper;
-import com.poc.sap.common.sap.odata.ODataPayload;
 import com.poc.sap.customer.domain.feature.banking.BankingData;
 import com.poc.sap.customer.domain.port.BankingSapPort;
 import com.poc.sap.integration.api.customer.model.APIBUSINESSPARTNERABusinessPartnerBankTypeCreate;
@@ -35,13 +34,13 @@ public class BusinessPartnerBankODataAdapter implements BankingSapPort {
         if (b == null) {
             return sapClient.send(SapDestination.S4_NATIVE, path, entityId, payloadHash, "{}");
         }
-        String body = SapJsonMapper.write(ODataPayload.wrap(toSapPayload(b)));
+        String body = SapJsonMapper.write(toSapPayload(entityId, b));
         return sapClient.send(SapDestination.S4_NATIVE, path, entityId, payloadHash, body);
     }
 
-    private APIBUSINESSPARTNERABusinessPartnerBankTypeCreate toSapPayload(BankingData b) {
+    private APIBUSINESSPARTNERABusinessPartnerBankTypeCreate toSapPayload(String entityId, BankingData b) {
         var bank = new APIBUSINESSPARTNERABusinessPartnerBankTypeCreate();
-        bank.setBusinessPartner("");
+        bank.setBusinessPartner(entityId);
         bank.setBankIdentification(n(b.bic()));
         bank.setIBAN(n(b.iban()));
         return bank;

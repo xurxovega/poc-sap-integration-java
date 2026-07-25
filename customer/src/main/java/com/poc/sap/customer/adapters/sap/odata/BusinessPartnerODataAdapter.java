@@ -4,7 +4,6 @@ import com.poc.sap.common.domain.port.SapOutboundPort.SapResponse;
 import com.poc.sap.common.sap.SapClient;
 import com.poc.sap.common.sap.SapDestination;
 import com.poc.sap.common.sap.json.SapJsonMapper;
-import com.poc.sap.common.sap.odata.ODataPayload;
 import com.poc.sap.customer.domain.Customer;
 import com.poc.sap.customer.domain.port.CustomerSapOutboundPort;
 import com.poc.sap.integration.api.customer.model.APIBUSINESSPARTNERABusinessPartnerTypeCreate;
@@ -35,12 +34,13 @@ public class BusinessPartnerODataAdapter implements CustomerSapOutboundPort {
         if (customer == null) {
             return sapClient.send(SapDestination.S4_NATIVE, path, entityId, payloadHash, "{}");
         }
-        String body = SapJsonMapper.write(ODataPayload.wrap(toSapPayload(customer)));
+        String body = SapJsonMapper.write(toSapPayload(entityId, customer));
         return sapClient.send(SapDestination.S4_NATIVE, path, entityId, payloadHash, body);
     }
 
-    private APIBUSINESSPARTNERABusinessPartnerTypeCreate toSapPayload(Customer c) {
+    private APIBUSINESSPARTNERABusinessPartnerTypeCreate toSapPayload(String entityId, Customer c) {
         var bp = new APIBUSINESSPARTNERABusinessPartnerTypeCreate();
+        bp.setBusinessPartner(entityId);
         bp.setBusinessPartnerCategory("2");           // 2 = Organization (Customer)
         bp.setBusinessPartnerGrouping("BPEE");        // external business partner
         bp.setOrganizationBPName1(n(c.name()));

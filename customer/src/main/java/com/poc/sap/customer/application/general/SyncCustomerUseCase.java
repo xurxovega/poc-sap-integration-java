@@ -12,7 +12,6 @@ import com.poc.sap.customer.application.fiscal.SyncFiscalUseCase;
 import com.poc.sap.customer.domain.Customer;
 import com.poc.sap.customer.domain.CustomerFeature;
 import com.poc.sap.customer.domain.CustomerValidations;
-import com.poc.sap.customer.domain.feature.banking.BankingValidator;
 import com.poc.sap.customer.domain.port.CustomerImageStorePort;
 import com.poc.sap.customer.domain.port.CustomerHistoryIndexerPort;
 import com.poc.sap.customer.domain.port.CustomerLegacyRepositoryPort;
@@ -87,6 +86,11 @@ public class SyncCustomerUseCase {
         if (features == null || features.isEmpty()) {
             throw new IllegalArgumentException("features no puede ser vacio");
         }
+        if (stateRepo.alreadySent(DOMAIN, message.entityId(), message.payloadHash())) {
+            log.info("SyncCustomer dedupe entityId={} payloadHash={} ya enviado a SAP, se omite",
+                    message.entityId(), message.payloadHash());
+            return SyncState.SENT_SAP;
+        }
         log.info("SyncCustomer inicio entityId={} origin={} features={}",
                 message.entityId(), message.origin(), features);
 
@@ -148,10 +152,5 @@ public class SyncCustomerUseCase {
                 msg.entityId(), DOMAIN, from, to,
                 msg.origin().name().toLowerCase(), msg.payloadHash(), Instant.now()));
         metrics.incrementState(DOMAIN, to.name());
-    }
-
-    @SuppressWarnings("unused")
-    private static void triggerBankingValidator() {
-        BankingValidator.validate(null);
     }
 }

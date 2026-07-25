@@ -14,9 +14,9 @@ public record S4BankingDto(
         @JsonProperty("BIC")        String bic,
         @JsonProperty("Mandates")   String mandates
 ) {
-    public static S4BankingDto from(BankingData b) {
+    public static S4BankingDto from(String entityId, BankingData b) {
         return new S4BankingDto(
-                "",
+                n(entityId),
                 n(b.iban()),
                 n(b.bic()),
                 mandates(b.mandateIds()));

@@ -24,7 +24,10 @@ public final class FiscalValidator {
                 "legalName obligatorio");
         r = r.and(v -> f.taxResidency() != null && !f.taxResidency().isBlank(),
                 "taxResidency obligatoria");
-        r = r.and(v -> !"ES".equals(f.taxResidency()) || TAX_ID_ES.matcher(f.taxId()).matches(),
+        // Null-safe: con ValidationResult.and acumulando errores este predicado
+        // se evalua aunque "taxId obligatorio" ya haya fallado.
+        r = r.and(v -> f.taxId() == null || !"ES".equals(f.taxResidency())
+                        || TAX_ID_ES.matcher(f.taxId()).matches(),
                 "taxId ES invalido");
         r = r.and(v -> f.vatNumber() == null || VAT.matcher(f.vatNumber()).matches(),
                 "vatNumber invalido");

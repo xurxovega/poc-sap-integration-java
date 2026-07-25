@@ -5,7 +5,7 @@ import com.poc.sap.common.sap.SapClient;
 import com.poc.sap.common.sap.SapDestination;
 import com.poc.sap.common.sap.json.SapJsonMapper;
 import com.poc.sap.customer.domain.port.BusinessPartnerReadPort;
-import com.poc.sap.integration.api.customer.model.ABusinessPartnerType;
+import com.poc.sap.integration.api.customer.model.APIBUSINESSPARTNERABusinessPartnerType;
 import com.fasterxml.jackson.databind.JsonNode;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -36,14 +36,14 @@ public class BusinessPartnerReadAdapter implements BusinessPartnerReadPort {
     @Override
     public Optional<BusinessPartnerSummary> findById(String businessPartnerCode) {
         SapResponse r = sapClient.get(SapDestination.S4_NATIVE,
-                path + "('" + businessPartnerCode + "')");
+                path + "('" + escapeODataLiteral(businessPartnerCode) + "')");
         if (!r.isSuccess()) return Optional.empty();
         return parseSingle(r.body());
     }
 
     @Override
     public List<BusinessPartnerSummary> searchByCategory(String category, int top) {
-        return search("BusinessPartnerCategory eq '" + category + "'", top);
+        return search("BusinessPartnerCategory eq '" + escapeODataLiteral(category) + "'", top);
     }
 
     @Override
@@ -64,14 +64,16 @@ public class BusinessPartnerReadAdapter implements BusinessPartnerReadPort {
     }
 
     /**
-     * Parsea un único BP usando el modelo generado {@link ABusinessPartnerType}.
-     * La respuesta OData v2 viene envuelta en {@code {"d": {...}}}.
+     * Parsea un único BP usando el modelo generado {@link APIBUSINESSPARTNERABusinessPartnerType}.
+     * La respuesta OData v2 viene envuelta en {@code {"d": {...}}}: tras extraer el
+     * nodo {@code d} se mapea directamente al tipo interno (sin doble unwrap).
      */
     private Optional<BusinessPartnerSummary> parseSingle(String body) {
         try {
             JsonNode root = SapJsonMapper.mapper().readTree(body);
             JsonNode d = root.has("d") ? root.get("d") : root;
-            ABusinessPartnerType bp = SapJsonMapper.mapper().treeToValue(d, ABusinessPartnerType.class);
+            APIBUSINESSPARTNERABusinessPartnerType bp =
+                    SapJsonMapper.mapper().treeToValue(d, APIBUSINESSPARTNERABusinessPartnerType.class);
             return Optional.of(toSummary(bp));
         } catch (Exception e) {
             return Optional.empty();
@@ -87,7 +89,8 @@ public class BusinessPartnerReadAdapter implements BusinessPartnerReadPort {
 
             List<BusinessPartnerSummary> list = new ArrayList<>();
             for (JsonNode node : results) {
-                ABusinessPartnerType bp = SapJsonMapper.mapper().treeToValue(node, ABusinessPartnerType.class);
+                APIBUSINESSPARTNERABusinessPartnerType bp =
+                        SapJsonMapper.mapper().treeToValue(node, APIBUSINESSPARTNERABusinessPartnerType.class);
                 list.add(toSummary(bp));
             }
             return list;
@@ -96,12 +99,16 @@ public class BusinessPartnerReadAdapter implements BusinessPartnerReadPort {
         }
     }
 
-    private BusinessPartnerSummary toSummary(ABusinessPartnerType bp) {
-        var d = bp.getD();   // OData v2 response wrapper: {"d": {...}}
+    private BusinessPartnerSummary toSummary(APIBUSINESSPARTNERABusinessPartnerType bp) {
         return new BusinessPartnerSummary(
-                n(d != null ? d.getBusinessPartner() : null),
-                n(d != null ? d.getBusinessPartnerFullName() : null),
-                n(d != null ? d.getBusinessPartnerCategory() : null));
+                n(bp.getBusinessPartner()),
+                n(bp.getBusinessPartnerFullName()),
+                n(bp.getBusinessPartnerCategory()));
+    }
+
+    /** Escapa comillas simples de literales OData antes de concatenar en la URL. */
+    private static String escapeODataLiteral(String value) {
+        return value == null ? "" : value.replace("'", "''");
     }
 
     private static String n(String s) { return s == null ? "" : s; }
