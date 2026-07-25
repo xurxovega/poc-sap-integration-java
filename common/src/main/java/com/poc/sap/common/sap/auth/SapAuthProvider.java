@@ -18,4 +18,12 @@ public interface SapAuthProvider {
      * Obtiene un token de acceso valido (con cacheo interno).
      */
     String accessToken();
+
+    /**
+     * Valor completo de la cabecera {@code Authorization}. Por defecto
+     * Bearer; las implementaciones basic-auth lo sobreescriben.
+     */
+    default String authorizationHeader() {
+        return "Bearer " + accessToken();
+    }
 }

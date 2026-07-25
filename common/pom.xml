@@ -41,14 +41,11 @@
             <groupId>io.micrometer</groupId>
             <artifactId>micrometer-registry-prometheus</artifactId>
         </dependency>
-        <dependency>
-            <groupId>io.micrometer</groupId>
-            <artifactId>micrometer-tracing</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>io.opentelemetry.instrumentation</groupId>
-            <artifactId>opentelemetry-spring-boot-starter</artifactId>
-        </dependency>
+        <!-- Trazas distribuidas: el opentelemetry-spring-boot-starter (2.x) solo
+             soporta Spring Boot 3 y rompe el arranque con Boot 4
+             (NoClassDefFoundError: DefaultKafkaProducerFactoryCustomizer).
+             Hasta que exista soporte oficial, usar el OpenTelemetry javaagent
+             (-javaagent:opentelemetry-javaagent.jar), agnostico del framework. -->
         <dependency>
             <groupId>io.github.resilience4j</groupId>
             <artifactId>resilience4j-reactor</artifactId>
@@ -75,6 +72,7 @@
         <dependency>
             <groupId>org.wiremock</groupId>
             <artifactId>wiremock-standalone</artifactId>
+            <scope>test</scope>
         </dependency>
     </dependencies>
 

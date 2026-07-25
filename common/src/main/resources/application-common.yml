@@ -27,9 +27,6 @@ sap:
     banking-path: /sap/opu/odata/sap/API_BUSINESS_PARTNER/A_BusinessPartnerBank
     customer-path: /sap/opu/odata/sap/API_BUSINESS_PARTNER/A_BusinessPartner
     bp-path: /sap/opu/odata/sap/API_BUSINESS_PARTNER/A_BusinessPartner
-  s4:
-    csrf:
-      enabled: ${SAP_S4_CSRF_ENABLED:false}
   btp:
     base-url: ${SAP_BTP_BASE_URL:https://default-tenant.example.eu10.xsuaa.hana.ondemand.com}
     xsuaa:
@@ -38,6 +35,9 @@ sap:
       token-url: ${SAP_BTP_TOKEN_URL:}
   s4:
     base-url: ${SAP_S4_BASE_URL:https://my12345-api.s4hana.cloud.sap}
+    csrf:
+      enabled: ${SAP_S4_CSRF_ENABLED:false}
+      fetch-path: ${SAP_S4_CSRF_FETCH_PATH:/sap/opu/odata/sap/API_BUSINESS_PARTNER/A_BusinessPartner}
     auth:
       type: ${SAP_S4_AUTH_TYPE:oauth2}
       token-url: ${SAP_S4_TOKEN_URL:}
@@ -45,6 +45,16 @@ sap:
       client-secret: ${SAP_S4_CLIENT_SECRET:}
       username: ${SAP_S4_USERNAME:}
       password: ${SAP_S4_PASSWORD:}
+  client:
+    connect-timeout-ms: ${SAP_CLIENT_CONNECT_TIMEOUT_MS:3000}
+    response-timeout-ms: ${SAP_CLIENT_RESPONSE_TIMEOUT_MS:20000}
+    retry:
+      max-attempts: ${SAP_CLIENT_RETRY_MAX_ATTEMPTS:3}
+      initial-backoff-ms: ${SAP_CLIENT_RETRY_INITIAL_BACKOFF_MS:500}
+    circuit-breaker:
+      failure-rate-threshold: ${SAP_CLIENT_CB_FAILURE_RATE:50}
+      sliding-window-size: ${SAP_CLIENT_CB_WINDOW:10}
+      wait-duration-open-ms: ${SAP_CLIENT_CB_WAIT_OPEN_MS:30000}
 
 management:
   endpoints:
@@ -57,18 +67,14 @@ management:
   metrics:
     tags:
       application: sap-integration
-  tracing:
-    sampling:
-      probability: 1.0
-
-otel:
-  exporter:
-    otlp:
-      endpoint: ${OTEL_EXPORTER_OTLP_ENDPOINT:http://localhost:4317}
-  service:
-    name: sap-integration
+  # Trazas distribuidas: pendiente de soporte Boot 4 del starter OTel.
+  # Mientras tanto, arrancar con el OpenTelemetry javaagent y las variables
+  # OTEL_EXPORTER_OTLP_ENDPOINT / OTEL_SERVICE_NAME.
 
 spring:
   threads:
     virtual:
       enabled: true
+  data:
+    mongodb:
+      auto-index-creation: true

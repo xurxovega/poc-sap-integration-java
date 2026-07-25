@@ -72,15 +72,31 @@ public class S4CsrfTokenProvider implements CsrfTokenProvider {
         try {
             HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
 
-            cachedToken = response.headers().firstValue(CSRF_HEADER).orElse(null);
-            if (cachedToken == null) {
-                log.warn("SAP no devolvio x-csrf-token (status={})", response.statusCode());
+            if (response.statusCode() >= 400) {
+                log.warn("Fetch CSRF fallo con status={} — no se cachea token", response.statusCode());
+                return null;
             }
 
-            cachedCookies = response.headers().firstValue("Set-Cookie").orElse(null);
+            String token = response.headers().firstValue(CSRF_HEADER).orElse(null);
+            if (token == null) {
+                log.warn("SAP no devolvio x-csrf-token (status={})", response.statusCode());
+                return null;
+            }
 
-            log.info("CSRF token obtained successfully");
+            // SAP devuelve varias Set-Cookie (SAP_SESSIONID*, sap-usercontext...):
+            // se conservan todas (solo el par nombre=valor, sin atributos).
+            java.util.List<String> setCookies = response.headers().allValues("Set-Cookie");
+            cachedCookies = setCookies.isEmpty() ? null : setCookies.stream()
+                    .map(c -> c.split(";", 2)[0])
+                    .reduce((a, b) -> a + "; " + b)
+                    .orElse(null);
+
+            cachedToken = token;
+            log.info("CSRF token obtenido correctamente");
         } catch (Exception e) {
+            if (e instanceof InterruptedException) {
+                Thread.currentThread().interrupt();
+            }
             log.error("Error obteniendo CSRF token de {}", baseUrl, e);
             throw new RuntimeException("Fallo al obtener CSRF token de SAP: " + e.getMessage(), e);
         }

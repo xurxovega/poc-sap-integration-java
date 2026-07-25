@@ -5,16 +5,23 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 /**
- * Provider BTP xsuaa (TECH.md §8). Stub: en produccion usa OAuth2 client credentials
- * contra xsuaa con cacheo y refresh. Aqui skeleton.
+ * Provider BTP xsuaa (TECH.md §8): OAuth2 client-credentials contra el token
+ * endpoint de xsuaa, con cacheo por expiracion.
+ *
+ * <p>Sin configuracion completa (client-id/secret/token-url) devuelve un token
+ * stub para desarrollo local contra mocks.
  */
 @Component
 public class BtpAuthProvider implements SapAuthProvider {
+
+    private final OAuth2TokenClient tokenClient = new OAuth2TokenClient();
 
     @Value("${sap.btp.xsuaa.client-id:}")
     private String clientId;
     @Value("${sap.btp.xsuaa.client-secret:}")
     private String clientSecret;
+    @Value("${sap.btp.xsuaa.token-url:}")
+    private String tokenUrl;
 
     @Override
     public SapDestination supports() {
@@ -23,9 +30,9 @@ public class BtpAuthProvider implements SapAuthProvider {
 
     @Override
     public String accessToken() {
-        if (clientId.isBlank() || clientSecret.isBlank()) {
+        if (clientId.isBlank() || clientSecret.isBlank() || tokenUrl.isBlank()) {
             return "stub-btp-token";
         }
-        return "cached-btp-token";
+        return tokenClient.accessToken(tokenUrl, clientId, clientSecret);
     }
 }
