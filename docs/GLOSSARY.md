@@ -19,6 +19,12 @@ Interfaz estándar de SAP para acceder a procesos de negocio. En Java se invoca 
 ### BTP (Business Technology Platform)
 Plataforma cloud de SAP. En este proyecto se usa para desplegar apps y resolver destinos/autenticación vía Destination Service y XSUAA/IAS.
 
+### `$batch` (OData) / changeset
+Endpoint OData que agrupa varias operaciones en una sola request HTTP; cada *changeset* interno es atómico (todo o nada). Previsto para las cargas batch masivas (patrón 4 de [`INTEGRATION-PATTERNS.md`](architecture/INTEGRATION-PATTERNS.md)); aún sin soporte en `SapClient`.
+
+### Business Events
+Eventos de negocio que S/4HANA Public Cloud publica cuando algo ocurre dentro de SAP (p. ej. movimiento de mercancía, cambio de stock). Base del patrón 5 (SAP → plataforma) de [`INTEGRATION-PATTERNS.md`](architecture/INTEGRATION-PATTERNS.md); pendiente de decisión del equipo SAP.
+
 ### Business Partner
 Entidad maestra de SAP S/4HANA que agrupa datos de cliente, proveedor y socio. En el dominio `customer` se sincroniza mediante OData VDM. Ver [`SAP_CLOUD_SDK.md`](integrations/SAP_CLOUD_SDK.md#1-business-partner--odm-vdm).
 
@@ -36,6 +42,9 @@ Patrón de resiliencia que abre el circuito tras fallos consecutivos para evitar
 ### Cloud Connector
 Componente de SAP BTP que permite conectividad segura desde BTP hacia sistemas on-premise.
 
+### Communication arrangement / communication user
+Configuración en S/4HANA Public Cloud que habilita un escenario de API (p. ej. `SAP_COM_0008` para Business Partner) y el usuario técnico con el que se autentican las llamadas entrantes.
+
 ## D
 
 ### Debezium
@@ -47,10 +56,16 @@ Servicio de SAP BTP que centraliza URL, autenticación y propiedades de conexió
 ### DDD (Domain-Driven Design)
 Enfoque de diseño centrado en el dominio. En este proyecto se aplica mediante bounded contexts (`customer`, `article`, `supplier`) y capas por paquete.
 
+### DLT (Dead Letter Topic)
+Topic `<original>.DLT` al que el `DefaultErrorHandler` publica un mensaje que sigue fallando tras agotar los reintentos con backoff, para inspección o reproceso manual. Ver [`TECH.md`](specs/TECH.md#6-entradas).
+
 ## E
 
 ### Elasticsearch (ES)
 Motor de búsqueda e indexación. Almacena histórico de sincronizaciones. Port: `HistoryIndexerPort`.
+
+### Event Mesh / Advanced Event Mesh
+Broker de eventos de SAP BTP por el que se distribuyen los Business Events de S/4 hacia consumidores externos (webhook o AMQP). Candidato a transporte del patrón 5 de [`INTEGRATION-PATTERNS.md`](architecture/INTEGRATION-PATTERNS.md).
 
 ## F
 
@@ -69,6 +84,9 @@ Propiedad que garantiza que reintentar una operación no produce efectos duplica
 
 ### IAS (Identity Authentication Service)
 Servicio de autenticación de SAP BTP, alternativa a XSUAA.
+
+### iFlow / Integration Suite
+Integration Suite es el iPaaS de SAP BTP; un *iFlow* es un flujo de integración configurado en él (mapeos, orquestación, planificación). Alternativa a una app CAP como intermediario del patrón 2 y como iniciador del patrón 3 de [`INTEGRATION-PATTERNS.md`](architecture/INTEGRATION-PATTERNS.md).
 
 ## J
 
@@ -109,6 +127,9 @@ Estándar de observabilidad para trazas distribuidas. Configurado en `common/obs
 Patrón que escribe eventos en una tabla outbox transaccionalmente con el cambio de negocio; Debezium lee la outbox y publica en Kafka.
 
 ## P
+
+### payloadHash
+Hash del payload del evento de ingesta; clave del dedupe de idempotencia: si ya existe una transición `SENT_SAP` de la entidad con ese hash (`SyncStateRepositoryPort.alreadySent`), el mensaje se descarta sin reprocesar. Viaja también como cabecera `Idempotency-Key`.
 
 ### Port
 Interfaz Java en el dominio que define una capacidad externa sin depender de infraestructura. Ver [`TECH.md`](specs/TECH.md#5-puertos-y-adaptadores).

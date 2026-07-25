@@ -11,6 +11,7 @@ legacy hacia **SAP S/4 Public Cloud**. Migración del POC Python a
 - [`docs/specs/sap/`](docs/specs/sap/) — [README.md](docs/specs/sap/README.md) (catálogo de endpoints y mapping features↔API). La especificación OpenAPI oficial (SAP_COM_0008) vive en [`sap-api-models/specs/customer/API_BUSINESS_PARTNER.yaml`](sap-api-models/specs/customer/API_BUSINESS_PARTNER.yaml).
 - [`docs/architecture/OVERVIEW.md`](docs/architecture/OVERVIEW.md) — mapas y esquemas del aplicativo: módulos, aggregate Customer, flujos CDC/REST/feature, puertos y adaptadores, máquina de estados, deployment, convención de paquetes.
 - [`docs/architecture/FLOWS.md`](docs/architecture/FLOWS.md) — flujos de integración SAP con nombres de clase para navegar el código: CDC completo, consulta BP, creación BP, callback BTP, mapa de rutas BTP vs directo, actualización BP.
+- [`docs/architecture/INTEGRATION-PATTERNS.md`](docs/architecture/INTEGRATION-PATTERNS.md) — esquemas visuales (Mermaid) de los patrones de integración con SAP: CDC→OData S/4 y CDC→BTP (implementados); pull desde BTP, batch disparado por topic Kafka y eventos S/4 (stock) como implementación futura.
 - [`docs/integrations/SAP_CLOUD_SDK.md`](docs/integrations/SAP_CLOUD_SDK.md) — guía de integración con SAP Cloud SDK: OData VDM (Business Partner), OpenAPI (APIs propias de SAP y callbacks), BTP destinations, arquitectura hexagonal, módulos Maven.
 - [`docs/testing/TESTING.md`](docs/testing/TESTING.md) — estrategia y catálogo de la suite de tests (211 tests, tipos, convenciones, contratos SAP, issues conocidos).
 - [`docs/integration-guide/README.md`](docs/integration-guide/README.md) — estado de la integración SAP: brechas resueltas (resiliencia, OAuth2, CSRF, idempotencia, DLT, CDC) y pendientes (saga por feature, contactos, mandatos).
@@ -75,6 +76,7 @@ mvn compile -Dmaven.compiler.release=25     # forzar JDK 25 (requiere tenerlo)
 ## Arrancar en local (per-dominio)
 
 Customer (cliente):
+
 ```bash
 mvn -pl customer -am spring-boot:run
 # API: http://localhost:8081/customers
@@ -83,6 +85,7 @@ mvn -pl customer -am spring-boot:run
 ```
 
 Article (artículo):
+
 ```bash
 mvn -pl article -am spring-boot:run
 # API: http://localhost:8082/articles
@@ -120,10 +123,12 @@ En VS Code: `Run and Debug` → crear `launch.json` → tipo `Java` →
 ### Opción C — Test unitarios / IT con debugger
 
 Para debuggear un test concreto:
+
 - Abre el fichero de test en VS Code.
 - Botón `Debug` (el triángulo con bug) sobre la clase o el método `@Test`.
 
 Para IT que usan Testcontainers (necesitan Docker daemon):
+
 ```bash
 mvn -pl customer verify -Dtest=CustomerValidationsTest -Dmaven.compiler.release=23
 ```
