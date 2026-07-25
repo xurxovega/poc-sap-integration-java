@@ -108,9 +108,16 @@ RECEIVED → FETCHING → VALIDATING → VALID | INVALID
                                    VALID → INDEXING → INDEXED
                                                    INDEXED → SENDING_SAP → SENT_SAP
 Errores: ERROR, SAP_ERROR, COMMUNICATION_ERROR
+Re-sincronización: SENT_SAP → RECEIVED, INVALID → RECEIVED
 ```
 
 Cada transición se persiste con `timestamp`, `origen` y `hash`.
+
+- Una entidad sin historial entra por `RECEIVED` (pipeline aggregate) o
+  `VALIDATING` (pipeline por feature).
+- `SENT_SAP` e `INVALID` cierran el ciclo pero admiten re-entrada a
+  `RECEIVED` cuando llega un nuevo evento de la entidad; los duplicados se
+  descartan por `payloadHash` antes de reabrir el ciclo (idempotencia, §7).
 
 ## 9. Criterios de aceptación / resultados
 

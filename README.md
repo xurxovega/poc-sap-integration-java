@@ -8,11 +8,12 @@ legacy hacia **SAP S/4 Public Cloud**. Migración del POC Python a
 
 - [`docs/specs/SPEC.md`](docs/specs/SPEC.md) — especificación funcional agnóstica a tecnología: objetivo, dominios, fuentes de entrada, destinos SAP, máquina de estados, criterios de aceptación.
 - [`docs/specs/TECH.md`](docs/specs/TECH.md) — stack tecnológico: Java 25 + Spring Boot 4.0 + Maven, puertos y adaptadores, persistencia, observabilidad, testing.
-- [`docs/specs/sap/`](docs/specs/sap/) — [API_BUSINESS_PARTNER.yaml](docs/specs/sap/API_BUSINESS_PARTNER.yaml) (especificación OpenAPI oficial SAP S/4HANA, SAP_COM_0008) y [README.md](docs/specs/sap/README.md) (catálogo de endpoints y mapping features↔API).
+- [`docs/specs/sap/`](docs/specs/sap/) — [README.md](docs/specs/sap/README.md) (catálogo de endpoints y mapping features↔API). La especificación OpenAPI oficial (SAP_COM_0008) vive en [`sap-api-models/specs/customer/API_BUSINESS_PARTNER.yaml`](sap-api-models/specs/customer/API_BUSINESS_PARTNER.yaml).
 - [`docs/architecture/OVERVIEW.md`](docs/architecture/OVERVIEW.md) — mapas y esquemas del aplicativo: módulos, aggregate Customer, flujos CDC/REST/feature, puertos y adaptadores, máquina de estados, deployment, convención de paquetes.
 - [`docs/architecture/FLOWS.md`](docs/architecture/FLOWS.md) — flujos de integración SAP con nombres de clase para navegar el código: CDC completo, consulta BP, creación BP, callback BTP, mapa de rutas BTP vs directo, actualización BP.
 - [`docs/integrations/SAP_CLOUD_SDK.md`](docs/integrations/SAP_CLOUD_SDK.md) — guía de integración con SAP Cloud SDK: OData VDM (Business Partner), OpenAPI (APIs propias de SAP y callbacks), BTP destinations, arquitectura hexagonal, módulos Maven.
-- [`docs/testing/TESTING.md`](docs/testing/TESTING.md) — estrategia y catálogo de la suite de tests (191 tests, tipos, convenciones, contratos SAP, issues conocidos).
+- [`docs/testing/TESTING.md`](docs/testing/TESTING.md) — estrategia y catálogo de la suite de tests (211 tests, tipos, convenciones, contratos SAP, issues conocidos).
+- [`docs/integration-guide/README.md`](docs/integration-guide/README.md) — estado de la integración SAP: brechas resueltas (resiliencia, OAuth2, CSRF, idempotencia, DLT, CDC) y pendientes (saga por feature, contactos, mandatos).
 - [`docs/GLOSSARY.md`](docs/GLOSSARY.md) — glosario de términos del proyecto con definiciones y enlaces.
 
 ## Arquitectura
@@ -36,12 +37,16 @@ Cada dominio sigue capas por paquete:
 
 ## Requisitos
 
-- **JDK 23 LTS mínimo** (Java 25 LTS es el objetivo final).
-  - El reactor compila con el JDK que tengas en `JAVA_HOME`.
-  - Con JDK 23: compila con `<release>23` (por defecto).
-  - Con JDK 25: el profile `jdk25` se activa automáticamente y sube el release a 25.
+- **JDK 25 LTS recomendado** (es el target del proyecto; el profile `jdk25`
+  se activa automáticamente y compila con `release 25`).
+  - Con JDK 23: compila con `<release>23` (por defecto del parent).
+  - Con JDK 21: funciona forzando `-Dmaven.compiler.release=21` (el código no
+    usa features de lenguaje posteriores a 21).
+  - En WSL sin JDK 25 del sistema: descomprimir Temurin 25 en `~/.jdks` y usar
+    `JAVA_HOME=$HOME/.jdks/jdk-25.0.3+9 mvn ...`.
 - Maven 3.9+ (o usar el wrapper incluido).
-- Docker (para Testcontainers en tests de integración).
+- Docker (para Testcontainers en tests de integración y para la
+  infraestructura local de `external-services/`, incluido Debezium/Kafka Connect).
 
 ## Comandos
 
@@ -181,7 +186,9 @@ ${...} para todo lo sensible.
 
 ## Testing
 
-Suite de **191 tests** (unit, slice web, contract SAP, integration con Testcontainers).
+Suite de **211 tests** (unit, slice web, contract SAP con WireMock,
+resiliencia del cliente SAP, smoke de contexto Spring por app, integration
+con Testcontainers).
 
 ```bash
 mvn test                              # unit tests de todos los módulos
@@ -191,5 +198,33 @@ mvn -pl it verify -Ddocker.available=true   # + Testcontainers (Kafka, Mongo)
 mvn clean verify                      # suite completa
 ```
 
+Los smoke tests `CustomerApplicationContextTest` / `ArticleApplicationContextTest`
+levantan el contexto Spring completo de cada app sin infraestructura externa:
+cazan beans que faltan, YAML inválido y roturas de compatibilidad con Boot 4
+antes de cualquier despliegue.
+
 Catálogo completo, convenciones, gaps y issues en
 [`docs/testing/TESTING.md`](docs/testing/TESTING.md).
+
+## Saneamiento 2026-07 (rama `feature/saneamiento-integracion-sap`)
+
+Cambios estructurales aplicados sobre `develop` — detalle y estado por brecha
+en [`docs/integration-guide/README.md`](docs/integration-guide/README.md):
+
+- **Arranque**: config `sap.s4` duplicada fusionada; `SapIntegrationConfig`
+  (common) aporta `SapClient`, auth providers y registries Resilience4j;
+  repositorios Spring Data con `@Enable*Repositories`/`@EntityScan` explícitos.
+- **Compatibilidad Spring Boot 4**: `spring-boot-starter-kafka` (el
+  `spring-kafka` suelto no autoconfigura), Jackson 3 por defecto (se usa
+  `SapJsonMapper.mapper()` en vez del bean clásico), starter OTel eliminado
+  (incompatible con Boot 4 — usar el javaagent de OpenTelemetry), `@EntityScan`
+  en su nueva ubicación.
+- **Pipeline**: máquina de estados con estado inicial y re-sincronización
+  (`SENT_SAP/INVALID → RECEIVED`), dedupe de idempotencia por `payloadHash`,
+  DLT Kafka (`<topic>.DLT`) con backoff, `DELETE` cableado.
+- **Cliente SAP**: retry/circuit breaker funcionales (5xx y transporte),
+  timeouts, OAuth2 client-credentials real con caché, CSRF completo
+  (fetch + cookies + refresh en 403), payloads OData sin wrapper `d` y con
+  `BusinessPartner` real.
+- **Infra local**: Debezium/Kafka Connect en `external-services/` con tablas
+  outbox, triggers y conectores listos para registrar.

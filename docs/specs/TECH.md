@@ -69,7 +69,10 @@ no depende de nada. `application` solo de `domain`. `adapters` de `application`
 
 ## 6. Entradas
 
-- **CDC**: Spring Kafka consumer sobre topics `outbox.<DOMINIO>` (Debezium).
+- **CDC**: consumer Kafka (`spring-boot-starter-kafka`; en Boot 4 el
+  `spring-kafka` suelto no autoconfigura) sobre topics `outbox.<DOMINIO>`
+  (Debezium). Errores: `DefaultErrorHandler` con backoff exponencial y
+  dead-letter topic `<topic>.DLT`; `DELETE` enruta al use case de borrado.
 - **Eventos directos**: Spring Kafka sobre `events.<DOMINIO>` (futuro).
 - **REST**: Spring Web `POST /{domain}/sync`, OpenAPI en `/swagger-ui.html`.
 - Opcional: Confluent Schema Registry (Avro/Protobuf) cuando maduren contratos.
@@ -86,11 +89,26 @@ no depende de nada. `application` solo de `domain`. `adapters` de `application`
 - `S4NativeApiAdapter`: cliente OData/REST con autenticación propia (basic/OAuth2).
 - Contrato de cliente centralizado en `common/sap` para reutilizar auth,
   reintentos y circuit breaker (Resilience4j).
+- Semántica de errores del cliente (`WebClientSapClient`): 5xx y errores de
+  transporte disparan retry con backoff exponencial y cuentan para el circuit
+  breaker; 4xx no se reintenta; timeouts de conexión/respuesta configurables
+  vía `sap.client.*` en `application-common.yml`.
+- OAuth2 client-credentials real con caché por expiración
+  (`OAuth2TokenClient`; xsuaa para BTP, token endpoint o basic para S/4) con
+  fallback a token stub cuando no hay credenciales configuradas (dev local).
+- CSRF OData V2: fetch de `x-csrf-token` + cookies de sesión en escrituras
+  S/4, con refresh y reintento único en 403 (`sap.s4.csrf.enabled`).
+- Modelos de payload generados desde la spec oficial `API_BUSINESS_PARTNER`
+  en el módulo `sap-api-models` (openapi-generator del SAP Cloud SDK);
+  serialización con `SapJsonMapper` (NON_NULL, sin wrapper `d` en peticiones).
 
 ## 9. Observabilidad
 
 - Micrometer + Prometheus registry expuesto por Actuator (`/actuator/prometheus`).
-- OpenTelemetry SDK con exporter OTLP (trazas distribuidas).
+- Trazas distribuidas: **OpenTelemetry javaagent** en el arranque de la JVM
+  (`-javaagent:opentelemetry-javaagent.jar` + `OTEL_EXPORTER_OTLP_ENDPOINT`).
+  El starter Spring de OTel (2.x) solo soporta Boot 3 y rompe el arranque con
+  Boot 4, por eso no se usa como dependencia.
 - Logs estructurados (JSON) + correlación por `traceId`.
 - Métricas por dominio y por estado de la máquina de estados.
 

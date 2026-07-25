@@ -110,9 +110,6 @@ Patrón que escribe eventos en una tabla outbox transaccionalmente con el cambio
 
 ## P
 
-### PENDING_SAP
-Estado de la máquina de estados que indica que una entidad está lista para ser recogida por SAP BTP vía polling (modo Pull). SAP consulta `GET /btp/pending`, procesa en S/4HANA, y notifica resultado vía `POST /btp/result`. Ver [`FLOWS.md`](architecture/FLOWS.md#flujo-4--integración-pull-sap-btp-orquesta-el-ciclo-completo).
-
 ### Port
 Interfaz Java en el dominio que define una capacidad externa sin depender de infraestructura. Ver [`TECH.md`](specs/TECH.md#5-puertos-y-adaptadores).
 
@@ -120,7 +117,7 @@ Interfaz Java en el dominio que define una capacidad externa sin depender de inf
 Sistema de métricas y alertas. Actuator lo expone en `/actuator/prometheus`.
 
 ### Pull (integración)
-Modo de integración donde SAP BTP inicia el ciclo: pregunta pendientes (`GET /btp/pending`), procesa en S/4HANA, y notifica resultado (`POST /btp/result`). Nuestra app espera pasivamente. Configurable con `sap.integration.mode=pull`. Ver [`FLOWS.md`](architecture/FLOWS.md#push-vs-pull--dos-modos-de-integración).
+**Propuesta, no implementada.** Modo de integración donde SAP BTP iniciaría el ciclo: preguntar pendientes (`GET /btp/pending`), procesar en S/4HANA, y notificar resultado (`POST /btp/result`). Ni los endpoints ni el estado asociado existen en el código actual. Ver [`FLOWS.md`](architecture/FLOWS.md#push-vs-pull--dos-modos-de-integración).
 
 ### Push (integración)
 Modo de integración donde nuestra app empuja datos a SAP activamente vía `SapClient.send/patch()`. Puede ir por BTP o por API directa según el adaptador activo. Configurable con `sap.integration.mode=push`. Ver [`FLOWS.md`](architecture/FLOWS.md#push-vs-pull--dos-modos-de-integración).
@@ -151,7 +148,9 @@ Módulo `common` con primitivas de dominio, máquina de estados, clientes SAP y 
 Test de una capa aislada (p. ej. REST controller) sin levantar todo el contexto Spring Boot. En Spring Boot 4.0 se hace con `MockMvcBuilders.standaloneSetup`. Ver [`TESTING.md`](testing/TESTING.md#2-tipos-de-tests).
 
 ### State Machine
-Máquina de estados de sincronización: `RECEIVED → VALIDATED → ENRICHED → PUSHED → CONFIRMED/FAILED`. Ver [`SPEC.md`](specs/SPEC.md#8-máquina-de-estados).
+Máquina de estados de sincronización (`common/domain/SyncStateMachine.java`):
+`RECEIVED → FETCHING → VALIDATING → VALID | INVALID`; `VALID → INDEXING → INDEXED → SENDING_SAP → SENT_SAP | SAP_ERROR`.
+Estados de error: `ERROR`, `SAP_ERROR` y `COMMUNICATION_ERROR`. Re-entrada: `SENT_SAP → RECEIVED` e `INVALID → RECEIVED` cuando llega un nuevo evento de la entidad. Ver [`SPEC.md`](specs/SPEC.md#8-máquina-de-estados).
 
 ## T
 

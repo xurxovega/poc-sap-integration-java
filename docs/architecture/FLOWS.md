@@ -14,9 +14,9 @@ se valida, se persiste imagen y estado, y se envía a SAP.
 > **Push vs Pull:** El mismo mensaje de Kafka puede terminar en BTP
 > (`BtpAddressAdapter`) o en la API directa SAP (`BusinessPartnerAddressODataAdapter`)
 > según qué adaptador esté activo por configuración Spring.
-> O bien, puede quedar en estado `PENDING_SAP` y esperar a que SAP BTP
-> lo reclame vía polling (ver [Flujo 4](#flujo-4--integración-pull-sap-btp-orquesta-el-ciclo-completo)).
-> No son excluyentes: un mismo CDC puede enviarse por push y quedar pendiente para pull.
+> El modo Pull descrito en el [Flujo 4](#flujo-4--integración-pull-sap-btp-orquesta-el-ciclo-completo)
+> (estado `PENDING_SAP` + polling de SAP BTP) es una **propuesta no implementada**:
+> ni ese estado ni esos endpoints existen en el código actual.
 
 ```
 Kafka topic outbox.CUSTOMER
@@ -38,7 +38,7 @@ customer/application/general/SyncCustomerUseCase.java
   │
   ├─[3] CustomerImageStorePort.save(id, customer)
   │      └→ customer/adapters/persistence/MongoCustomerImageStore.java
-  │         guarda en MongoDB (colección customer_documents)
+  │         guarda en MongoDB (colección customers_current)
   │
   ├─[4] CustomerHistoryIndexerPort.index(id, customer, hash)
   │      └→ customer/adapters/index/ElasticsearchCustomerIndexer.java
@@ -75,6 +75,10 @@ customer/application/general/SyncCustomerUseCase.java
 
 ## Flujo 2 — Consulta Customer vía BP API (GET, sin coste SAP)
 
+> ⚠️ **PROPUESTA — no implementado (parcialmente).** `LookupCustomerController` y
+> `LookupCustomerUseCase` NO existen en el código. Lo que sí está implementado es
+> el adaptador `BusinessPartnerReadAdapter` y su puerto `BusinessPartnerReadPort`.
+
 Lee un Business Partner desde SAP S/4HANA usando la API Business Partner.
 Ruta de solo lectura, no modifica estado.
 
@@ -82,11 +86,11 @@ Ruta de solo lectura, no modifica estado.
 REST GET /api/customers/lookup?code=C001
   │
   ▼
-customer/bootstrap/web/LookupCustomerController.java  (NUEVO — F5)
+customer/bootstrap/web/LookupCustomerController.java  (PROPUESTA — no existe)
   │  @GetMapping("/api/customers/lookup")
   │  recibe código, delega en use case
   ▼
-customer/application/general/LookupCustomerUseCase.java  (NUEVO — F5)
+customer/application/general/LookupCustomerUseCase.java  (PROPUESTA — no existe)
   │
   └─ BusinessPartnerReadPort.findById(code)
       │  customer/domain/port/BusinessPartnerReadPort.java
@@ -113,17 +117,24 @@ customer/application/general/LookupCustomerUseCase.java  (NUEVO — F5)
 
 ## Flujo 3 — Creación BP desde Customer (POST, upsert con coste)
 
+> ⚠️ **PROPUESTA — no implementado (parcialmente).** `CreateBusinessPartnerController`
+> y `CreateBusinessPartnerUseCase` NO existen en el código. Lo que sí está
+> implementado es `BusinessPartnerODataAdapter` (invocado hoy desde
+> `SyncCustomerUseCase` vía `CustomerSapOutboundPort` cuando
+> `sap.odata.customer.enabled=true`).
+
 Crea un nuevo Business Partner en SAP vía la API OData directa.
-Ruta de escritura: el payload se envuelve en `{"d": {...}}` (OData v2).
+Nota OData v2: el body de la petición POST va **sin envolver**; el wrapper
+`{"d": {...}}` solo aparece en las respuestas.
 
 ```
 REST POST /api/customers/create-bp
   │  body: { "code": "C003", "name": "Nueva Empresa", "status": "ACTIVE" }
   ▼
-customer/bootstrap/web/CreateBusinessPartnerController.java  (NUEVO)
+customer/bootstrap/web/CreateBusinessPartnerController.java  (PROPUESTA — no existe)
   │  recibe payload, construye Customer, delega
   ▼
-customer/application/general/CreateBusinessPartnerUseCase.java  (NUEVO)
+customer/application/general/CreateBusinessPartnerUseCase.java  (PROPUESTA — no existe)
   │
   ├─[1] CustomerValidations.validate(customer, ALL_FEATURES)
   │
@@ -132,18 +143,17 @@ customer/application/general/CreateBusinessPartnerUseCase.java  (NUEVO)
   └─[3] CustomerSapOutboundPort.send(entityId, hash, customer)
       │  customer/domain/port/CustomerSapOutboundPort.java
       │
-      └→ customer/adapters/sap/odata/BusinessPartnerODataAdapter.java  (ruta OData)
+      └→ customer/adapters/sap/odata/BusinessPartnerODataAdapter.java  (IMPLEMENTADO)
          │  Activado si sap.odata.customer.enabled=true
          │
-         ├─ customer/adapters/sap/dto/BtpCustomerDto.from(customer)
-         │   {"BusinessPartner":"C003", "Name":"Nueva Empresa", "Status":"ACTIVE"}
+         ├─ construye el modelo generado de sap-api-models:
+         │   APIBUSINESSPARTNERABusinessPartnerTypeCreate
+         │   (BusinessPartner, BusinessPartnerCategory=2, BusinessPartnerGrouping, OrganizationBPName1)
          │
-         ├─ common/sap/odata/ODataPayload.wrap(dto)
-         │   {"d": {"BusinessPartner":"C003", "Name":"Nueva Empresa", "Status":"ACTIVE"}}
+         ├─ common/sap/json/SapJsonMapper.write(modelo)
+         │   {"BusinessPartner":"C003","BusinessPartnerCategory":"2",...}  ← sin wrapper "d"
          │
-         ├─ common/sap/json/SapJsonMapper.write(payload)
-         │
-         ├─ common/sap/SapClient.send(S4_NATIVE, "A_BusinessPartner", ...)
+         ├─ common/sap/SapClient.send(S4_NATIVE, ".../A_BusinessPartner", ...)
          │   └→ common/sap/WebClientSapClient.java
          │       exchange("POST", ...) → WebClient.post()
          │
@@ -153,13 +163,17 @@ customer/application/general/CreateBusinessPartnerUseCase.java  (NUEVO)
 ```
 
 **Puntos de entrada para debuggear:**
-- `CreateBusinessPartnerController.java` — endpoint REST
-- `BusinessPartnerODataAdapter.java:31` — antes de envolver y enviar
+- `BusinessPartnerODataAdapter.send()` — antes de serializar y enviar
 - `SapJsonMapper.write(payload)` — ver el JSON que se envía a SAP
 
 ---
 
 ## Flujo 4 — Integración Pull (SAP BTP orquesta el ciclo completo)
+
+> ⚠️ **PROPUESTA — no implementado.** Ninguna de las clases de este flujo
+> (`BtpPendingController`, `BtpPendingQueryUseCase`, `BtpResultController`,
+> `BtpResultProcessingUseCase`) existe en el código, y el estado `PENDING_SAP`
+> NO forma parte de `SyncState`/`SyncStateMachine` actuales.
 
 SAP BTP toma el control de la integración: pregunta qué hay pendiente,
 procesa en S/4HANA, y notifica el resultado. Nuestra app no empuja datos,
@@ -177,12 +191,12 @@ responde a demanda.
           │                                                           │
           ▼                                                           ▼
   customer/bootstrap/web/BtpPendingController.java    customer/bootstrap/web/BtpResultController.java
-  (NUEVO)                                            (NUEVO)
+  (PROPUESTA — no existe)                            (PROPUESTA — no existe)
           │                                                           │
           ▼                                                           ▼
   customer/application/general/                     customer/application/general/
   BtpPendingQueryUseCase.java                       BtpResultProcessingUseCase.java
-  (NUEVO)                                           (NUEVO)
+  (PROPUESTA — no existe)                           (PROPUESTA — no existe)
           │                                                           │
           ├─ SyncStateRepositoryPort                                   ├─ SyncStateRepositoryPort
           │   .findByDomainAndState(                                    │   .transition(entityId,
@@ -242,7 +256,7 @@ responde a demanda.
 - `BtpResultController.java` — breakpoint cuando SAP devuelve resultado
 - `MongoSyncStateRepository.java` — filtrar por state=PENDING_SAP
 
-**Ficheros implicados (NUEVOS):**
+**Ficheros implicados (PROPUESTOS, no existen):**
 
 | Fichero | Rol |
 |---|---|
@@ -256,6 +270,10 @@ responde a demanda.
 ---
 
 ## Push vs Pull — Dos modos de integración
+
+> ⚠️ El modo **Pull** de esta sección es una **propuesta no implementada**
+> (ver Flujo 4). Hoy solo existe Push; `sap.integration.mode` está definido en
+> `application-common.yml` pero el valor `pull`/`both` no tiene efecto en el código.
 
 BTP y API directa no son excluyentes. Son **vías de integración** que pueden
 coexistir, incluso para el mismo dominio. La decisión de cuál usar puede ser
@@ -358,6 +376,9 @@ Propiedades en application-common.yml:
 
 ## Flujo 6 — Actualización BP desde Customer (PATCH, upsert con coste)
 
+> ⚠️ **PROPUESTA — no implementado.** `UpdateBusinessPartnerUseCase` NO existe
+> en el código; hoy `CustomerSapOutboundPort` solo expone `send` (POST).
+
 Modifica un Business Partner existente en SAP. Solo envía los campos cambiados
 (no todo el aggregate).
 
@@ -369,7 +390,7 @@ customer/application/general/SyncCustomerUseCase.java
   │  detecta cambio (delta vs imagen en MongoDB)
   │  si el BP ya existe en SAP → PATCH
   ▼
-customer/application/general/UpdateBusinessPartnerUseCase.java  (NUEVO)
+customer/application/general/UpdateBusinessPartnerUseCase.java  (PROPUESTA — no existe)
   │
   ├─ buildUpdatePayload(customer, existingBpCode)
   │   compara campos cambiados, construye payload mínimo
@@ -381,12 +402,12 @@ customer/application/general/UpdateBusinessPartnerUseCase.java  (NUEVO)
       │  common/sap/SapClient.java
       └→ common/sap/WebClientSapClient.java
           exchange("PATCH", ...) → WebClient.patch()
-          body: ODataPayload.wrap(updateDto)
+          body: JSON de la entidad sin envolver (el wrapper "d" es solo de respuestas OData v2)
 ```
 
 ---
 
-## Resumen de ficheros nuevos (no implementados aún)
+## Resumen de ficheros PROPUESTOS (no implementados)
 
 | Fichero | Flujo | Función |
 |---|---|---|

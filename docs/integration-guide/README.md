@@ -58,9 +58,9 @@ sequenceDiagram
 
 | Sistema | Protocolo | Flujo | Auth | Puntos de fallo clave |
 |---|---|---|---|---|
-| SAP BTP (xsuaa) | HTTPS/OData POST | Salida Customer ADDRESS/FISCAL/CONTACT/DELETE | OAuth2 (STUB) | auth stub; retry no dispara; sin timeout; sin mapeo errores; DELETE como POST |
-| SAP S/4 Cloud | HTTPS/OData POST | Salida Customer BANKING + Article | OAuth2/username (STUB) | idem + mandates nulos |
-| Kafka (CDC) | Kafka consumer | Entrada outbox.CUSTOMER/outbox.ARTICLE | plain | sin DLQ; sin idempotencia de consumo; Debezium no cableado |
+| SAP BTP (xsuaa) | HTTPS/OData POST | Salida Customer ADDRESS/FISCAL/CONTACT/DELETE | OAuth2 (fallback stub sin config) | sin mapeo fino de errores SAP; DELETE como POST |
+| SAP S/4 Cloud | HTTPS/OData POST | Salida Customer BANKING + Article | OAuth2/username (fallback stub sin config) | idem + mandatos no llegan del legacy |
+| Kafka (CDC) | Kafka consumer | Entrada outbox.CUSTOMER/outbox.ARTICLE | plain | reintentos con backoff + DLT `<topic>.DLT`; dedupe por payloadHash; Debezium cableado en `external-services/` |
 | SQL Server | JDBC/JPA | Lectura Customer legacy | user/pass | ddl-auto=validate; Status.valueOf sin fallback valor invalido |
 | PostgreSQL | JDBC/JPA | Lectura Article legacy | user/pass | idem, sin fallback status |
 | MongoDB | driver | Imagen actual + estado sync | none | race condition en transition; _id no unico; historial pierde estado origen |
@@ -71,19 +71,28 @@ Estados SAP: `RECEIVED -> FETCHING -> VALIDATING -> {VALID|INVALID} -> INDEXING 
 
 ## Brechas conocidas (PoC)
 
-Estas son limitaciones conscientes del PoC, no bugs por priorizar salvo que se vaya a producción:
+### Resueltas
+
+| Brecha | Dónde se resolvió | Estado |
+|---|---|---|
+| Auth SAP era stub | `common/sap/auth/` — `OAuth2TokenClient` con client-credentials real; `BtpAuthProvider`/`S4NativeAuthProvider` caen a token stub solo si falta configuración | resuelto en 2026-07-25 |
+| Retry/circuit breaker Resilience4j no disparaba | `WebClientSapClient` decora las llamadas con `Retry` + `CircuitBreaker` de los registries | resuelto en 2026-07-25 |
+| Sin DLQ Kafka | `KafkaErrorHandlingConfig` (customer y article): reintentos con backoff + `DeadLetterPublishingRecoverer` → topic `<topic>.DLT` | resuelto en 2026-07-25 |
+| Sin timeout WebClient SAP | `sap.client.connect-timeout-ms` / `sap.client.response-timeout-ms` en `application-common.yml` | resuelto en 2026-07-25 |
+| CSRF no cableado | `common/sap/odata/CsrfTokenProvider` + `S4CsrfTokenProvider` (fetch de `x-csrf-token` para POST/PATCH/DELETE) | resuelto en 2026-07-25 |
+| Sin idempotencia de consumo | dedupe por `payloadHash` en `SyncCustomerUseCase` (`stateRepo.alreadySent(...)`) | resuelto en 2026-07-25 |
+| Debezium/outbox no cableado | `external-services/`: tablas outbox + triggers (`sqlserver/init.sql`, `postgresql/init.sql`), servicio `kafka-connect` y conectores en `debezium/` | resuelto en 2026-07-25 |
+
+### Pendientes
 
 | Brecha | Dónde | Impacto |
 |---|---|---|
-| Auth SAP es stub | `BtpAuthProvider.java:30`, `S4NativeAuthProvider.java:29` | inviable prod |
-| Retry Resilience4j no dispara | `WebClientSapClient.java:70-77` | fallos transitorios no reintentan |
-| Sin DLQ Kafka | `CustomerKafkaListener.java:40-43` | mensajes venenosos perdidos |
-| Sin timeout WebClient SAP | `WebClientSapClient.java:41-42` | cuelgues indefinidos |
-| Sin mapeo errores SAP | `WebClientSapClient.java:64` | diagnostico deficiente |
-| Debezium/outbox no cableado | sin config/DDL | CDC no end-to-end desde el repo |
-| Sin idempotencia de consumo | sin dedup por hash | reentregas duplican efectos |
-| Race condition en estado sync | `MongoSyncStateRepository.java:31-36` | inconsistencias bajo concurrencia |
-| `supplier` vacio + MinIO sin uso | `SupplierApplicationPlaceholder`, compose | dominio/infra no operativos |
+| Sin transacción distribuida / saga entre features | `SyncCustomerUseCase` (envíos por feature independientes) | fallos parciales dejan SAP a medias, sin compensación |
+| Contactos no usan `A_AddressEmailAddress`/`A_AddressPhoneNumber` | adaptadores de CONTACT | el contrato real de S/4 para email/teléfono es por dirección |
+| Mandatos no llegan desde el legacy | `S4BankingAdapter` (mandates) | BANKING incompleto |
+| Atomicidad Mongo / race condition en estado sync | `MongoSyncStateRepository.transition` | inconsistencias bajo concurrencia |
+| Sin mapeo fino de errores SAP | `WebClientSapClient` | diagnóstico deficiente |
+| `supplier` vacío + MinIO sin uso | `SupplierApplicationPlaceholder`, compose | dominio/infra no operativos |
 
 ## Cómo extender (patron)
 
@@ -99,9 +108,9 @@ Para nueva feature de Customer: VO + validador + `<FEAT>` en `CustomerFeature` +
 
 ## Supuestos PoC
 
-- Auth SAP: stub hasta que se decida (env vars o BTP Destination Service).
+- Auth SAP: OAuth2 client-credentials vía env vars; con configuración incompleta se usa token stub (solo para mocks locales).
 - Cliente HTTP SAP definitivo: `WebClientSapClient`. `sap-sdk-client/` es spike OpenAPI desechable.
-- Debezium/outbox: responsabilidad externa al repo.
+- Debezium/outbox: cableado en `external-services/` (triggers + Kafka Connect); la operación en entornos reales sigue siendo externa.
 - `supplier`: futuro, patron simple como `article`.
 - MinIO: sin uso; posible futuro `S3ImageStoreAdapter` si hace falta blob storage.
 

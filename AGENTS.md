@@ -108,7 +108,7 @@ Ver [`docs/architecture/FLOWS.md`](docs/architecture/FLOWS.md) para el detalle d
 
 ### Contrato SAP Business Partner
 
-La especificación oficial de la API está en [`docs/specs/sap/API_BUSINESS_PARTNER.yaml`](docs/specs/sap/API_BUSINESS_PARTNER.yaml)
+La especificación oficial de la API está en [`sap-api-models/specs/customer/API_BUSINESS_PARTNER.yaml`](sap-api-models/specs/customer/API_BUSINESS_PARTNER.yaml)
 (43156 líneas, SAP_COM_0008). El README acompañante en
 [`docs/specs/sap/README.md`](docs/specs/sap/README.md) lista los endpoints
 relevantes para nuestro dominio y el mapping features↔API.
@@ -119,7 +119,7 @@ Fuentes de verdad del proyecto (consultar antes de cambiar arquitectura o stack)
 
 - `docs/specs/SPEC.md` — especificación funcional (agnóstica a tecnología): objetivo, dominios, ingestas, destinos SAP, máquina de estados, criterios de aceptación.
 - `docs/specs/TECH.md` — stack tecnológico: Java 25 + Spring Boot 4.0 + Maven, capas hexagonales, puertos/adaptadores, persistencia, observabilidad, testing.
-- `docs/specs/sap/API_BUSINESS_PARTNER.yaml` — especificación OpenAPI oficial de SAP S/4HANA (Business Partner A2X, SAP_COM_0008, 43156 líneas).
+- `sap-api-models/specs/customer/API_BUSINESS_PARTNER.yaml` — especificación OpenAPI oficial de SAP S/4HANA (Business Partner A2X, SAP_COM_0008, 43156 líneas).
 - `docs/specs/sap/README.md` — catálogo de endpoints SAP relevantes para nuestro dominio y mapping features↔API.
 - `docs/architecture/OVERVIEW.md` — mapas y esquemas: módulos, aggregate Customer, flujos CDC/REST/feature, deployment, convención de paquetes.
 - `docs/architecture/FLOWS.md` — flujos de integración SAP con nombres de clase: CDC completo, consulta BP, creación BP, callback BTP, mapa de rutas BTP vs OData, actualización BP.
@@ -138,14 +138,16 @@ Fuentes de verdad del proyecto (consultar antes de cambiar arquitectura o stack)
 - **Nuevo DTO SAP**: record/POJO con `@JsonProperty` en `<dominio>/adapters/sap/dto/`.
   Usar `SapJsonMapper.write(dto)` en el adaptador, nunca `String.format`.
 - **Nuevo adaptador OData**: en `<dominio>/adapters/sap/odata/`, implementa el
-  puerto existente, wrappea payload con `ODataPayload.wrap(dto)`, activación
+  puerto existente, serializa la entidad **sin envolver** con
+  `SapJsonMapper.write(modelo)` (el wrapper `{"d":...}` solo aparece en las
+  respuestas OData v2, nunca en el body de las peticiones), activación
   condicional con `@ConditionalOnProperty("sap.odata.<feature>.enabled")`.
-  Usa modelos generados de `sap-integration-api` (paquete
+  Usa modelos generados de `sap-api-models` (paquete
   `com.poc.sap.integration.api.customer.model`), no DTOs manuales.
-- **Nueva spec SAP**: colocar el YAML en
-  `sap-integration-api/src/main/resources/specs/<dominio>/` y añadir una
+- **Nueva spec SAP**: colocar el YAML en `sap-api-models/specs/<dominio>/`
+  (fuera de `src/main/resources` para no empaquetarlo en el JAR) y añadir una
   `<execution>` en el `openapi-generator-maven-plugin`. Tras regenerar
-  (`mvn generate-sources -pl sap-integration-api`), los modelos aparecen en
+  (`mvn generate-sources -pl sap-api-models`), los modelos aparecen en
   `target/generated-sources/openapi/`.
 - **Cambio en `SapClient`**: si se añade un nuevo método HTTP, implementar en
   `WebClientSapClient` via el método `exchange()` interno.

@@ -9,7 +9,7 @@
 - **Servicio OData:** `/sap/opu/odata/sap/API_BUSINESS_PARTNER`
 - **Formato:** OData v2 expuesto como OpenAPI 3.0 (`x-sap-api-type: ODATA`)
 - **Versión S/4HANA:** 2508+
-- **Fichero:** [`API_BUSINESS_PARTNER.yaml`](./API_BUSINESS_PARTNER.yaml) (43156 líneas)
+- **Fichero:** [`../../../sap-api-models/specs/customer/API_BUSINESS_PARTNER.yaml`](../../../sap-api-models/specs/customer/API_BUSINESS_PARTNER.yaml) (43156 líneas — copia canónica única, usada por `sap-api-models` para generar los modelos Java)
 
 ## Cómo actualizar
 
@@ -17,29 +17,35 @@
 # Descargar desde SAP API Business Hub (requiere credenciales)
 curl -u user:pass \
   "https://api.sap.com/api/API_BUSINESS_PARTNER/openapi" \
-  -o API_BUSINESS_PARTNER.yaml
+  -o sap-api-models/specs/customer/API_BUSINESS_PARTNER.yaml
 ```
 
 ## Modelo de datos: Business Partner
 
 En SAP S/4HANA, tanto **Clientes** como **Acreedores (Suppliers)** se modelan como
-**Business Partner** con roles internos:
+**Business Partner**. La categoría indica el *tipo de sujeto*, NO si es cliente o proveedor:
 
-| Categoría | Significado | Nuestro dominio |
-|---|---|---|
-| `BusinessPartnerCategory = 1` | *Persona Natural* | Supplier |
-| `BusinessPartnerCategory = 2` | *Organización* | Customer |
+| Categoría | Significado |
+|---|---|
+| `BusinessPartnerCategory = 1` | *Persona* (persona física) |
+| `BusinessPartnerCategory = 2` | *Organización* |
+| `BusinessPartnerCategory = 3` | *Grupo* |
 
-Al crear un BP, se asigna la categoría y SAP asigna roles automáticamente según
-configuración (`BusinessPartnerRole`). Para diferenciar un Customer de un Supplier
-en consultas, se filtra por categoría:
+La condición de cliente o proveedor la dan los **roles** del BP
+(`to_BusinessPartnerRole`): `FLCU01`/`FLCU00` para Customer y `FLVN01`/`FLVN00`
+para Supplier. Para diferenciar un Customer de un Supplier en consultas se usan
+las entidades especializadas, no la categoría:
 
 ```
-GET /A_BusinessPartner?$filter=BusinessPartnerCategory eq '2'   → Customers
-GET /A_BusinessPartner?$filter=BusinessPartnerCategory eq '1'   → Suppliers
+GET /A_Customer   → Customers  (BPs con rol de cliente)
+GET /A_Supplier   → Suppliers  (BPs con rol de proveedor)
 ```
 
 ## Endpoints relevantes para nuestro dominio
+
+> Nota: los use cases `LookupCustomerUseCase`, `CreateBusinessPartnerUseCase` y
+> `UpdateBusinessPartnerUseCase` citados abajo son **propuestas no implementadas**
+> (ver [`FLOWS.md`](../../architecture/FLOWS.md)); los adaptadores OData sí existen.
 
 ### Operaciones sobre Business Partner (aggregate raíz)
 
@@ -130,7 +136,7 @@ GET /A_BusinessPartner?$filter=BusinessPartnerCategory eq '1'   → Suppliers
 
 ## Convenciones OData v2
 
-- **Wrapper `d:`** — todos los POST y PATCH requieren envolver el body en `{"d": {...}}`. Nuestro adaptador lo hace con `ODataPayload.wrap(dto)` en `common/sap/odata/`.
+- **Wrapper `d:`** — el envoltorio `{"d": {...}}` aparece solo en las **respuestas** OData V2. Las peticiones POST/PATCH llevan la entidad **sin envolver** (el body es el JSON de la entidad directamente). Al parsear respuestas hay que desenvolver `d` (y `d.results` en colecciones).
 - **CSRF** — necesario en POST/PATCH/DELETE. Header `x-csrf-token` obtenido con `GET` + header `x-csrf-token: Fetch`. Manejo en `common/sap/odata/CsrfTokenProvider.java`.
 - **ETag** — respuestas incluyen `ETag`. Para PATCH/DELETE, se debe enviar header `If-Match` con el valor del ETag.
 - **Batch** — el API soporta `$batch` para enviar múltiples operaciones en una sola petición (futuro).

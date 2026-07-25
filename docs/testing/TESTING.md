@@ -4,18 +4,22 @@
 
 ## 1. Resumen ejecutivo
 
-Total: **191 tests** (203 ejecuciones en reactor: el módulo `it` corre contract twice — ver §8 issue 3).
+Total: **211 tests** en verde (validado el 25-07-2026 con JDK 25, `mvn clean test`).
+El módulo `it` sigue ejecutando los contract dos veces — ver §8 issue 3.
 
-| Módulo     | Tests | Unit | Slice | Contract | Integration |
-|------------|-------|------|-------|----------|-------------|
-| common     | 45    | 45   | —     | —        | —           |
-| customer   | 106   | 102  | 4     | —        | —           |
-| article    | 29    | 26   | 3     | —        | —           |
-| it         | 11+1  | —    | —     | 11       | 1 (skip)    |
-| supplier   | 0     | —    | —     | —        | —            |
-| **Totales**| **191**| **173**| **7**| **11** | **1**        |
+| Módulo     | Tests aprox. | Contenido principal |
+|------------|--------------|---------------------|
+| common     | 61           | dominio (máquina de estados con estado inicial/re-sync, ValidationResult acumulativo), Mongo repo (dedupe `alreadySent`), auth providers, **`WebClientSapClientTest`** (retry 5xx, no-retry 4xx, cabeceras, CSRF completo contra WireMock) |
+| customer   | ~105         | unit + slice + **`CustomerApplicationContextTest`** (smoke de contexto Spring completo) |
+| article    | ~33          | unit + slice + **`ArticleApplicationContextTest`** (smoke de contexto) |
+| it         | 11+1         | contract (WireMock) + `InfrastructureSmokeIT` (skip sin `-Ddocker.available=true`) |
+| supplier   | 0            | placeholder |
 
-`+1` skip = `InfrastructureSmokeIT` (Testcontainers gateado por `-Ddocker.available=true`).
+Los smoke tests de contexto levantan cada app sin infraestructura externa
+(JPA sin acceso a metadata, listeners Kafka sin auto-arranque, índices ES con
+`createIndex=false`): son los que detectaron los fallos de arranque de la
+migración a Boot 4 (beans sin definir, YAML duplicado, starter OTel
+incompatible, Jackson 3, `spring-kafka` sin autoconfiguración).
 
 ## 2. Tipos de tests
 
@@ -176,7 +180,7 @@ mvn -pl it test -Dtest=BtpCustomerContractTest,S4BankingContractTest
 mvn clean install -DskipTests
 ```
 
-JDK 25 (`C:\Program Files\Java\jdk-25.0.3`). Si `JAVA_HOME` apunta a JDK 23, el reactor usa automáticamente ذلك (release 23). Con JDK 25, el profile `jdk25` sube a release 25.
+JDK 25 (`C:\Program Files\Java\jdk-25.0.3`). Si `JAVA_HOME` apunta a JDK 23, el reactor usa automáticamente ese JDK (release 23). Con JDK 25, el profile `jdk25` sube a release 25.
 
 ## 6. Cobertura y gaps conocidos
 
@@ -209,21 +213,20 @@ Cada contrato fija la firma del endpoint SAP para detectar breaking changes ante
 
 ## 8. Issues conocidos
 
-| # | Issue | Impacto | Workaround |
-|---|-------|---------|------------|
-| 1 | `MongoSyncStateRepository.transition` rechaza primera transición `null → RECEIVED` | Bug funcional: runtime Mongo lanza `IllegalStateException` en第一条 transición de cada registro. Tests unitarios no detectan (stateRepo mockeado). | Pendiente fix en producción. |
-| 2 | `SyncCustomerControllerIT` no se ejecuta | 4 tests inertes: nombrado `*IT.java` sin `maven-failsafe-plugin` en `customer/pom.xml`. | Renombrar a `*Test.java` o añadir failsafe plugin a `customer/pom.xml`. |
-| 3 | Contract tests del módulo `it` corren dos veces | 11 tests se ejecutan en surefire + failsafe (~10s redundante). | Añadir `<excludes><exclude>**/*ContractTest.java</exclude></excludes>` a surefire en `it/pom.xml`. |
-| 4 | `*HistoryDoc.toDomain()` pierde datos | `unit = null`, `banking = new BankingData(null,null,emptyList())` aunque el doc tuviera datos. | Cosmético pero rompe consistencia histórico. Pendiente fix mapeo. |
-| 5 | Adapters BTP/S4 escriben `BusinessPartner:""` | Ignoran `entityId` en el body (lo usan solo en path/header). | Revisar si contrato SAP real lo espera en body. |
+| # | Issue | Estado |
+|---|-------|--------|
+| 1 | `MongoSyncStateRepository.transition` rechazaba la primera transición `null → RECEIVED` | **Resuelto (25-07-2026)**: `SyncStateMachine` admite estados iniciales (`RECEIVED`, `VALIDATING`) y re-entrada desde `SENT_SAP`/`INVALID`. Cubierto por tests de common. |
+| 2 | `SyncCustomerControllerIT` no se ejecuta (nombrado `*IT.java` sin failsafe en `customer/pom.xml`) | Pendiente: renombrar a `*Test.java` o añadir failsafe. |
+| 3 | Contract tests del módulo `it` corren dos veces (surefire + failsafe) | Pendiente: excluir `**/*ContractTest.java` de surefire en `it/pom.xml`. |
+| 4 | `*HistoryDoc.toDomain()` pierde datos (`unit`/`banking` a null) | Pendiente fix de mapeo. |
+| 5 | Adapters BTP/S4 escribían `BusinessPartner:""` | **Resuelto (25-07-2026)**: los adaptadores rellenan `BusinessPartner`/`CustomerID` con el `entityId` real; aserciones añadidas en sus tests. |
+| 6 | Contract tests de `it/` no pasan por el código de producción (stubbean WireMock y verifican el propio stub) | Pendiente: apuntar los adaptadores reales inyectando la base-url de WireMock. |
 
 ## 9. Próximos pasos
 
-1. **Fix issue §8.1**: `MongoSyncStateRepository.transition` — permitir `from == null` como estado inicial (cambiar `SyncStateMachine.transition` o añadir rama explícita en `MongoSyncStateRepository`).
-2. **Fix issue §8.2**: renombrar `SyncCustomerControllerIT` a `SyncCustomerControllerTest` para que surefire lo ejecute.
-3. **Fix issue §8.3**: excluir `*ContractTest` de surefire en `it/pom.xml`.
-4. **WebClientSapClient IT**: con `MockWebServer` o WireMock, verificar retry + circuit breaker real.
-5. **`@SpringBootTest` wiring**: para `CustomerApplication`/`ArticleApplication` con `@MockitoBean` de datasources y Kafka test utilities.
-6. **IT con Testcontainers**: Postgres, SQL Server, ES, SAP end-to-end (gatear con `-Ddocker.available=true`).
-7. **JaCoCo** report + umbral mínimo en `domain` (100%) y `common` (>80%).
-8. **Spring Cloud Contract** o Pact para contratos formales (frente a WireMock manual).
+1. **Fix issue §8.2**: renombrar `SyncCustomerControllerIT` a `SyncCustomerControllerTest` para que surefire lo ejecute.
+2. **Fix issue §8.3**: excluir `*ContractTest` de surefire en `it/pom.xml`.
+3. **Fix issue §8.6**: reescribir los contract tests para ejercitar los adaptadores de producción y el contrato OData V2 real (envoltura `d` en respuestas, CSRF, errores SAP).
+4. **IT con Testcontainers**: Postgres, SQL Server, ES, SAP end-to-end (gatear con `-Ddocker.available=true`), incluyendo el flujo CDC con Debezium de `external-services/`.
+5. **JaCoCo** report + umbral mínimo en `domain` (100%) y `common` (>80%).
+6. **Validación contra tenant real**: escrituras OData (`API_BUSINESS_PARTNER`) contra sandbox/tenant S/4 cuando esté disponible.
