@@ -115,13 +115,16 @@ Capacidad de atender a múltiples tenants. El SDK gestiona tenant/principal medi
 ## O
 
 ### OData
-Protocolo REST de SAP para exponer datos maestros y transaccionales. S/4HANA usa OData v2 y v4. Ver [`SAP_CLOUD_SDK.md`](integrations/SAP_CLOUD_SDK.md#1-business-partner--odm-vdm).
+Estándar construido **encima de REST** que fija por contrato lo que REST deja abierto: filtrado (`$filter`), selección (`$select`), paginación, navegación entre entidades, `$batch` y metadatos (`$metadata`). Es el protocolo de las APIs públicas de S/4HANA. Explicación completa (REST vs OData, con ejemplos) en [`SAP_CLOUD_SDK.md` § OData vs REST](integrations/SAP_CLOUD_SDK.md#odata-vs-rest-y-odata-v2-vs-v4).
+
+### OData V2 vs V4
+Dos versiones del estándar con formato distinto: **V2** envuelve las respuestas en `{"d":...}` (y `d.results` en listas), pagina con `$skip` y exige fetch de token CSRF en escrituras; **V4** devuelve la entidad en la raíz, usa `value` + `@odata.nextLink` y no usa el CSRF clásico (OAuth2 puro). Las APIs `API_*` del proyecto son V2; las `CE_*` (bancos, activos fijos, números de serie) son V4. Detalle y ejemplos en [`SAP_CLOUD_SDK.md` § OData V2 vs V4](integrations/SAP_CLOUD_SDK.md#odata-v2-vs-v4); versión de cada API en el [catálogo](specs/sap/README.md#catálogo).
 
 ### OpenAPI
 Especificación estándar para APIs REST. SAP publica especificaciones OpenAPI en API Business Hub. Se generan clientes Java con el plugin de Cloud SDK. Ver [`SAP_CLOUD_SDK.md`](integrations/SAP_CLOUD_SDK.md#2-apis-rest-propias-de-sap--callbacks--openapi).
 
 ### OpenTelemetry (OTel)
-Estándar de observabilidad para trazas distribuidas. Configurado en `common/observability`.
+Estándar de observabilidad para trazas distribuidas. Se integra con el **javaagent** en el arranque de la JVM (el starter Spring de OTel 2.x no soporta Boot 4). Ver [`TECH.md`](specs/TECH.md#9-observabilidad).
 
 ### Outbox Pattern
 Patrón que escribe eventos en una tabla outbox transaccionalmente con el cambio de negocio; Debezium lee la outbox y publica en Kafka.

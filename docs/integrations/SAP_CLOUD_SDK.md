@@ -202,7 +202,7 @@ sin depender directamente del SAP Cloud SDK para las llamadas HTTP:
 |---|---|---|
 | DTOs Jackson | ✅ | `customer/adapters/sap/dto/Btp*Dto.java` — reemplazo de `String.format` por `SapJsonMapper.write(dto)` |
 | SapClient expandido | ✅ | `get()`, `patch()`, `delete()` en `SapClient` + `WebClientSapClient.exchange()` |
-| OData support | ✅ | `ODataPayload` (wrapper `d:`), `CsrfTokenProvider`, `S4CsrfTokenProvider` en `common/sap/odata/` |
+| OData support | ✅ | `CsrfTokenProvider`, `S4CsrfTokenProvider` en `common/sap/odata/` (el antiguo `ODataPayload` se eliminó: el wrapper `d` solo aparece en las **respuestas** V2, nunca en las peticiones — ver sección siguiente) |
 | Adaptadores OData | ✅ | 5 `BusinessPartner*ODataAdapter.java` en `customer/adapters/sap/odata/` — refactorizados a modelos generados |
 | Puerto de lectura | ✅ | `BusinessPartnerReadPort` + `BusinessPartnerReadAdapter` para GET/search |
 | Push vs Pull | ✅ | Modos `push|pull|both` documentados en `FLOWS.md` y configurados via `sap.integration.mode` |
@@ -210,6 +210,83 @@ sin depender directamente del SAP Cloud SDK para las llamadas HTTP:
 | Casos de uso CRUD | 🔜 | `LookupCustomerUseCase`, `CreateBusinessPartnerUseCase`, `UpdateBusinessPartnerUseCase`, `BtpPendingQueryUseCase`, `BtpResultProcessingUseCase` — pendientes de implementar |
 
 Ver [`docs/architecture/FLOWS.md`](../architecture/FLOWS.md) para el mapa completo de flujos de integración.
+
+## OData vs REST, y OData V2 vs V4
+
+### REST vs OData
+
+**REST** no es un estándar, es un *estilo*: HTTP con verbos (`GET`/`POST`/`PATCH`/`DELETE`)
+sobre URLs que representan recursos, normalmente con JSON. Pero REST no dice nada
+sobre **cómo** se filtra, se pagina, se agrupan operaciones o qué forma tiene un
+error: cada API lo inventa a su manera.
+
+**OData** es un **estándar construido encima de REST** que fija por contrato todo
+eso que REST deja abierto:
+
+| Aspecto | REST "a secas" | OData |
+|---|---|---|
+| Filtrar | cada API lo inventa | `$filter=BusinessPartnerCategory eq '2'` |
+| Elegir campos | cada API lo inventa | `$select=BusinessPartner,BusinessPartnerFullName` |
+| Paginar | cada API lo inventa | `$top=50&$skip=100` (V2) / `@odata.nextLink` (V4) |
+| Navegar relaciones | endpoints ad-hoc | `/A_BusinessPartner('123')/to_BusinessPartnerAddress` |
+| Agrupar operaciones | normalmente no existe | `POST /$batch` con changesets atómicos |
+| Metadatos | documentación externa | `GET /$metadata` (el servicio se describe a sí mismo) |
+
+Toda API OData es REST, pero además garantiza esa gramática común. Por eso SAP la
+usa en sus APIs públicas (conociendo el estándar sabes consumir cualquiera de sus
+servicios) y por eso funcionan los generadores de código: la estructura es tan
+predecible que los modelos de `sap-api-models` salen solos de la spec.
+
+En este proyecto: los `Btp*Adapter` hablan "REST a secas" con DTOs propios contra
+la futura API intermedia de BTP (contrato nuestro); los
+`BusinessPartner*ODataAdapter` hablan OData contra S/4.
+
+### OData V2 vs V4
+
+Dos versiones del estándar con diferencias de formato que nos afectan
+directamente (el catálogo de [`docs/specs/sap/README.md`](../specs/sap/README.md)
+indica la versión de cada API):
+
+**1. La envoltura `d`.** En V2 toda **respuesta** JSON viene envuelta en un objeto
+`d` (herencia de Microsoft, creador de OData); las colecciones añaden `results`:
+
+```json
+// V2 — GET /A_BusinessPartner('123')   (API_BUSINESS_PARTNER)
+{ "d": { "BusinessPartner": "123", "BusinessPartnerFullName": "Weyland Yutani Corp" } }
+
+// V2 — colecciones
+{ "d": { "results": [ { }, { } ] } }
+```
+
+Importante: el wrapper `d` es **solo de respuestas**; las peticiones (POST/PATCH)
+llevan la entidad sin envolver. En V4 desaparece del todo: la entidad va en la
+raíz y las colecciones usan `value`, con paginación por enlace:
+
+```json
+// V4 — GET /Bank('DEUTDEFF')   (CE_BANK_0003)
+{ "BankInternalID": "DEUTDEFF", "BankName": "..." }
+
+// V4 — colecciones
+{ "@odata.context": "...", "value": [ { }, { } ], "@odata.nextLink": "...?$skiptoken=50" }
+```
+
+Por eso `BusinessPartnerReadAdapter` extrae el nodo `d` al parsear. Si se activa
+una API V4 (`CE_*`) con el mismo parseo, no encontrará ningún `d`: hay que leer
+la raíz o `value`, y seguir `@odata.nextLink` en vez de calcular `$skip`.
+
+**2. El fetch CSRF.** Los servicios V2 de SAP (Gateway clásico) exigen, antes de
+cualquier escritura, un `GET` con cabecera `x-csrf-token: Fetch`, y reenviar el
+token + cookies de sesión en el POST/PATCH — es lo que implementa
+`S4CsrfTokenProvider`. Las APIs V4 nuevas de S/4 Public Cloud (las `CE_*`) se
+consumen con OAuth2 puro: el baile del CSRF **no aplica**.
+
+**Resumen práctico**: Business Partner, mandato SEPA, producto, stock, precios y
+características son **V2** → wrapper `d` en respuestas, `d.results` en listas,
+CSRF en escrituras (todo lo que `WebClientSapClient` ya hace). Bancos, activos
+fijos y números de serie son **V4** → respuesta plana, `value` +
+`@odata.nextLink`, sin CSRF. Al activar la primera API V4 conviene introducir un
+parseo/config por versión en el cliente (p. ej. flag `odata-version` por destino
+o por adaptador).
 
 ## Enlaces útiles
 
