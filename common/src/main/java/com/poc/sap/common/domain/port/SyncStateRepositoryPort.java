@@ -26,4 +26,11 @@ public interface SyncStateRepositoryPort {
      * Historial de transiciones de una entidad (para auditoria/trazabilidad).
      */
     java.util.List<SyncStateTransition> history(String domain, String entityId);
+
+    /**
+     * Dedupe de idempotencia: true si ya existe una transicion SENT_SAP de
+     * esta entidad con el mismo payloadHash (el mensaje ya fue procesado y
+     * enviado a SAP; un reintento no debe duplicar efectos).
+     */
+    boolean alreadySent(String domain, String entityId, String payloadHash);
 }

@@ -20,12 +20,13 @@ class ValidationResultTest {
     }
 
     @Test
-    void andChainingStopsAtFirstFailure() {
+    void andChainingAccumulatesAllFailures() {
         ValidationResult r = ValidationResult.success()
                 .and(v -> false, "first failure")
-                .and(v -> true, "never evaluated");
+                .and(v -> true, "passes")
+                .and(v -> false, "second failure");
         assertThat(r.valid()).isFalse();
-        assertThat(r.errors()).containsExactly("first failure");
+        assertThat(r.errors()).containsExactly("first failure", "second failure");
     }
 
     @Test

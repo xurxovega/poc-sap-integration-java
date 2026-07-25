@@ -28,13 +28,18 @@ public record ValidationResult(boolean valid, java.util.List<String> errors) {
         return new ValidationResult(false, errors);
     }
 
+    /**
+     * Encadena una validacion adicional ACUMULANDO errores: se evalua
+     * siempre, aunque este resultado ya sea invalido, y el error se anade
+     * a la lista existente (no corta en el primer fallo).
+     */
     public ValidationResult and(Predicate<Void> next, String onError) {
-        if (!valid) {
+        if (next.test(null)) {
             return this;
         }
-        return next.test(null)
-                ? this
-                : new ValidationResult(false, java.util.List.of(onError));
+        java.util.List<String> merged = new java.util.ArrayList<>(errors);
+        merged.add(onError);
+        return new ValidationResult(false, merged);
     }
 
     @Override

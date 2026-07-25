@@ -24,7 +24,7 @@ public class SyncStateDoc {
     public static SyncStateDoc from(String domain, String entityId,
                                      SyncStateTransition t, int code) {
         SyncStateDoc d = new SyncStateDoc();
-        d.id = domain + ":" + entityId + ":" + System.nanoTime();
+        // id null → Mongo genera un ObjectId único; nanoTime colisionaba entre instancias
         d.domain = domain;
         d.entityId = entityId;
         d.stateCode = code;

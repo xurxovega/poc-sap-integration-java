@@ -28,6 +28,30 @@ class SyncStateMachineTest {
     }
 
     @Test
+    void initialTransitionAllowsReceivedAndValidating() {
+        assertThat(machine.canTransition(null, SyncState.RECEIVED)).isTrue();
+        assertThat(machine.canTransition(null, SyncState.VALIDATING)).isTrue();
+        assertThat(machine.transition(null, SyncState.RECEIVED)).isEqualTo(SyncState.RECEIVED);
+    }
+
+    @Test
+    void initialTransitionRejectsOtherStates() {
+        assertThat(machine.canTransition(null, SyncState.SENT_SAP)).isFalse();
+        assertThat(machine.canTransition(null, SyncState.INDEXING)).isFalse();
+    }
+
+    @Test
+    void terminalStatesAllowResyncToReceived() {
+        assertThat(machine.canTransition(SyncState.SENT_SAP, SyncState.RECEIVED)).isTrue();
+        assertThat(machine.canTransition(SyncState.INVALID, SyncState.RECEIVED)).isTrue();
+    }
+
+    @Test
+    void sendingSapAllowsInvalidWhenFeatureFailsValidation() {
+        assertThat(machine.canTransition(SyncState.SENDING_SAP, SyncState.INVALID)).isTrue();
+    }
+
+    @Test
     void rejectsInvalidTransition() {
         assertThatThrownBy(() -> machine.transition(SyncState.RECEIVED, SyncState.SENT_SAP))
                 .isInstanceOf(IllegalStateException.class)

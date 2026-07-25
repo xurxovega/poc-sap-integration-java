@@ -6,7 +6,6 @@ import com.poc.sap.common.domain.SyncStateTransition;
 import com.poc.sap.common.domain.port.SyncStateRepositoryPort;
 import org.springframework.stereotype.Repository;
 
-import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 
@@ -27,8 +26,7 @@ public class MongoSyncStateRepository implements SyncStateRepositoryPort {
 
     @Override
     public Optional<SyncState> currentState(String domain, String entityId) {
-        return mongo.findByDomainAndEntityIdOrderByTimestampDesc(domain, entityId).stream()
-                .findFirst()
+        return mongo.findFirstByDomainAndEntityIdOrderByTimestampDesc(domain, entityId)
                 .map(SyncStateDoc::stateCode)
                 .map(SyncState::ofCode);
     }
@@ -45,7 +43,15 @@ public class MongoSyncStateRepository implements SyncStateRepositoryPort {
     public List<SyncStateTransition> history(String domain, String entityId) {
         return mongo.findByDomainAndEntityIdOrderByTimestampAsc(domain, entityId).stream()
                 .map(SyncStateDoc::toTransition)
-                .sorted(Comparator.comparing(SyncStateTransition::timestamp))
                 .toList();
+    }
+
+    @Override
+    public boolean alreadySent(String domain, String entityId, String payloadHash) {
+        if (payloadHash == null || payloadHash.isBlank()) {
+            return false;
+        }
+        return mongo.existsByDomainAndEntityIdAndPayloadHashAndStateCode(
+                domain, entityId, payloadHash, SyncState.SENT_SAP.code());
     }
 }

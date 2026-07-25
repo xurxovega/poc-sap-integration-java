@@ -41,8 +41,8 @@ class MongoSyncStateRepositoryTest {
 
     @Test
     void currentStateEmptyWhenNoHistory() {
-        when(mongo.findByDomainAndEntityIdOrderByTimestampDesc("article", "A-1"))
-                .thenReturn(List.of());
+        when(mongo.findFirstByDomainAndEntityIdOrderByTimestampDesc("article", "A-1"))
+                .thenReturn(Optional.empty());
 
         Optional<SyncState> current = repo.currentState("article", "A-1");
 
@@ -53,8 +53,8 @@ class MongoSyncStateRepositoryTest {
     void currentStateResolvesToLatestState() {
         SyncStateTransition t = transition(SyncState.INDEXED, Instant.parse("2026-01-01T00:00:00Z"));
         SyncStateDoc doc = SyncStateDoc.from("article", "A-1", t, SyncState.INDEXED.code());
-        when(mongo.findByDomainAndEntityIdOrderByTimestampDesc("article", "A-1"))
-                .thenReturn(List.of(doc));
+        when(mongo.findFirstByDomainAndEntityIdOrderByTimestampDesc("article", "A-1"))
+                .thenReturn(Optional.of(doc));
 
         Optional<SyncState> current = repo.currentState("article", "A-1");
 
@@ -62,10 +62,27 @@ class MongoSyncStateRepositoryTest {
     }
 
     @Test
+    void firstTransitionOfNewEntityIsAllowedToReceived() {
+        when(mongo.findFirstByDomainAndEntityIdOrderByTimestampDesc("article", "A-1"))
+                .thenReturn(Optional.empty());
+
+        SyncStateTransition t = new SyncStateTransition(
+                "A-1", "article", null, SyncState.RECEIVED,
+                "cdc", "h-1", Instant.parse("2026-01-01T00:00:00Z"));
+
+        SyncState result = repo.transition("article", "A-1", t);
+
+        assertThat(result).isEqualTo(SyncState.RECEIVED);
+        ArgumentCaptor<SyncStateDoc> save = ArgumentCaptor.forClass(SyncStateDoc.class);
+        verify(mongo).save(save.capture());
+        assertThat(save.getValue().stateCode()).isEqualTo(SyncState.RECEIVED.code());
+    }
+
+    @Test
     void transitionFromExistingStatePersistsAndReturns() {
         SyncStateTransition prev = transition(SyncState.INDEXED, Instant.parse("2026-01-01T00:00:00Z"));
-        when(mongo.findByDomainAndEntityIdOrderByTimestampDesc("article", "A-1"))
-                .thenReturn(List.of(SyncStateDoc.from("article", "A-1", prev, SyncState.INDEXED.code())));
+        when(mongo.findFirstByDomainAndEntityIdOrderByTimestampDesc("article", "A-1"))
+                .thenReturn(Optional.of(SyncStateDoc.from("article", "A-1", prev, SyncState.INDEXED.code())));
 
         SyncStateTransition t = transition(SyncState.SENDING_SAP,
                 Instant.parse("2026-01-02T00:00:00Z"));
@@ -79,20 +96,42 @@ class MongoSyncStateRepositoryTest {
     }
 
     @Test
-    void historyMapsAndSortsByTimestampAscending() {
+    void resyncFromSentSapIsAllowed() {
+        SyncStateTransition prev = transition(SyncState.SENT_SAP, Instant.parse("2026-01-01T00:00:00Z"));
+        when(mongo.findFirstByDomainAndEntityIdOrderByTimestampDesc("article", "A-1"))
+                .thenReturn(Optional.of(SyncStateDoc.from("article", "A-1", prev, SyncState.SENT_SAP.code())));
+
+        SyncStateTransition t = new SyncStateTransition(
+                "A-1", "article", SyncState.SENT_SAP, SyncState.RECEIVED,
+                "cdc", "h-2", Instant.parse("2026-01-02T00:00:00Z"));
+
+        assertThat(repo.transition("article", "A-1", t)).isEqualTo(SyncState.RECEIVED);
+    }
+
+    @Test
+    void historyPreservesRepositoryOrder() {
         Instant t1 = Instant.parse("2026-01-01T00:00:00Z");
         Instant t2 = Instant.parse("2026-01-02T00:00:00Z");
-        SyncStateDoc d2 = SyncStateDoc.from("article", "A-1",
-                transition(SyncState.INDEXED, t2), SyncState.INDEXED.code());
         SyncStateDoc d1 = SyncStateDoc.from("article", "A-1",
                 transition(SyncState.RECEIVED, t1), SyncState.RECEIVED.code());
-        // el repo devuelve en ASC por orden Mongo; el adapter reordena por timestamp
+        SyncStateDoc d2 = SyncStateDoc.from("article", "A-1",
+                transition(SyncState.INDEXED, t2), SyncState.INDEXED.code());
         when(mongo.findByDomainAndEntityIdOrderByTimestampAsc("article", "A-1"))
-                .thenReturn(List.of(d2, d1));
+                .thenReturn(List.of(d1, d2));
 
         List<SyncStateTransition> history = repo.history("article", "A-1");
 
         assertThat(history).extracting(SyncStateTransition::timestamp)
                 .containsExactly(t1, t2);
+    }
+
+    @Test
+    void alreadySentDelegatesToExistsQuery() {
+        when(mongo.existsByDomainAndEntityIdAndPayloadHashAndStateCode(
+                "article", "A-1", "h-1", SyncState.SENT_SAP.code())).thenReturn(true);
+
+        assertThat(repo.alreadySent("article", "A-1", "h-1")).isTrue();
+        assertThat(repo.alreadySent("article", "A-1", null)).isFalse();
+        assertThat(repo.alreadySent("article", "A-1", "")).isFalse();
     }
 }

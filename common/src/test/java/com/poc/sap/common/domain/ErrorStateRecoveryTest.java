@@ -34,9 +34,9 @@ class ErrorStateRecoveryTest {
     }
 
     @Test
-    void sentSapIsTerminal() {
+    void sentSapIsTerminalButAllowsResync() {
         assertThat(machine.isTerminal(SyncState.SENT_SAP)).isTrue();
-        assertThat(machine.nextStates(SyncState.SENT_SAP)).isEmpty();
+        assertThat(machine.nextStates(SyncState.SENT_SAP)).containsExactly(SyncState.RECEIVED);
     }
 
     @Test
