@@ -10,6 +10,7 @@ Equivalente al `docker-compose.yml` del proyecto Python de referencia, pero adap
 |---|---|---|---|
 | Zookeeper | `2181` | Coordinación de Kafka | — |
 | Kafka | `9092` (`localhost`), `29092` (red Docker) | Eventos CDC y directos | — |
+| Kafka Connect (Debezium) | `8083` | CDC outbox legacy → topics `outbox.*` | — |
 | PostgreSQL | `5432` | Legacy source (artículos) | `postgres` / `postgres` |
 | SQL Server | `1433` | Legacy source (clientes) | `sa` / `SqlServer_Pa55w0rd!` |
 | MongoDB | `27017` | Imagen actual + estado | sin auth |
@@ -23,6 +24,43 @@ Equivalente al `docker-compose.yml` del proyecto Python de referencia, pero adap
 cd external-services
 docker compose up -d
 ```
+
+## CDC end-to-end (Debezium)
+
+Los legacy tienen tablas outbox (`dbo.outbox_customer` en SQL Server,
+`outbox_article` en Postgres) rellenadas por triggers; Debezium las captura y
+publica el contrato JSON en `outbox.CUSTOMER` / `outbox.ARTICLE`.
+
+1. Levantar todo y esperar a que `kafka-connect` esté sano:
+
+   ```bash
+   docker compose up -d
+   curl -s http://localhost:8083/ | jq .version
+   ```
+
+2. Registrar los dos conectores:
+
+   ```bash
+   cd debezium
+   curl -i -X POST -H "Content-Type: application/json" \
+     http://localhost:8083/connectors/ -d @register-sqlserver-customer.json
+   curl -i -X POST -H "Content-Type: application/json" \
+     http://localhost:8083/connectors/ -d @register-postgres-article.json
+   ```
+
+3. Verificar estado y topics:
+
+   ```bash
+   curl -s http://localhost:8083/connectors/outbox-customer-sqlserver/status | jq .connector.state
+   curl -s http://localhost:8083/connectors/outbox-article-postgres/status | jq .connector.state
+
+   docker exec -it kafka-broker kafka-topics --bootstrap-server localhost:9092 --list
+   docker exec -it kafka-broker kafka-console-consumer \
+     --bootstrap-server localhost:9092 --topic outbox.CUSTOMER --from-beginning
+   ```
+
+Detalle de los conectores, formato de mensaje y cómo provocar eventos de prueba:
+[`debezium/README.md`](debezium/README.md).
 
 ## Parar
 
@@ -55,5 +93,6 @@ Consola: http://localhost:9001
 ## Notas
 
 - SQL Server tarda ~30-60s en arrancar. El contenedor `sqlserver-init` ejecuta el script DDL cuando SQL Server está sano.
+- SQL Server corre con `MSSQL_AGENT_ENABLED=true` (el Agent es necesario para los jobs de captura CDC de Debezium) y el `init.sql` habilita CDC sobre la BD y la tabla `dbo.outbox_customer`.
 - Elasticsearch requiere `vm.max_map_count >= 262144` en Linux/WSL. Si falla: `sudo sysctl -w vm.max_map_count=262144`.
 - Kafka expone `localhost:9092` para conexiones desde el host y `kafka-broker:29092` para conexiones entre contenedores.

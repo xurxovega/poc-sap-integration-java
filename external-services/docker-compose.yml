@@ -55,6 +55,41 @@ services:
       - poc_sap
 
   # ---------------------------------------------------------------------------
+  # Kafka Connect (Debezium) — CDC de las tablas outbox legacy → topics outbox.*
+  # Registro de conectores: ver external-services/debezium/README.md
+  # ---------------------------------------------------------------------------
+  kafka-connect:
+    image: debezium/connect:2.7.3.Final
+    container_name: kafka-connect
+    depends_on:
+      kafka-broker:
+        condition: service_healthy
+      sqlserver-source:
+        condition: service_healthy
+      postgres-source:
+        condition: service_healthy
+    ports:
+      - "8083:8083"
+    environment:
+      BOOTSTRAP_SERVERS: kafka-broker:29092
+      GROUP_ID: poc-sap-connect
+      CONFIG_STORAGE_TOPIC: connect_configs
+      OFFSET_STORAGE_TOPIC: connect_offsets
+      STATUS_STORAGE_TOPIC: connect_statuses
+      KEY_CONVERTER: org.apache.kafka.connect.json.JsonConverter
+      VALUE_CONVERTER: org.apache.kafka.connect.json.JsonConverter
+      CONNECT_KEY_CONVERTER_SCHEMAS_ENABLE: "false"
+      CONNECT_VALUE_CONVERTER_SCHEMAS_ENABLE: "false"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8083/connectors || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
+    networks:
+      - poc_sap
+
+  # ---------------------------------------------------------------------------
   # PostgreSQL — legacy source para el dominio ARTICLE
   # ---------------------------------------------------------------------------
   postgres-source:
@@ -97,6 +132,8 @@ services:
       MSSQL_SA_PASSWORD: 'SqlServer_Pa55w0rd!'
       MSSQL_PID: 'Developer'
       MSSQL_TCP_PORT: 1433
+      # SQL Server Agent es obligatorio para los jobs de captura CDC (Debezium)
+      MSSQL_AGENT_ENABLED: 'true'
     ports:
       - "1433:1433"
     volumes:

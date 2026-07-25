@@ -1,0 +1,38 @@
+{
+  "name": "outbox-article-postgres",
+  "config": {
+    "connector.class": "io.debezium.connector.postgresql.PostgresConnector",
+    "tasks.max": "1",
+
+    "database.hostname": "postgres-source",
+    "database.port": "5432",
+    "database.user": "postgres",
+    "database.password": "postgres",
+    "database.dbname": "poc",
+
+    "plugin.name": "pgoutput",
+    "slot.name": "debezium_outbox_article",
+    "publication.autocreate.mode": "filtered",
+
+    "topic.prefix": "legacy-postgres",
+    "table.include.list": "public.outbox_article",
+    "snapshot.mode": "initial",
+    "tombstones.on.delete": "false",
+
+    "message.key.columns": "public.outbox_article:entity_id",
+
+    "transforms": "unwrap,extractPayload,extractKey,route",
+    "transforms.unwrap.type": "io.debezium.transforms.ExtractNewRecordState",
+    "transforms.unwrap.drop.tombstones": "true",
+    "transforms.extractPayload.type": "org.apache.kafka.connect.transforms.ExtractField$Value",
+    "transforms.extractPayload.field": "payload",
+    "transforms.extractKey.type": "org.apache.kafka.connect.transforms.ExtractField$Key",
+    "transforms.extractKey.field": "entity_id",
+    "transforms.route.type": "org.apache.kafka.connect.transforms.RegexRouter",
+    "transforms.route.regex": ".*",
+    "transforms.route.replacement": "outbox.ARTICLE",
+
+    "key.converter": "org.apache.kafka.connect.storage.StringConverter",
+    "value.converter": "org.apache.kafka.connect.storage.StringConverter"
+  }
+}

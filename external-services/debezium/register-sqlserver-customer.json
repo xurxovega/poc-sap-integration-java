@@ -1,0 +1,38 @@
+{
+  "name": "outbox-customer-sqlserver",
+  "config": {
+    "connector.class": "io.debezium.connector.sqlserver.SqlServerConnector",
+    "tasks.max": "1",
+
+    "database.hostname": "sqlserver-source",
+    "database.port": "1433",
+    "database.user": "sa",
+    "database.password": "SqlServer_Pa55w0rd!",
+    "database.names": "poc",
+    "database.encrypt": "false",
+
+    "topic.prefix": "legacy-sqlserver",
+    "table.include.list": "dbo.outbox_customer",
+    "snapshot.mode": "initial",
+    "tombstones.on.delete": "false",
+
+    "schema.history.internal.kafka.bootstrap.servers": "kafka-broker:29092",
+    "schema.history.internal.kafka.topic": "schemahistory.outbox_customer",
+
+    "message.key.columns": "poc.dbo.outbox_customer:entity_id",
+
+    "transforms": "unwrap,extractPayload,extractKey,route",
+    "transforms.unwrap.type": "io.debezium.transforms.ExtractNewRecordState",
+    "transforms.unwrap.drop.tombstones": "true",
+    "transforms.extractPayload.type": "org.apache.kafka.connect.transforms.ExtractField$Value",
+    "transforms.extractPayload.field": "payload",
+    "transforms.extractKey.type": "org.apache.kafka.connect.transforms.ExtractField$Key",
+    "transforms.extractKey.field": "entity_id",
+    "transforms.route.type": "org.apache.kafka.connect.transforms.RegexRouter",
+    "transforms.route.regex": ".*",
+    "transforms.route.replacement": "outbox.CUSTOMER",
+
+    "key.converter": "org.apache.kafka.connect.storage.StringConverter",
+    "value.converter": "org.apache.kafka.connect.storage.StringConverter"
+  }
+}
