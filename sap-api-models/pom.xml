@@ -67,11 +67,14 @@
                         </goals>
                         <phase>generate-sources</phase>
                         <configuration>
-                            <inputSpec>${project.basedir}/src/main/resources/specs/customer/API_BUSINESS_PARTNER.yaml</inputSpec>
+                            <!-- Spec canónica FUERA de src/main/resources para no empaquetarla en el JAR -->
+                            <inputSpec>${project.basedir}/specs/customer/API_BUSINESS_PARTNER.yaml</inputSpec>
                             <outputDirectory>${project.build.directory}/generated-sources/openapi</outputDirectory>
                             <apiPackage>com.poc.sap.integration.api.customer.api</apiPackage>
                             <modelPackage>com.poc.sap.integration.api.customer.model</modelPackage>
                             <apiMaturity>released</apiMaturity>
+                            <!-- Los adaptadores solo consumen los modelos; no generar clases de API client -->
+                            <generateApis>false</generateApis>
                         </configuration>
                     </execution>
                 </executions>
