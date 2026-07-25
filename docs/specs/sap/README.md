@@ -1,3 +1,45 @@
+# APIs SAP S/4HANA Cloud — catálogo de especificaciones
+
+> Especificaciones OpenAPI oficiales de SAP S/4HANA Public Cloud usadas o
+> previstas por el proyecto. Fuente única: el paquete OData de
+> [**SAP Business Accelerator Hub**](https://api.sap.com/package/SAPS4HANACloud/odata),
+> donde están todas las APIs necesarias.
+>
+> Las copias canónicas viven en `sap-api-models/specs/<dominio>/` (fuera de
+> `src/main/resources` para no empaquetarlas en el JAR). Solo se generan
+> modelos Java para las specs con consumidor en el código; para activar otra,
+> añadir una `<execution>` en `sap-api-models/pom.xml`.
+
+## Catálogo
+
+| API | Dominio | api.sap.com | Fichero local | Formato | Modelos generados |
+|---|---|---|---|---|---|
+| Business Partner (A2X) | customer | [API_BUSINESS_PARTNER](https://api.sap.com/api/API_BUSINESS_PARTNER/overview) | [`specs/customer/API_BUSINESS_PARTNER.yaml`](../../../sap-api-models/specs/customer/API_BUSINESS_PARTNER.yaml) | OData V2 | ✅ `...api.customer.model` |
+| Mandato SEPA (AR) | customer | [API_APAR_SEPA_MANDATE_SRV](https://api.sap.com/api/API_APAR_SEPA_MANDATE_SRV/overview) | [`specs/customer/API_APAR_SEPA_MANDATE_SRV.yaml`](../../../sap-api-models/specs/customer/API_APAR_SEPA_MANDATE_SRV.yaml) | OData V2 | ✅ `...api.customer.sepamandate.model` |
+| Product Master (A2X) | article | [API_PRODUCT_SRV](https://api.sap.com/api/API_PRODUCT_SRV/overview) | [`specs/article/API_PRODUCT_SRV.yaml`](../../../sap-api-models/specs/article/API_PRODUCT_SRV.yaml) | OData V2 | ✅ `...api.article.product.model` |
+| Material Stock (read) | article | [API_MATERIAL_STOCK_SRV](https://api.sap.com/api/API_MATERIAL_STOCK_SRV/overview) | [`specs/article/API_MATERIAL_STOCK_SRV.yaml`](../../../sap-api-models/specs/article/API_MATERIAL_STOCK_SRV.yaml) | OData V2 | ⬜ sin consumidor aún |
+| Condiciones de precio (ventas) | article | [API_SLSPRICINGCONDITIONRECORD_SRV](https://api.sap.com/api/API_SLSPRICINGCONDITIONRECORD_SRV/overview) | [`specs/article/API_SLSPRICINGCONDITIONRECORD_SRV.yaml`](../../../sap-api-models/specs/article/API_SLSPRICINGCONDITIONRECORD_SRV.yaml) | OData V2 | ⬜ sin consumidor aún |
+| Características de materiales | article | [API_CLFN_CHARACTERISTIC_SRV](https://api.sap.com/api/API_CLFN_CHARACTERISTIC_SRV/overview) | [`specs/article/API_CLFN_CHARACTERISTIC_SRV.json`](../../../sap-api-models/specs/article/API_CLFN_CHARACTERISTIC_SRV.json) | OData V2 | ⬜ sin consumidor aún |
+| Números de serie | article | [CE_API_MATERIALSERIALNUMBER_0001](https://api.sap.com/api/sap-s4-CE_API_MATERIALSERIALNUMBER_0001-v1/overview) | [`specs/article/CE_API_MATERIALSERIALNUMBER_0001.yaml`](../../../sap-api-models/specs/article/CE_API_MATERIALSERIALNUMBER_0001.yaml) | OData V4 | ⬜ sin consumidor aún |
+| Bancos (v3) | finance | [CE_BANK_0003](https://api.sap.com/api/CE_BANK_0003/resource/Bank) | [`specs/finance/CE_BANK_0003.yaml`](../../../sap-api-models/specs/finance/CE_BANK_0003.yaml) | OData V4 | ⬜ sin consumidor aún |
+| Activos fijos (master data) | finance | [CE_FIXEDASSET_0001](https://api.sap.com/api/sap-s4-CE_FIXEDASSET_0001-v1/overview) | [`specs/finance/CE_FIXEDASSET_0001.yaml`](../../../sap-api-models/specs/finance/CE_FIXEDASSET_0001.yaml) | OData V4 | ⬜ sin consumidor aún |
+
+> ⚠️ Las APIs `CE_*` son OData **V4**: sin envoltura `d` tampoco en respuestas,
+> paginación con `@odata.nextLink` y sin fetch CSRF clásico de V2. El
+> `WebClientSapClient` actual está probado contra V2; al activar una V4,
+> revisar parseo de respuestas y cabeceras.
+
+## Cómo actualizar una spec
+
+```bash
+# Descargar desde SAP Business Accelerator Hub (requiere sesión/API key)
+curl -u user:pass \
+  "https://api.sap.com/api/API_BUSINESS_PARTNER/openapi" \
+  -o sap-api-models/specs/customer/API_BUSINESS_PARTNER.yaml
+```
+
+---
+
 # SAP Business Partner API (A2X)
 
 > Especificación OpenAPI oficial de SAP S/4HANA Cloud para la API Business Partner.
@@ -5,20 +47,11 @@
 
 ## Origen
 
-- **Fuente:** [SAP API Business Hub](https://api.sap.com/package/SAPS4HANACloud?section=Artifacts)
+- **Fuente:** [SAP Business Accelerator Hub](https://api.sap.com/api/API_BUSINESS_PARTNER/overview)
 - **Servicio OData:** `/sap/opu/odata/sap/API_BUSINESS_PARTNER`
 - **Formato:** OData v2 expuesto como OpenAPI 3.0 (`x-sap-api-type: ODATA`)
 - **Versión S/4HANA:** 2508+
 - **Fichero:** [`../../../sap-api-models/specs/customer/API_BUSINESS_PARTNER.yaml`](../../../sap-api-models/specs/customer/API_BUSINESS_PARTNER.yaml) (43156 líneas — copia canónica única, usada por `sap-api-models` para generar los modelos Java)
-
-## Cómo actualizar
-
-```bash
-# Descargar desde SAP API Business Hub (requiere credenciales)
-curl -u user:pass \
-  "https://api.sap.com/api/API_BUSINESS_PARTNER/openapi" \
-  -o sap-api-models/specs/customer/API_BUSINESS_PARTNER.yaml
-```
 
 ## Modelo de datos: Business Partner
 

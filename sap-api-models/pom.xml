@@ -60,6 +60,11 @@
                 <artifactId>openapi-generator-maven-plugin</artifactId>
                 <version>${sap-cloud-sdk.version}</version>
                 <executions>
+                    <!-- Specs canónicas en specs/ (FUERA de src/main/resources para no
+                         empaquetarlas en el JAR), organizadas por dominio. Catálogo
+                         completo con enlaces a api.sap.com en docs/specs/sap/README.md.
+                         Solo se generan modelos para las specs con consumidor en el
+                         código; para activar otra, añadir una execution equivalente. -->
                     <execution>
                         <id>generate-customer-business-partner</id>
                         <goals>
@@ -67,7 +72,6 @@
                         </goals>
                         <phase>generate-sources</phase>
                         <configuration>
-                            <!-- Spec canónica FUERA de src/main/resources para no empaquetarla en el JAR -->
                             <inputSpec>${project.basedir}/specs/customer/API_BUSINESS_PARTNER.yaml</inputSpec>
                             <outputDirectory>${project.build.directory}/generated-sources/openapi</outputDirectory>
                             <apiPackage>com.poc.sap.integration.api.customer.api</apiPackage>
@@ -75,6 +79,38 @@
                             <apiMaturity>released</apiMaturity>
                             <!-- Los adaptadores solo consumen los modelos; no generar clases de API client -->
                             <generateApis>false</generateApis>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>generate-customer-sepa-mandate</id>
+                        <goals>
+                            <goal>generate</goal>
+                        </goals>
+                        <phase>generate-sources</phase>
+                        <configuration>
+                            <inputSpec>${project.basedir}/specs/customer/API_APAR_SEPA_MANDATE_SRV.yaml</inputSpec>
+                            <outputDirectory>${project.build.directory}/generated-sources/openapi</outputDirectory>
+                            <apiPackage>com.poc.sap.integration.api.customer.sepamandate.api</apiPackage>
+                            <modelPackage>com.poc.sap.integration.api.customer.sepamandate.model</modelPackage>
+                            <apiMaturity>released</apiMaturity>
+                            <generateApis>false</generateApis>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>generate-article-product</id>
+                        <goals>
+                            <goal>generate</goal>
+                        </goals>
+                        <phase>generate-sources</phase>
+                        <configuration>
+                            <inputSpec>${project.basedir}/specs/article/API_PRODUCT_SRV.yaml</inputSpec>
+                            <outputDirectory>${project.build.directory}/generated-sources/openapi</outputDirectory>
+                            <apiPackage>com.poc.sap.integration.api.article.product.api</apiPackage>
+                            <modelPackage>com.poc.sap.integration.api.article.product.model</modelPackage>
+                            <apiMaturity>released</apiMaturity>
+                            <generateApis>false</generateApis>
+                            <!-- la spec de Product usa anyOf anidados -->
+                            <enableOneOfAnyOfGeneration>true</enableOneOfAnyOfGeneration>
                         </configuration>
                     </execution>
                 </executions>

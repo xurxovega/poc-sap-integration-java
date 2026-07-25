@@ -1,0 +1,1469 @@
+openapi: 3.0.0
+info:
+  title: Material Serial Number
+  version: 1.2.0
+  description: |-
+    This service contains information about material serial numbers and partner functions. The information is sent in the request as a payload.
+
+    All the information in the payload is used to create or update the material serial number and includes appropriate checks for restricted values and authorizations. Once the material serial number has been created, the material serial number is sent in the response along with the related data.
+
+    If the input in the request is not as expected when you create or update a material serial number, the system displays appropriate error or warning messages in the response.
+externalDocs: {description: Business Documentation, url: 'https://help.sap.com/http.svc/ahp2/SAP_S4HANA_CLOUD/2608.latest/EN/b6/116dbbcff74afd851343ca65c54d3c/frameset.htm'}
+x-sap-api-type: ODATAV4
+x-sap-shortText: Create, update, and read material serial numbers using this synchronous inbound service
+x-sap-software-min-version: '2608'
+x-sap-ext-overview:
+- name: Communication Scenario
+  values:
+  - {text: Asset Management Master Data Integration (SAP_COM_0395), format: plain}
+  - {text: Serial Number Management Integration (SAP_COM_0961), format: plain}
+- name: Custom Communication Scenario
+  values:
+  - {text: 'You can use this API in custom communication scenarios. For more information, see Custom Communication Scenario app.', format: plain}
+- name: Scope Items
+  values:
+  - {text: '[Reactive Maintenance (4HH)](https://me.sap.com/processnavigator/SolP/4HH " Link To BP ")', format: markdown}
+  - {text: '[Proactive Maintenance (4HI)](https://me.sap.com/processnavigator/SolP/4HI " Link To BP ")', format: markdown}
+  - {text: '[Preventive Maintenance (BJ2)](https://me.sap.com/processnavigator/SolP/BJ2 " Link To BP ")', format: markdown}
+  - {text: '[Reactive Maintenance (OHH)](https://me.sap.com/processnavigator/SolP/OHH " Link To BP ")', format: markdown}
+  - {text: '[Proactive Maintenance (OHI)](https://me.sap.com/processnavigator/SolP/OHI " Link To BP ")', format: markdown}
+  - {text: '[Improvement Maintenance (OVT)](https://me.sap.com/processnavigator/SolP/OVT " Link To BP ")', format: markdown}
+  - {text: '[Corrective Maintenance (BH1)](https://me.sap.com/processnavigator/SolP/BH1 " Link To BP ")', format: markdown}
+  - {text: '[PSM: Preventive Maintenance (OJ2)](https://me.sap.com/processnavigator/SolP/OJ2 " Link To BP ")', format: markdown}
+  - {text: '[Improvement Maintenance (4VT)](https://me.sap.com/processnavigator/SolP/4VT " Link To BP ")', format: markdown}
+  - {text: '[Operational and Overhead Maintenance (4WM)](https://me.sap.com/processnavigator/SolP/4WM " Link To BP ")', format: markdown}
+  - {text: '[Emergency Maintenance (BH2)](https://me.sap.com/processnavigator/SolP/BH2 " Link To BP ")', format: markdown}
+  - {text: '[Operational and Overhead Maintenance (OWM)](https://me.sap.com/processnavigator/SolP/OWM " Link To BP ")', format: markdown}
+  - {text: '[Service Order Management and Monitoring (3D2)](https://me.sap.com/processnavigator/SolP/3D2 " Link To BP ")', format: markdown}
+  - {text: '[Service Contract Management (3MO)](https://me.sap.com/processnavigator/SolP/3MO " Link To BP ")', format: markdown}
+  - {text: '[In-House Repair (3XK)](https://me.sap.com/processnavigator/SolP/3XK " Link To BP ")', format: markdown}
+  - {text: '[Service Quotation (4GA)](https://me.sap.com/processnavigator/SolP/4GA " Link To BP ")', format: markdown}
+  - {text: '[Service Order Processing with SAP Field Service Management (49X)](https://me.sap.com/processnavigator/SolP/49X " Link To BP ")', format: markdown}
+  - {text: '[Opportunity to Order with SAP Sales Cloud Version 2 (6KO)](https://me.sap.com/processnavigator/SolP/6KO " Link To BP ")', format: markdown}
+  - {text: '[Serial Number Management in Logistics (BLL)](https://me.sap.com/processnavigator/SolP/BLL " Link To BP ")', format: markdown}
+- name: Authentication Methods
+  values:
+  - {text: x509, format: plain}
+- name: Service Group Name
+  values:
+  - {text: API_MATERIALSERIALNUMBER, format: plain}
+- name: Business Object
+  values:
+  - {text: Equipment, format: plain}
+servers:
+- url: https://{host}:{port}/sap/opu/odata4/sap/api_materialserialnumber/srvd_a2x/sap/materialserialnumber/0001
+  variables:
+    host: {default: ''}
+    port: {default: ''}
+- {url: 'https://sandbox.api.sap.com/s4hanacloud/sap/opu/odata4/sap/api_materialserialnumber/srvd_a2x/sap/materialserialnumber/0001'}
+x-sap-extensible:
+  supported: manual
+  description: "If you are working with key user extensibility, the API can be extended by custom fields on the following business contexts (field usage for this API needs to be selected):\r\n* Material Serial Number (EAMS_SEQ)\r\n\r\n[How to add an extension field to an API](https://help.sap.com/docs/SAP_S4HANA_CLOUD/0f69f8fb28ac4bf48d2b57b9637e81fa/ce819b8557194ae0aa180ba4ac6a04de.html)"
+tags:
+- {name: Material Serial Number}
+- {name: Partner for Material Serial Number}
+- {name: Material Serial Number Warranty}
+paths:
+  /MaterialSerialNumber:
+    get:
+      summary: Get entities from MaterialSerialNumber
+      tags: [Material Serial Number]
+      parameters:
+      - {$ref: '#/components/parameters/top'}
+      - {$ref: '#/components/parameters/skip'}
+      - name: $filter
+        in: query
+        description: Filter items by property values, see [Filtering](http://docs.oasis-open.org/odata/odata/v4.01/odata-v4.01-part1-protocol.html#sec_SystemQueryOptionfilter)
+        schema: {type: string}
+      - {$ref: '#/components/parameters/count'}
+      - name: $orderby
+        in: query
+        description: Order items by property values, see [Sorting](http://docs.oasis-open.org/odata/odata/v4.01/odata-v4.01-part1-protocol.html#sec_SystemQueryOptionorderby)
+        explode: false
+        schema:
+          type: array
+          uniqueItems: true
+          items:
+            type: string
+            enum: [Material, Material desc, SerialNumber, SerialNumber desc, Equipment, Equipment desc, EquipmentCategory, EquipmentCategory desc, UniqueItemIdentifier, UniqueItemIdentifier desc, UniqueItemIdentifierStrucType, UniqueItemIdentifierStrucType desc, UniqueItemIdentifierRespPlant, UniqueItemIdentifierRespPlant desc, MaintObjectInternalID, MaintObjectInternalID desc, HasEquipmentData, HasEquipmentData desc, EquipmentHasStockInformation, EquipmentHasStockInformation desc, CreatedByUser, CreatedByUser desc, LastChangedByUser, LastChangedByUser desc, CreationDate, CreationDate desc, LastChangeDate, LastChangeDate desc, LastChangeDateTime, LastChangeDateTime desc, MatlSrlNmbrMasterBatch, MatlSrlNmbrMasterBatch desc, MatlSrlNmbrLastGdsMvtDte, MatlSrlNmbrLastGdsMvtDte desc, MaterialSerialNumberStockBatch, MaterialSerialNumberStockBatch desc, InventoryStockType, InventoryStockType desc, Plant, Plant desc, StorageLocation, StorageLocation desc, InventorySpecialStockType, InventorySpecialStockType desc, Customer, Customer desc, Supplier, Supplier desc, SalesOrder, SalesOrder desc, SalesOrderItem, SalesOrderItem desc, WBSElement, WBSElement desc, StockOwner, StockOwner desc, CompanyCode, CompanyCode desc, MatlSrlNmbrIsAvailable, MatlSrlNmbrIsAvailable desc, MatlSrlNmbrIsDeleted, MatlSrlNmbrIsDeleted desc, MatlSrlNmbrIsMrkdForDeltn, MatlSrlNmbrIsMrkdForDeltn desc, MatlSrlNmbrIsInactive, MatlSrlNmbrIsInactive desc, MatlSrlNmbrIsInstalled, MatlSrlNmbrIsInstalled desc, MatlSrlNmbrIsAllcToParent, MatlSrlNmbrIsAllcToParent desc, MatlSrlNmbrIsInWarehouse, MatlSrlNmbrIsInWarehouse desc, MatlSrlNmbrIsAssgdToDeliv, MatlSrlNmbrIsAssgdToDeliv desc, MatlSrlNmbrIsAtCustomer, MatlSrlNmbrIsAtCustomer desc, MatlSrlNmbrIsUndrCnstrctn, MatlSrlNmbrIsUndrCnstrctn desc, MatlSrlNmbrIsOnHold, MatlSrlNmbrIsOnHold desc, MatlSrlNmbrIsLocked, MatlSrlNmbrIsLocked desc, MatlSrlNmbrIsIDUndefined, MatlSrlNmbrIsIDUndefined desc, MatlSrlNmbrIsAssgdToJITCall, MatlSrlNmbrIsAssgdToJITCall desc, MatlSrlNmbrDocIsCreated, MatlSrlNmbrDocIsCreated desc, MatlSrlNmbrHndlgUntIsAssgd, MatlSrlNmbrHndlgUntIsAssgd desc, MatlSrlNmbrInvtryIsActv, MatlSrlNmbrInvtryIsActv desc, MatlSrlNmbrUUIDIsGnrtd, MatlSrlNmbrUUIDIsGnrtd desc, MatlSrlNmbrUUIDIsAttached, MatlSrlNmbrUUIDIsAttached desc, MatlSrlNmbrUUIDIsSent, MatlSrlNmbrUUIDIsSent desc, MatlSrlNmbrUUIDIsConfd, MatlSrlNmbrUUIDIsConfd desc, SAP__Messages, SAP__Messages desc]
+      - name: $select
+        in: query
+        description: Select properties to be returned, see [Select](http://docs.oasis-open.org/odata/odata/v4.01/odata-v4.01-part1-protocol.html#sec_SystemQueryOptionselect)
+        explode: false
+        schema:
+          type: array
+          uniqueItems: true
+          items:
+            type: string
+            enum: [Material, SerialNumber, Equipment, EquipmentCategory, UniqueItemIdentifier, UniqueItemIdentifierStrucType, UniqueItemIdentifierRespPlant, MaintObjectInternalID, HasEquipmentData, EquipmentHasStockInformation, CreatedByUser, LastChangedByUser, CreationDate, LastChangeDate, LastChangeDateTime, MatlSrlNmbrMasterBatch, MatlSrlNmbrLastGdsMvtDte, MaterialSerialNumberStockBatch, InventoryStockType, Plant, StorageLocation, InventorySpecialStockType, Customer, Supplier, SalesOrder, SalesOrderItem, WBSElement, StockOwner, CompanyCode, MatlSrlNmbrIsAvailable, MatlSrlNmbrIsDeleted, MatlSrlNmbrIsMrkdForDeltn, MatlSrlNmbrIsInactive, MatlSrlNmbrIsInstalled, MatlSrlNmbrIsAllcToParent, MatlSrlNmbrIsInWarehouse, MatlSrlNmbrIsAssgdToDeliv, MatlSrlNmbrIsAtCustomer, MatlSrlNmbrIsUndrCnstrctn, MatlSrlNmbrIsOnHold, MatlSrlNmbrIsLocked, MatlSrlNmbrIsIDUndefined, MatlSrlNmbrIsAssgdToJITCall, MatlSrlNmbrDocIsCreated, MatlSrlNmbrHndlgUntIsAssgd, MatlSrlNmbrInvtryIsActv, MatlSrlNmbrUUIDIsGnrtd, MatlSrlNmbrUUIDIsAttached, MatlSrlNmbrUUIDIsSent, MatlSrlNmbrUUIDIsConfd, SAP__Messages]
+      - name: $expand
+        in: query
+        description: Expand related entities, see [Expand](http://docs.oasis-open.org/odata/odata/v4.01/odata-v4.01-part1-protocol.html#sec_SystemQueryOptionexpand)
+        explode: false
+        schema:
+          type: array
+          uniqueItems: true
+          items:
+            type: string
+            enum: ['*', _Partner, _Warranty]
+      responses:
+        '200':
+          description: Retrieved entities
+          content:
+            application/json:
+              schema:
+                title: Collection of MaterialSerialNumber_Type
+                type: object
+                properties:
+                  '@odata.count': {$ref: '#/components/schemas/count'}
+                  value:
+                    type: array
+                    items: {$ref: '#/components/schemas/com.sap.gateway.srvd_a2x.api_materialserialnumber.v0001.MaterialSerialNumber_Type'}
+        4XX: {$ref: '#/components/responses/error'}
+    post:
+      summary: Add new entity to MaterialSerialNumber
+      tags: [Material Serial Number]
+      requestBody:
+        required: true
+        description: New entity
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/com.sap.gateway.srvd_a2x.api_materialserialnumber.v0001.MaterialSerialNumber_Type-create'}
+      responses:
+        '201':
+          description: Created entity
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/com.sap.gateway.srvd_a2x.api_materialserialnumber.v0001.MaterialSerialNumber_Type'}
+        4XX: {$ref: '#/components/responses/error'}
+  /MaterialSerialNumber/SAP__self.CreateMassMaterialSerialNumber:
+    post:
+      summary: Invoke action CreateMassMaterialSerialNumber
+      tags: [Material Serial Number]
+      requestBody:
+        description: Action parameters
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                Material: {type: string, maxLength: 40}
+                EquipmentCategory: {type: string, maxLength: 1}
+                UniqueItemIdentifierRespPlant: {type: string, maxLength: 4}
+                EquipMaterialLastSerialNumber: {type: string, maxLength: 18}
+                EquipmentNumberOfSerialNumbers: {type: integer, format: int32}
+                EquipmentFromSerialNumber: {type: string, maxLength: 18}
+                EquipmentToSerialNumber: {type: string, maxLength: 18}
+                _SerialList:
+                  type: array
+                  items: {$ref: '#/components/schemas/com.sap.gateway.srvd_a2x.api_materialserialnumber.v0001.D_EQUIPCREATESERIALNUMBERLISTP'}
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                title: Collection of EquipCrteMassMatlSrlNmbrR_Type
+                type: object
+                properties:
+                  '@odata.count': {$ref: '#/components/schemas/count'}
+                  value:
+                    type: array
+                    items: {$ref: '#/components/schemas/com.sap.gateway.srvd_a2x.api_materialserialnumber.v0001.EquipCrteMassMatlSrlNmbrR_Type'}
+        4XX: {$ref: '#/components/responses/error'}
+  /MaterialSerialNumber/{Material}/{SerialNumber}:
+    parameters:
+    - name: Material
+      in: path
+      required: true
+      description: Material Number
+      schema: {type: string, maxLength: 18}
+    - name: SerialNumber
+      in: path
+      required: true
+      description: Serial Number
+      schema: {type: string, maxLength: 18}
+    get:
+      summary: Get entity from MaterialSerialNumber by key
+      tags: [Material Serial Number]
+      parameters:
+      - name: $select
+        in: query
+        description: Select properties to be returned, see [Select](http://docs.oasis-open.org/odata/odata/v4.01/odata-v4.01-part1-protocol.html#sec_SystemQueryOptionselect)
+        explode: false
+        schema:
+          type: array
+          uniqueItems: true
+          items:
+            type: string
+            enum: [Material, SerialNumber, Equipment, EquipmentCategory, UniqueItemIdentifier, UniqueItemIdentifierStrucType, UniqueItemIdentifierRespPlant, MaintObjectInternalID, HasEquipmentData, EquipmentHasStockInformation, CreatedByUser, LastChangedByUser, CreationDate, LastChangeDate, LastChangeDateTime, MatlSrlNmbrMasterBatch, MatlSrlNmbrLastGdsMvtDte, MaterialSerialNumberStockBatch, InventoryStockType, Plant, StorageLocation, InventorySpecialStockType, Customer, Supplier, SalesOrder, SalesOrderItem, WBSElement, StockOwner, CompanyCode, MatlSrlNmbrIsAvailable, MatlSrlNmbrIsDeleted, MatlSrlNmbrIsMrkdForDeltn, MatlSrlNmbrIsInactive, MatlSrlNmbrIsInstalled, MatlSrlNmbrIsAllcToParent, MatlSrlNmbrIsInWarehouse, MatlSrlNmbrIsAssgdToDeliv, MatlSrlNmbrIsAtCustomer, MatlSrlNmbrIsUndrCnstrctn, MatlSrlNmbrIsOnHold, MatlSrlNmbrIsLocked, MatlSrlNmbrIsIDUndefined, MatlSrlNmbrIsAssgdToJITCall, MatlSrlNmbrDocIsCreated, MatlSrlNmbrHndlgUntIsAssgd, MatlSrlNmbrInvtryIsActv, MatlSrlNmbrUUIDIsGnrtd, MatlSrlNmbrUUIDIsAttached, MatlSrlNmbrUUIDIsSent, MatlSrlNmbrUUIDIsConfd, SAP__Messages]
+      - name: $expand
+        in: query
+        description: Expand related entities, see [Expand](http://docs.oasis-open.org/odata/odata/v4.01/odata-v4.01-part1-protocol.html#sec_SystemQueryOptionexpand)
+        explode: false
+        schema:
+          type: array
+          uniqueItems: true
+          items:
+            type: string
+            enum: ['*', _Partner, _Warranty]
+      responses:
+        '200':
+          description: Retrieved entity
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/com.sap.gateway.srvd_a2x.api_materialserialnumber.v0001.MaterialSerialNumber_Type'}
+        4XX: {$ref: '#/components/responses/error'}
+    patch:
+      summary: Update entity in MaterialSerialNumber
+      tags: [Material Serial Number]
+      requestBody:
+        required: true
+        description: New property values
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/com.sap.gateway.srvd_a2x.api_materialserialnumber.v0001.MaterialSerialNumber_Type-update'}
+      responses:
+        '200':
+          description: Updated entity
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/com.sap.gateway.srvd_a2x.api_materialserialnumber.v0001.MaterialSerialNumber_Type'}
+        4XX: {$ref: '#/components/responses/error'}
+  /MaterialSerialNumber/{Material}/{SerialNumber}/SAP__self.ChangeMaintenancePlant:
+    post:
+      summary: Invoke action ChangeMaintenancePlant
+      tags: [Material Serial Number]
+      parameters:
+      - name: Material
+        in: path
+        required: true
+        description: Material Number
+        schema: {type: string, maxLength: 18}
+      - name: SerialNumber
+        in: path
+        required: true
+        description: Serial Number
+        schema: {type: string, maxLength: 18}
+      requestBody:
+        description: Action parameters
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                MaintenancePlant: {type: string, maxLength: 4}
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/com.sap.gateway.srvd_a2x.api_materialserialnumber.v0001.MaterialSerialNumber_Type'}
+        4XX: {$ref: '#/components/responses/error'}
+  /MaterialSerialNumber/{Material}/{SerialNumber}/SAP__self.ActvtSrlzdMatlItmEquipmentData:
+    post:
+      summary: Invoke action ActvtSrlzdMatlItmEquipmentData
+      tags: [Material Serial Number]
+      parameters:
+      - name: Material
+        in: path
+        required: true
+        description: Material Number
+        schema: {type: string, maxLength: 18}
+      - name: SerialNumber
+        in: path
+        required: true
+        description: Serial Number
+        schema: {type: string, maxLength: 18}
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/com.sap.gateway.srvd_a2x.api_materialserialnumber.v0001.MaterialSerialNumber_Type'}
+        4XX: {$ref: '#/components/responses/error'}
+  /MaterialSerialNumber/{Material}/{SerialNumber}/SAP__self.ChangeMaterial:
+    post:
+      summary: Invoke action ChangeMaterial
+      tags: [Material Serial Number]
+      parameters:
+      - name: Material
+        in: path
+        required: true
+        description: Material Number
+        schema: {type: string, maxLength: 18}
+      - name: SerialNumber
+        in: path
+        required: true
+        description: Serial Number
+        schema: {type: string, maxLength: 18}
+      requestBody:
+        description: Action parameters
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                Material: {type: string, maxLength: 40}
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/com.sap.gateway.srvd_a2x.api_materialserialnumber.v0001.SerializedMatlItmChgMatlR_Type'}
+        4XX: {$ref: '#/components/responses/error'}
+  /MaterialSerialNumber/{Material}/{SerialNumber}/SAP__self.SetSrlzdMaterialItemToInactive:
+    post:
+      summary: Invoke action SetSrlzdMaterialItemToInactive
+      tags: [Material Serial Number]
+      parameters:
+      - name: Material
+        in: path
+        required: true
+        description: Material Number
+        schema: {type: string, maxLength: 18}
+      - name: SerialNumber
+        in: path
+        required: true
+        description: Serial Number
+        schema: {type: string, maxLength: 18}
+      responses:
+        '204': {description: Success}
+        4XX: {$ref: '#/components/responses/error'}
+  /MaterialSerialNumber/{Material}/{SerialNumber}/SAP__self.ChangeEquipmentCategory:
+    post:
+      summary: Invoke action ChangeEquipmentCategory
+      tags: [Material Serial Number]
+      parameters:
+      - name: Material
+        in: path
+        required: true
+        description: Material Number
+        schema: {type: string, maxLength: 18}
+      - name: SerialNumber
+        in: path
+        required: true
+        description: Serial Number
+        schema: {type: string, maxLength: 18}
+      requestBody:
+        description: Action parameters
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                EquipmentCategory: {type: string, maxLength: 1}
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/com.sap.gateway.srvd_a2x.api_materialserialnumber.v0001.MaterialSerialNumber_Type'}
+        4XX: {$ref: '#/components/responses/error'}
+  /MaterialSerialNumber/{Material}/{SerialNumber}/SAP__self.ResetSrlzdMatlItmFrmDeletion:
+    post:
+      summary: Invoke action ResetSrlzdMatlItmFrmDeletion
+      tags: [Material Serial Number]
+      parameters:
+      - name: Material
+        in: path
+        required: true
+        description: Material Number
+        schema: {type: string, maxLength: 18}
+      - name: SerialNumber
+        in: path
+        required: true
+        description: Serial Number
+        schema: {type: string, maxLength: 18}
+      responses:
+        '204': {description: Success}
+        4XX: {$ref: '#/components/responses/error'}
+  /MaterialSerialNumber/{Material}/{SerialNumber}/SAP__self.ChgSrlzdMatlItemSerialNumber:
+    post:
+      summary: Invoke action ChgSrlzdMatlItemSerialNumber
+      tags: [Material Serial Number]
+      parameters:
+      - name: Material
+        in: path
+        required: true
+        description: Material Number
+        schema: {type: string, maxLength: 18}
+      - name: SerialNumber
+        in: path
+        required: true
+        description: Serial Number
+        schema: {type: string, maxLength: 18}
+      requestBody:
+        description: Action parameters
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                SerialNumber: {type: string, maxLength: 18}
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/com.sap.gateway.srvd_a2x.api_materialserialnumber.v0001.SerializedMatlItmChgSrlNmbrR_Type'}
+        4XX: {$ref: '#/components/responses/error'}
+  /MaterialSerialNumber/{Material}/{SerialNumber}/SAP__self.ChangeUniqueItemIdentifier:
+    post:
+      summary: Invoke action ChangeUniqueItemIdentifier
+      tags: [Material Serial Number]
+      parameters:
+      - name: Material
+        in: path
+        required: true
+        description: Material Number
+        schema: {type: string, maxLength: 18}
+      - name: SerialNumber
+        in: path
+        required: true
+        description: Serial Number
+        schema: {type: string, maxLength: 18}
+      requestBody:
+        description: Action parameters
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                UniqueItemIdentifier: {type: string, maxLength: 72}
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/com.sap.gateway.srvd_a2x.api_materialserialnumber.v0001.MaterialSerialNumber_Type'}
+        4XX: {$ref: '#/components/responses/error'}
+  /MaterialSerialNumber/{Material}/{SerialNumber}/SAP__self.RsetSrlzdMatlItemFromInactive:
+    post:
+      summary: Invoke action RsetSrlzdMatlItemFromInactive
+      tags: [Material Serial Number]
+      parameters:
+      - name: Material
+        in: path
+        required: true
+        description: Material Number
+        schema: {type: string, maxLength: 18}
+      - name: SerialNumber
+        in: path
+        required: true
+        description: Serial Number
+        schema: {type: string, maxLength: 18}
+      responses:
+        '204': {description: Success}
+        4XX: {$ref: '#/components/responses/error'}
+  /MaterialSerialNumber/{Material}/{SerialNumber}/SAP__self.SetSrlzdMaterialItemToDeletion:
+    post:
+      summary: Invoke action SetSrlzdMaterialItemToDeletion
+      tags: [Material Serial Number]
+      parameters:
+      - name: Material
+        in: path
+        required: true
+        description: Material Number
+        schema: {type: string, maxLength: 18}
+      - name: SerialNumber
+        in: path
+        required: true
+        description: Serial Number
+        schema: {type: string, maxLength: 18}
+      responses:
+        '204': {description: Success}
+        4XX: {$ref: '#/components/responses/error'}
+  /MaterialSerialNumber/{Material}/{SerialNumber}/_Partner:
+    parameters:
+    - name: Material
+      in: path
+      required: true
+      description: Material Number
+      schema: {type: string, maxLength: 18}
+    - name: SerialNumber
+      in: path
+      required: true
+      description: Serial Number
+      schema: {type: string, maxLength: 18}
+    get:
+      summary: Get entities from related _Partner
+      tags: [Material Serial Number, Partner for Material Serial Number]
+      parameters:
+      - {$ref: '#/components/parameters/top'}
+      - {$ref: '#/components/parameters/skip'}
+      - name: $filter
+        in: query
+        description: Filter items by property values, see [Filtering](http://docs.oasis-open.org/odata/odata/v4.01/odata-v4.01-part1-protocol.html#sec_SystemQueryOptionfilter)
+        schema: {type: string}
+      - {$ref: '#/components/parameters/count'}
+      - name: $orderby
+        in: query
+        description: Order items by property values, see [Sorting](http://docs.oasis-open.org/odata/odata/v4.01/odata-v4.01-part1-protocol.html#sec_SystemQueryOptionorderby)
+        explode: false
+        schema:
+          type: array
+          uniqueItems: true
+          items:
+            type: string
+            enum: [Material, Material desc, SerialNumber, SerialNumber desc, Equipment, Equipment desc, PartnerFunction, PartnerFunction desc, EquipmentPartnerObjectNmbr, EquipmentPartnerObjectNmbr desc, PartnerFunctionType, PartnerFunctionType desc, EquipmentPartner, EquipmentPartner desc, CreatedByUser, CreatedByUser desc, CreationDate, CreationDate desc, CreationTime, CreationTime desc, LastChangedByUser, LastChangedByUser desc, LastChangeTime, LastChangeTime desc, LastChangeDate, LastChangeDate desc, MaintObjectInternalID, MaintObjectInternalID desc, SAP__Messages, SAP__Messages desc]
+      - name: $select
+        in: query
+        description: Select properties to be returned, see [Select](http://docs.oasis-open.org/odata/odata/v4.01/odata-v4.01-part1-protocol.html#sec_SystemQueryOptionselect)
+        explode: false
+        schema:
+          type: array
+          uniqueItems: true
+          items:
+            type: string
+            enum: [Material, SerialNumber, Equipment, PartnerFunction, EquipmentPartnerObjectNmbr, PartnerFunctionType, EquipmentPartner, CreatedByUser, CreationDate, CreationTime, LastChangedByUser, LastChangeTime, LastChangeDate, MaintObjectInternalID, SAP__Messages]
+      - name: $expand
+        in: query
+        description: Expand related entities, see [Expand](http://docs.oasis-open.org/odata/odata/v4.01/odata-v4.01-part1-protocol.html#sec_SystemQueryOptionexpand)
+        explode: false
+        schema:
+          type: array
+          uniqueItems: true
+          items:
+            type: string
+            enum: ['*', _EquipmentMaterialSerialNumber]
+      responses:
+        '200':
+          description: Retrieved entities
+          content:
+            application/json:
+              schema:
+                title: Collection of MaterialSerialNumberPartner_Type
+                type: object
+                properties:
+                  '@odata.count': {$ref: '#/components/schemas/count'}
+                  value:
+                    type: array
+                    items: {$ref: '#/components/schemas/com.sap.gateway.srvd_a2x.api_materialserialnumber.v0001.MaterialSerialNumberPartner_Type'}
+        4XX: {$ref: '#/components/responses/error'}
+    post:
+      summary: Add new entity to related _Partner
+      tags: [Material Serial Number, Partner for Material Serial Number]
+      requestBody:
+        required: true
+        description: New entity
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/com.sap.gateway.srvd_a2x.api_materialserialnumber.v0001.MaterialSerialNumberPartner_Type-create'}
+      responses:
+        '201':
+          description: Created entity
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/com.sap.gateway.srvd_a2x.api_materialserialnumber.v0001.MaterialSerialNumberPartner_Type'}
+        4XX: {$ref: '#/components/responses/error'}
+  /MaterialSerialNumber/{Material}/{SerialNumber}/_Warranty:
+    parameters:
+    - name: Material
+      in: path
+      required: true
+      description: Material Number
+      schema: {type: string, maxLength: 18}
+    - name: SerialNumber
+      in: path
+      required: true
+      description: Serial Number
+      schema: {type: string, maxLength: 18}
+    get:
+      summary: Get entities from related _Warranty
+      tags: [Material Serial Number, Material Serial Number Warranty]
+      parameters:
+      - {$ref: '#/components/parameters/top'}
+      - {$ref: '#/components/parameters/skip'}
+      - name: $filter
+        in: query
+        description: Filter items by property values, see [Filtering](http://docs.oasis-open.org/odata/odata/v4.01/odata-v4.01-part1-protocol.html#sec_SystemQueryOptionfilter)
+        schema: {type: string}
+      - {$ref: '#/components/parameters/count'}
+      - name: $orderby
+        in: query
+        description: Order items by property values, see [Sorting](http://docs.oasis-open.org/odata/odata/v4.01/odata-v4.01-part1-protocol.html#sec_SystemQueryOptionorderby)
+        explode: false
+        schema:
+          type: array
+          uniqueItems: true
+          items:
+            type: string
+            enum: [Material, Material desc, SerialNumber, SerialNumber desc, Equipment, Equipment desc, WarrantyCategory, WarrantyCategory desc, WarrantyType, WarrantyType desc, MasterWarranty, MasterWarranty desc, WarrantyStartDate, WarrantyStartDate desc, WarrantyEndDate, WarrantyEndDate desc, WrntyIsInhtdFromSuperiorObject, WrntyIsInhtdFromSuperiorObject desc, WrntyIsPassedOnToChildObject, WrntyIsPassedOnToChildObject desc, SAP__Messages, SAP__Messages desc]
+      - name: $select
+        in: query
+        description: Select properties to be returned, see [Select](http://docs.oasis-open.org/odata/odata/v4.01/odata-v4.01-part1-protocol.html#sec_SystemQueryOptionselect)
+        explode: false
+        schema:
+          type: array
+          uniqueItems: true
+          items:
+            type: string
+            enum: [Material, SerialNumber, Equipment, WarrantyCategory, WarrantyType, MasterWarranty, WarrantyStartDate, WarrantyEndDate, WrntyIsInhtdFromSuperiorObject, WrntyIsPassedOnToChildObject, SAP__Messages]
+      - name: $expand
+        in: query
+        description: Expand related entities, see [Expand](http://docs.oasis-open.org/odata/odata/v4.01/odata-v4.01-part1-protocol.html#sec_SystemQueryOptionexpand)
+        explode: false
+        schema:
+          type: array
+          uniqueItems: true
+          items:
+            type: string
+            enum: ['*', _EquipmentMaterialSerialNumber]
+      responses:
+        '200':
+          description: Retrieved entities
+          content:
+            application/json:
+              schema:
+                title: Collection of MaterialSerialNumberWarranty_Type
+                type: object
+                properties:
+                  '@odata.count': {$ref: '#/components/schemas/count'}
+                  value:
+                    type: array
+                    items: {$ref: '#/components/schemas/com.sap.gateway.srvd_a2x.api_materialserialnumber.v0001.MaterialSerialNumberWarranty_Type'}
+        4XX: {$ref: '#/components/responses/error'}
+    post:
+      summary: Add new entity to related _Warranty
+      tags: [Material Serial Number, Material Serial Number Warranty]
+      requestBody:
+        required: true
+        description: New entity
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/com.sap.gateway.srvd_a2x.api_materialserialnumber.v0001.MaterialSerialNumberWarranty_Type-create'}
+      responses:
+        '201':
+          description: Created entity
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/com.sap.gateway.srvd_a2x.api_materialserialnumber.v0001.MaterialSerialNumberWarranty_Type'}
+        4XX: {$ref: '#/components/responses/error'}
+  /MaterialSerialNumberPartner:
+    get:
+      summary: Get entities from MaterialSerialNumberPartner
+      tags: [Partner for Material Serial Number]
+      parameters:
+      - {$ref: '#/components/parameters/top'}
+      - {$ref: '#/components/parameters/skip'}
+      - name: $filter
+        in: query
+        description: Filter items by property values, see [Filtering](http://docs.oasis-open.org/odata/odata/v4.01/odata-v4.01-part1-protocol.html#sec_SystemQueryOptionfilter)
+        schema: {type: string}
+      - {$ref: '#/components/parameters/count'}
+      - name: $orderby
+        in: query
+        description: Order items by property values, see [Sorting](http://docs.oasis-open.org/odata/odata/v4.01/odata-v4.01-part1-protocol.html#sec_SystemQueryOptionorderby)
+        explode: false
+        schema:
+          type: array
+          uniqueItems: true
+          items:
+            type: string
+            enum: [Material, Material desc, SerialNumber, SerialNumber desc, Equipment, Equipment desc, PartnerFunction, PartnerFunction desc, EquipmentPartnerObjectNmbr, EquipmentPartnerObjectNmbr desc, PartnerFunctionType, PartnerFunctionType desc, EquipmentPartner, EquipmentPartner desc, CreatedByUser, CreatedByUser desc, CreationDate, CreationDate desc, CreationTime, CreationTime desc, LastChangedByUser, LastChangedByUser desc, LastChangeTime, LastChangeTime desc, LastChangeDate, LastChangeDate desc, MaintObjectInternalID, MaintObjectInternalID desc, SAP__Messages, SAP__Messages desc]
+      - name: $select
+        in: query
+        description: Select properties to be returned, see [Select](http://docs.oasis-open.org/odata/odata/v4.01/odata-v4.01-part1-protocol.html#sec_SystemQueryOptionselect)
+        explode: false
+        schema:
+          type: array
+          uniqueItems: true
+          items:
+            type: string
+            enum: [Material, SerialNumber, Equipment, PartnerFunction, EquipmentPartnerObjectNmbr, PartnerFunctionType, EquipmentPartner, CreatedByUser, CreationDate, CreationTime, LastChangedByUser, LastChangeTime, LastChangeDate, MaintObjectInternalID, SAP__Messages]
+      - name: $expand
+        in: query
+        description: Expand related entities, see [Expand](http://docs.oasis-open.org/odata/odata/v4.01/odata-v4.01-part1-protocol.html#sec_SystemQueryOptionexpand)
+        explode: false
+        schema:
+          type: array
+          uniqueItems: true
+          items:
+            type: string
+            enum: ['*', _EquipmentMaterialSerialNumber]
+      responses:
+        '200':
+          description: Retrieved entities
+          content:
+            application/json:
+              schema:
+                title: Collection of MaterialSerialNumberPartner_Type
+                type: object
+                properties:
+                  '@odata.count': {$ref: '#/components/schemas/count'}
+                  value:
+                    type: array
+                    items: {$ref: '#/components/schemas/com.sap.gateway.srvd_a2x.api_materialserialnumber.v0001.MaterialSerialNumberPartner_Type'}
+        4XX: {$ref: '#/components/responses/error'}
+    post:
+      summary: Add new entity to MaterialSerialNumberPartner
+      tags: [Partner for Material Serial Number]
+      requestBody:
+        required: true
+        description: New entity
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/com.sap.gateway.srvd_a2x.api_materialserialnumber.v0001.MaterialSerialNumberPartner_Type-create'}
+      responses:
+        '201':
+          description: Created entity
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/com.sap.gateway.srvd_a2x.api_materialserialnumber.v0001.MaterialSerialNumberPartner_Type'}
+        4XX: {$ref: '#/components/responses/error'}
+  /MaterialSerialNumberPartner/{Material}/{SerialNumber}/{Equipment}/{PartnerFunction}/{EquipmentPartnerObjectNmbr}:
+    parameters:
+    - name: Material
+      in: path
+      required: true
+      description: Material Number
+      schema: {type: string, maxLength: 18}
+    - name: SerialNumber
+      in: path
+      required: true
+      description: Serial Number
+      schema: {type: string, maxLength: 18}
+    - name: Equipment
+      in: path
+      required: true
+      description: Equipment Number
+      schema: {type: string, maxLength: 18}
+    - name: PartnerFunction
+      in: path
+      required: true
+      description: Partner Function
+      schema: {type: string, maxLength: 2}
+    - name: EquipmentPartnerObjectNmbr
+      in: path
+      required: true
+      description: Counter for differentiation 6-digit
+      schema: {type: string, maxLength: 6}
+    get:
+      summary: Get entity from MaterialSerialNumberPartner by key
+      tags: [Partner for Material Serial Number]
+      parameters:
+      - name: $select
+        in: query
+        description: Select properties to be returned, see [Select](http://docs.oasis-open.org/odata/odata/v4.01/odata-v4.01-part1-protocol.html#sec_SystemQueryOptionselect)
+        explode: false
+        schema:
+          type: array
+          uniqueItems: true
+          items:
+            type: string
+            enum: [Material, SerialNumber, Equipment, PartnerFunction, EquipmentPartnerObjectNmbr, PartnerFunctionType, EquipmentPartner, CreatedByUser, CreationDate, CreationTime, LastChangedByUser, LastChangeTime, LastChangeDate, MaintObjectInternalID, SAP__Messages]
+      - name: $expand
+        in: query
+        description: Expand related entities, see [Expand](http://docs.oasis-open.org/odata/odata/v4.01/odata-v4.01-part1-protocol.html#sec_SystemQueryOptionexpand)
+        explode: false
+        schema:
+          type: array
+          uniqueItems: true
+          items:
+            type: string
+            enum: ['*', _EquipmentMaterialSerialNumber]
+      responses:
+        '200':
+          description: Retrieved entity
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/com.sap.gateway.srvd_a2x.api_materialserialnumber.v0001.MaterialSerialNumberPartner_Type'}
+        4XX: {$ref: '#/components/responses/error'}
+    patch:
+      summary: Update entity in MaterialSerialNumberPartner
+      tags: [Partner for Material Serial Number]
+      requestBody:
+        required: true
+        description: New property values
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/com.sap.gateway.srvd_a2x.api_materialserialnumber.v0001.MaterialSerialNumberPartner_Type-update'}
+      responses:
+        '200':
+          description: Updated entity
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/com.sap.gateway.srvd_a2x.api_materialserialnumber.v0001.MaterialSerialNumberPartner_Type'}
+        4XX: {$ref: '#/components/responses/error'}
+    delete:
+      summary: Delete entity from MaterialSerialNumberPartner
+      tags: [Partner for Material Serial Number]
+      responses:
+        '204': {description: Success}
+        4XX: {$ref: '#/components/responses/error'}
+  ? /MaterialSerialNumberPartner/{Material}/{SerialNumber}/{Equipment}/{PartnerFunction}/{EquipmentPartnerObjectNmbr}/_EquipmentMaterialSerialNumber
+  : parameters:
+    - name: Material
+      in: path
+      required: true
+      description: Material Number
+      schema: {type: string, maxLength: 18}
+    - name: SerialNumber
+      in: path
+      required: true
+      description: Serial Number
+      schema: {type: string, maxLength: 18}
+    - name: Equipment
+      in: path
+      required: true
+      description: Equipment Number
+      schema: {type: string, maxLength: 18}
+    - name: PartnerFunction
+      in: path
+      required: true
+      description: Partner Function
+      schema: {type: string, maxLength: 2}
+    - name: EquipmentPartnerObjectNmbr
+      in: path
+      required: true
+      description: Counter for differentiation 6-digit
+      schema: {type: string, maxLength: 6}
+    get:
+      summary: Get related _EquipmentMaterialSerialNumber
+      tags: [Partner for Material Serial Number, Material Serial Number]
+      parameters:
+      - name: $select
+        in: query
+        description: Select properties to be returned, see [Select](http://docs.oasis-open.org/odata/odata/v4.01/odata-v4.01-part1-protocol.html#sec_SystemQueryOptionselect)
+        explode: false
+        schema:
+          type: array
+          uniqueItems: true
+          items:
+            type: string
+            enum: [Material, SerialNumber, Equipment, EquipmentCategory, UniqueItemIdentifier, UniqueItemIdentifierStrucType, UniqueItemIdentifierRespPlant, MaintObjectInternalID, HasEquipmentData, EquipmentHasStockInformation, CreatedByUser, LastChangedByUser, CreationDate, LastChangeDate, LastChangeDateTime, MatlSrlNmbrMasterBatch, MatlSrlNmbrLastGdsMvtDte, MaterialSerialNumberStockBatch, InventoryStockType, Plant, StorageLocation, InventorySpecialStockType, Customer, Supplier, SalesOrder, SalesOrderItem, WBSElement, StockOwner, CompanyCode, MatlSrlNmbrIsAvailable, MatlSrlNmbrIsDeleted, MatlSrlNmbrIsMrkdForDeltn, MatlSrlNmbrIsInactive, MatlSrlNmbrIsInstalled, MatlSrlNmbrIsAllcToParent, MatlSrlNmbrIsInWarehouse, MatlSrlNmbrIsAssgdToDeliv, MatlSrlNmbrIsAtCustomer, MatlSrlNmbrIsUndrCnstrctn, MatlSrlNmbrIsOnHold, MatlSrlNmbrIsLocked, MatlSrlNmbrIsIDUndefined, MatlSrlNmbrIsAssgdToJITCall, MatlSrlNmbrDocIsCreated, MatlSrlNmbrHndlgUntIsAssgd, MatlSrlNmbrInvtryIsActv, MatlSrlNmbrUUIDIsGnrtd, MatlSrlNmbrUUIDIsAttached, MatlSrlNmbrUUIDIsSent, MatlSrlNmbrUUIDIsConfd, SAP__Messages]
+      - name: $expand
+        in: query
+        description: Expand related entities, see [Expand](http://docs.oasis-open.org/odata/odata/v4.01/odata-v4.01-part1-protocol.html#sec_SystemQueryOptionexpand)
+        explode: false
+        schema:
+          type: array
+          uniqueItems: true
+          items:
+            type: string
+            enum: ['*', _Partner, _Warranty]
+      responses:
+        '200':
+          description: Retrieved entity
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/com.sap.gateway.srvd_a2x.api_materialserialnumber.v0001.MaterialSerialNumber_Type'}
+        4XX: {$ref: '#/components/responses/error'}
+  /MaterialSerialNumberWarranty:
+    get:
+      summary: Get entities from MaterialSerialNumberWarranty
+      tags: [Material Serial Number Warranty]
+      parameters:
+      - {$ref: '#/components/parameters/top'}
+      - {$ref: '#/components/parameters/skip'}
+      - name: $filter
+        in: query
+        description: Filter items by property values, see [Filtering](http://docs.oasis-open.org/odata/odata/v4.01/odata-v4.01-part1-protocol.html#sec_SystemQueryOptionfilter)
+        schema: {type: string}
+      - {$ref: '#/components/parameters/count'}
+      - name: $orderby
+        in: query
+        description: Order items by property values, see [Sorting](http://docs.oasis-open.org/odata/odata/v4.01/odata-v4.01-part1-protocol.html#sec_SystemQueryOptionorderby)
+        explode: false
+        schema:
+          type: array
+          uniqueItems: true
+          items:
+            type: string
+            enum: [Material, Material desc, SerialNumber, SerialNumber desc, Equipment, Equipment desc, WarrantyCategory, WarrantyCategory desc, WarrantyType, WarrantyType desc, MasterWarranty, MasterWarranty desc, WarrantyStartDate, WarrantyStartDate desc, WarrantyEndDate, WarrantyEndDate desc, WrntyIsInhtdFromSuperiorObject, WrntyIsInhtdFromSuperiorObject desc, WrntyIsPassedOnToChildObject, WrntyIsPassedOnToChildObject desc, SAP__Messages, SAP__Messages desc]
+      - name: $select
+        in: query
+        description: Select properties to be returned, see [Select](http://docs.oasis-open.org/odata/odata/v4.01/odata-v4.01-part1-protocol.html#sec_SystemQueryOptionselect)
+        explode: false
+        schema:
+          type: array
+          uniqueItems: true
+          items:
+            type: string
+            enum: [Material, SerialNumber, Equipment, WarrantyCategory, WarrantyType, MasterWarranty, WarrantyStartDate, WarrantyEndDate, WrntyIsInhtdFromSuperiorObject, WrntyIsPassedOnToChildObject, SAP__Messages]
+      - name: $expand
+        in: query
+        description: Expand related entities, see [Expand](http://docs.oasis-open.org/odata/odata/v4.01/odata-v4.01-part1-protocol.html#sec_SystemQueryOptionexpand)
+        explode: false
+        schema:
+          type: array
+          uniqueItems: true
+          items:
+            type: string
+            enum: ['*', _EquipmentMaterialSerialNumber]
+      responses:
+        '200':
+          description: Retrieved entities
+          content:
+            application/json:
+              schema:
+                title: Collection of MaterialSerialNumberWarranty_Type
+                type: object
+                properties:
+                  '@odata.count': {$ref: '#/components/schemas/count'}
+                  value:
+                    type: array
+                    items: {$ref: '#/components/schemas/com.sap.gateway.srvd_a2x.api_materialserialnumber.v0001.MaterialSerialNumberWarranty_Type'}
+        4XX: {$ref: '#/components/responses/error'}
+    post:
+      summary: Add new entity to MaterialSerialNumberWarranty
+      tags: [Material Serial Number Warranty]
+      requestBody:
+        required: true
+        description: New entity
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/com.sap.gateway.srvd_a2x.api_materialserialnumber.v0001.MaterialSerialNumberWarranty_Type-create'}
+      responses:
+        '201':
+          description: Created entity
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/com.sap.gateway.srvd_a2x.api_materialserialnumber.v0001.MaterialSerialNumberWarranty_Type'}
+        4XX: {$ref: '#/components/responses/error'}
+  /MaterialSerialNumberWarranty/{Material}/{SerialNumber}/{Equipment}/{WarrantyCategory}:
+    parameters:
+    - name: Material
+      in: path
+      required: true
+      description: Material Number
+      schema: {type: string, maxLength: 18}
+    - name: SerialNumber
+      in: path
+      required: true
+      description: Serial Number
+      schema: {type: string, maxLength: 18}
+    - name: Equipment
+      in: path
+      required: true
+      description: Equipment Number
+      schema: {type: string, maxLength: 18}
+    - name: WarrantyCategory
+      in: path
+      required: true
+      description: Warranty category
+      schema: {type: string, maxLength: 1}
+    get:
+      summary: Get entity from MaterialSerialNumberWarranty by key
+      tags: [Material Serial Number Warranty]
+      parameters:
+      - name: $select
+        in: query
+        description: Select properties to be returned, see [Select](http://docs.oasis-open.org/odata/odata/v4.01/odata-v4.01-part1-protocol.html#sec_SystemQueryOptionselect)
+        explode: false
+        schema:
+          type: array
+          uniqueItems: true
+          items:
+            type: string
+            enum: [Material, SerialNumber, Equipment, WarrantyCategory, WarrantyType, MasterWarranty, WarrantyStartDate, WarrantyEndDate, WrntyIsInhtdFromSuperiorObject, WrntyIsPassedOnToChildObject, SAP__Messages]
+      - name: $expand
+        in: query
+        description: Expand related entities, see [Expand](http://docs.oasis-open.org/odata/odata/v4.01/odata-v4.01-part1-protocol.html#sec_SystemQueryOptionexpand)
+        explode: false
+        schema:
+          type: array
+          uniqueItems: true
+          items:
+            type: string
+            enum: ['*', _EquipmentMaterialSerialNumber]
+      responses:
+        '200':
+          description: Retrieved entity
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/com.sap.gateway.srvd_a2x.api_materialserialnumber.v0001.MaterialSerialNumberWarranty_Type'}
+        4XX: {$ref: '#/components/responses/error'}
+    patch:
+      summary: Update entity in MaterialSerialNumberWarranty
+      tags: [Material Serial Number Warranty]
+      requestBody:
+        required: true
+        description: New property values
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/com.sap.gateway.srvd_a2x.api_materialserialnumber.v0001.MaterialSerialNumberWarranty_Type-update'}
+      responses:
+        '200':
+          description: Updated entity
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/com.sap.gateway.srvd_a2x.api_materialserialnumber.v0001.MaterialSerialNumberWarranty_Type'}
+        4XX: {$ref: '#/components/responses/error'}
+    delete:
+      summary: Delete entity from MaterialSerialNumberWarranty
+      tags: [Material Serial Number Warranty]
+      responses:
+        '204': {description: Success}
+        4XX: {$ref: '#/components/responses/error'}
+  /MaterialSerialNumberWarranty/{Material}/{SerialNumber}/{Equipment}/{WarrantyCategory}/_EquipmentMaterialSerialNumber:
+    parameters:
+    - name: Material
+      in: path
+      required: true
+      description: Material Number
+      schema: {type: string, maxLength: 18}
+    - name: SerialNumber
+      in: path
+      required: true
+      description: Serial Number
+      schema: {type: string, maxLength: 18}
+    - name: Equipment
+      in: path
+      required: true
+      description: Equipment Number
+      schema: {type: string, maxLength: 18}
+    - name: WarrantyCategory
+      in: path
+      required: true
+      description: Warranty category
+      schema: {type: string, maxLength: 1}
+    get:
+      summary: Get related _EquipmentMaterialSerialNumber
+      tags: [Material Serial Number Warranty, Material Serial Number]
+      parameters:
+      - name: $select
+        in: query
+        description: Select properties to be returned, see [Select](http://docs.oasis-open.org/odata/odata/v4.01/odata-v4.01-part1-protocol.html#sec_SystemQueryOptionselect)
+        explode: false
+        schema:
+          type: array
+          uniqueItems: true
+          items:
+            type: string
+            enum: [Material, SerialNumber, Equipment, EquipmentCategory, UniqueItemIdentifier, UniqueItemIdentifierStrucType, UniqueItemIdentifierRespPlant, MaintObjectInternalID, HasEquipmentData, EquipmentHasStockInformation, CreatedByUser, LastChangedByUser, CreationDate, LastChangeDate, LastChangeDateTime, MatlSrlNmbrMasterBatch, MatlSrlNmbrLastGdsMvtDte, MaterialSerialNumberStockBatch, InventoryStockType, Plant, StorageLocation, InventorySpecialStockType, Customer, Supplier, SalesOrder, SalesOrderItem, WBSElement, StockOwner, CompanyCode, MatlSrlNmbrIsAvailable, MatlSrlNmbrIsDeleted, MatlSrlNmbrIsMrkdForDeltn, MatlSrlNmbrIsInactive, MatlSrlNmbrIsInstalled, MatlSrlNmbrIsAllcToParent, MatlSrlNmbrIsInWarehouse, MatlSrlNmbrIsAssgdToDeliv, MatlSrlNmbrIsAtCustomer, MatlSrlNmbrIsUndrCnstrctn, MatlSrlNmbrIsOnHold, MatlSrlNmbrIsLocked, MatlSrlNmbrIsIDUndefined, MatlSrlNmbrIsAssgdToJITCall, MatlSrlNmbrDocIsCreated, MatlSrlNmbrHndlgUntIsAssgd, MatlSrlNmbrInvtryIsActv, MatlSrlNmbrUUIDIsGnrtd, MatlSrlNmbrUUIDIsAttached, MatlSrlNmbrUUIDIsSent, MatlSrlNmbrUUIDIsConfd, SAP__Messages]
+      - name: $expand
+        in: query
+        description: Expand related entities, see [Expand](http://docs.oasis-open.org/odata/odata/v4.01/odata-v4.01-part1-protocol.html#sec_SystemQueryOptionexpand)
+        explode: false
+        schema:
+          type: array
+          uniqueItems: true
+          items:
+            type: string
+            enum: ['*', _Partner, _Warranty]
+      responses:
+        '200':
+          description: Retrieved entity
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/com.sap.gateway.srvd_a2x.api_materialserialnumber.v0001.MaterialSerialNumber_Type'}
+        4XX: {$ref: '#/components/responses/error'}
+  /$batch:
+    post:
+      summary: Send a group of requests
+      description: |-
+        Group multiple requests into a single request payload, see [Batch Requests](http://docs.oasis-open.org/odata/odata/v4.01/odata-v4.01-part1-protocol.html#sec_BatchRequests).
+
+        *Please note that "Try it out" is not supported for this request.*
+      tags: [Batch Requests]
+      requestBody:
+        required: true
+        description: Batch request
+        content:
+          multipart/mixed;boundary=request-separator:
+            schema: {type: string}
+            example: |-
+              --request-separator
+              Content-Type: application/http
+              Content-Transfer-Encoding: binary
+
+              GET MaterialSerialNumber HTTP/1.1
+              Accept: application/json
+
+
+              --request-separator--
+      responses:
+        '200':
+          description: Batch response
+          content:
+            multipart/mixed:
+              schema: {type: string}
+              example: |-
+                --response-separator
+                Content-Type: application/http
+
+                HTTP/1.1 200 OK
+                Content-Type: application/json
+
+                {...}
+                --response-separator--
+        4XX: {$ref: '#/components/responses/error'}
+components:
+  securitySchemes:
+    basicAuthentication: {type: http, scheme: basic}
+  schemas:
+    com.sap.gateway.srvd_a2x.api_materialserialnumber.v0001.MaterialSerialNumberWarranty_Type:
+      type: object
+      properties:
+        Material: {type: string, maxLength: 18, title: Material, description: Material Number}
+        SerialNumber: {type: string, maxLength: 18, title: Serial Number}
+        Equipment: {type: string, maxLength: 18, title: Equipment, description: Equipment Number}
+        WarrantyCategory: {type: string, maxLength: 1, title: Warranty category}
+        WarrantyType: {type: string, maxLength: 1, title: Warranty type}
+        MasterWarranty: {type: string, maxLength: 20, title: Master warranty, description: Master warranty number}
+        WarrantyStartDate: {type: string, nullable: true, format: date, example: '2017-04-13', title: Warranty, description: Warranty Date}
+        WarrantyEndDate: {type: string, nullable: true, format: date, example: '2017-04-13', title: Warranty end date, description: Date on which the warranty ends}
+        WrntyIsInhtdFromSuperiorObject: {type: boolean, title: InheritWarranty, description: 'Indicator, Whether Technical Object Should Inherit Warranty'}
+        WrntyIsPassedOnToChildObject: {type: boolean, title: Pass on warrnty, description: 'Indicator: Pass on Warranty'}
+        SAP__Messages:
+          type: array
+          items: {$ref: '#/components/schemas/com.sap.gateway.srvd_a2x.api_materialserialnumber.v0001.SAP__Message'}
+        _EquipmentMaterialSerialNumber: {$ref: '#/components/schemas/com.sap.gateway.srvd_a2x.api_materialserialnumber.v0001.MaterialSerialNumber_Type'}
+      title: Material Serial Number Warranty
+    com.sap.gateway.srvd_a2x.api_materialserialnumber.v0001.MaterialSerialNumberWarranty_Type-create:
+      type: object
+      properties:
+        Material: {type: string, maxLength: 18, title: Material, description: Material Number}
+        SerialNumber: {type: string, maxLength: 18, title: Serial Number}
+        Equipment: {type: string, maxLength: 18, title: Equipment, description: Equipment Number}
+        WarrantyCategory: {type: string, maxLength: 1, title: Warranty category}
+        WarrantyType: {type: string, maxLength: 1, title: Warranty type}
+        MasterWarranty: {type: string, maxLength: 20, title: Master warranty, description: Master warranty number}
+        WarrantyStartDate: {type: string, nullable: true, format: date, example: '2017-04-13', title: Warranty, description: Warranty Date}
+        WarrantyEndDate: {type: string, nullable: true, format: date, example: '2017-04-13', title: Warranty end date, description: Date on which the warranty ends}
+        WrntyIsInhtdFromSuperiorObject: {type: boolean, title: InheritWarranty, description: 'Indicator, Whether Technical Object Should Inherit Warranty'}
+        WrntyIsPassedOnToChildObject: {type: boolean, title: Pass on warrnty, description: 'Indicator: Pass on Warranty'}
+        SAP__Messages:
+          type: array
+          items: {$ref: '#/components/schemas/com.sap.gateway.srvd_a2x.api_materialserialnumber.v0001.SAP__Message-create'}
+        _EquipmentMaterialSerialNumber: {$ref: '#/components/schemas/com.sap.gateway.srvd_a2x.api_materialserialnumber.v0001.MaterialSerialNumber_Type-create'}
+      required: [WarrantyType]
+      title: Material Serial Number Warranty (for create)
+    com.sap.gateway.srvd_a2x.api_materialserialnumber.v0001.MaterialSerialNumberWarranty_Type-update:
+      type: object
+      properties:
+        WarrantyType: {type: string, maxLength: 1, title: Warranty type}
+        MasterWarranty: {type: string, maxLength: 20, title: Master warranty, description: Master warranty number}
+        WarrantyStartDate: {type: string, nullable: true, format: date, example: '2017-04-13', title: Warranty, description: Warranty Date}
+        WarrantyEndDate: {type: string, nullable: true, format: date, example: '2017-04-13', title: Warranty end date, description: Date on which the warranty ends}
+        WrntyIsInhtdFromSuperiorObject: {type: boolean, title: InheritWarranty, description: 'Indicator, Whether Technical Object Should Inherit Warranty'}
+        WrntyIsPassedOnToChildObject: {type: boolean, title: Pass on warrnty, description: 'Indicator: Pass on Warranty'}
+        SAP__Messages:
+          type: array
+          items: {$ref: '#/components/schemas/com.sap.gateway.srvd_a2x.api_materialserialnumber.v0001.SAP__Message-update'}
+      title: Material Serial Number Warranty (for update)
+    com.sap.gateway.srvd_a2x.api_materialserialnumber.v0001.MaterialSerialNumberPartner_Type:
+      type: object
+      properties:
+        Material: {type: string, maxLength: 18, title: Material, description: Material Number}
+        SerialNumber: {type: string, maxLength: 18, title: Serial Number}
+        Equipment: {type: string, maxLength: 18, title: Equipment, description: Equipment Number}
+        PartnerFunction: {type: string, maxLength: 2, title: Partner Function}
+        EquipmentPartnerObjectNmbr: {type: string, maxLength: 6, title: Counter, description: Counter for differentiation 6-digit}
+        PartnerFunctionType: {type: string, maxLength: 2, title: Partner Type, description: Type of partner number}
+        EquipmentPartner: {type: string, maxLength: 12, title: Partner}
+        CreatedByUser: {type: string, maxLength: 12, title: Created By, description: Name of Person Responsible for Creating the Object}
+        CreationDate: {type: string, nullable: true, format: date, example: '2017-04-13', title: Created On, description: Record Creation Date}
+        CreationTime: {type: string, format: time, example: '15:51:04', title: Created At, description: Time at Which Record Was Added}
+        LastChangedByUser: {type: string, maxLength: 12, title: Changed By, description: Name of Person Who Changed Object}
+        LastChangeTime: {type: string, format: time, example: '15:51:04', title: Time of Change}
+        LastChangeDate: {type: string, nullable: true, format: date, example: '2017-04-13', title: Changed On, description: Last Changed On}
+        MaintObjectInternalID: {type: string, maxLength: 22, title: Object Number}
+        SAP__Messages:
+          type: array
+          items: {$ref: '#/components/schemas/com.sap.gateway.srvd_a2x.api_materialserialnumber.v0001.SAP__Message'}
+        _EquipmentMaterialSerialNumber: {$ref: '#/components/schemas/com.sap.gateway.srvd_a2x.api_materialserialnumber.v0001.MaterialSerialNumber_Type'}
+      title: Partner for Material Serial Number
+    com.sap.gateway.srvd_a2x.api_materialserialnumber.v0001.MaterialSerialNumberPartner_Type-create:
+      type: object
+      properties:
+        Material: {type: string, maxLength: 18, title: Material, description: Material Number}
+        SerialNumber: {type: string, maxLength: 18, title: Serial Number}
+        Equipment: {type: string, maxLength: 18, title: Equipment, description: Equipment Number}
+        PartnerFunction: {type: string, maxLength: 2, title: Partner Function}
+        EquipmentPartnerObjectNmbr: {type: string, maxLength: 6, title: Counter, description: Counter for differentiation 6-digit}
+        EquipmentPartner: {type: string, maxLength: 12, title: Partner}
+        SAP__Messages:
+          type: array
+          items: {$ref: '#/components/schemas/com.sap.gateway.srvd_a2x.api_materialserialnumber.v0001.SAP__Message-create'}
+        _EquipmentMaterialSerialNumber: {$ref: '#/components/schemas/com.sap.gateway.srvd_a2x.api_materialserialnumber.v0001.MaterialSerialNumber_Type-create'}
+      required: [PartnerFunction]
+      title: Partner for Material Serial Number (for create)
+    com.sap.gateway.srvd_a2x.api_materialserialnumber.v0001.MaterialSerialNumberPartner_Type-update:
+      type: object
+      properties:
+        EquipmentPartner: {type: string, maxLength: 12, title: Partner}
+        SAP__Messages:
+          type: array
+          items: {$ref: '#/components/schemas/com.sap.gateway.srvd_a2x.api_materialserialnumber.v0001.SAP__Message-update'}
+      title: Partner for Material Serial Number (for update)
+    com.sap.gateway.srvd_a2x.api_materialserialnumber.v0001.MaterialSerialNumber_Type:
+      type: object
+      properties:
+        Material: {type: string, maxLength: 18, title: Material, description: Material Number}
+        SerialNumber: {type: string, maxLength: 18, title: Serial Number}
+        Equipment: {type: string, maxLength: 18, title: Equipment, description: Equipment Number}
+        EquipmentCategory: {type: string, maxLength: 1, title: Equipment category}
+        UniqueItemIdentifier: {type: string, maxLength: 72, title: Unique Item ID, description: Unique Item Identifier}
+        UniqueItemIdentifierStrucType: {type: string, maxLength: 10, title: IUID Type, description: Structure Type of UII}
+        UniqueItemIdentifierRespPlant: {type: string, maxLength: 4, title: Resp. Plant UII, description: Plant Responsible for UII}
+        MaintObjectInternalID: {type: string, maxLength: 22, title: Object Number}
+        HasEquipmentData: {type: boolean, title: EquipmentData exists, description: Equipment data exists}
+        EquipmentHasStockInformation: {type: boolean, title: Has Stock Information, description: 'Indicator: Stock Information Available'}
+        CreatedByUser: {type: string, maxLength: 12, title: Created By, description: Name of Person Responsible for Creating the Object}
+        LastChangedByUser: {type: string, maxLength: 12, title: Changed By, description: Name of Person Who Changed Object}
+        CreationDate: {type: string, nullable: true, format: date, example: '2017-04-13', title: Created On, description: Record Creation Date}
+        LastChangeDate: {type: string, nullable: true, format: date, example: '2017-04-13', title: Changed On, description: Last Changed On}
+        LastChangeDateTime: {type: string, nullable: true, format: date-time, example: '2017-04-13T15:51:04Z', title: Short Time Stamp, description: UTC Time Stamp in Short Form (YYYYMMDDhhmmss)}
+        MatlSrlNmbrMasterBatch: {type: string, maxLength: 10, title: Batch, description: Batch Number}
+        MatlSrlNmbrLastGdsMvtDte: {type: string, nullable: true, format: date, example: '2017-04-13', title: Date L.GoodsMvt, description: Date of Last Goods Movement}
+        MaterialSerialNumberStockBatch: {type: string, maxLength: 10, title: Stock batch, description: Batch Number}
+        InventoryStockType: {type: string, maxLength: 2, x-sap-object-node-type-reference: InventoryStockType, title: Stock Type, description: Stock Type of Goods Movement (Primary Posting)}
+        Plant: {type: string, maxLength: 4, title: Plant}
+        StorageLocation: {type: string, maxLength: 4, x-sap-object-node-type-reference: StorageLocation, title: Storage Location}
+        InventorySpecialStockType: {type: string, maxLength: 1, x-sap-object-node-type-reference: InventorySpecialStockType, title: Special Stock, description: Special Stock Indicator}
+        Customer: {type: string, maxLength: 10, title: Spec. stock customer, description: Special stock customer account number}
+        Supplier: {type: string, maxLength: 10, title: Special stock vendor, description: Account number of the vendor}
+        SalesOrder: {type: string, maxLength: 10, title: Sales Order, description: Sales Order Number}
+        SalesOrderItem: {type: string, maxLength: 6, title: Sales Order Item, description: Item Number in Sales Order}
+        WBSElement: {type: string, maxLength: 24, title: WBS Element, description: Work Breakdown Structure Element (WBS Element) Edited}
+        StockOwner: {type: string, maxLength: 10, title: Owner of stock}
+        CompanyCode: {type: string, maxLength: 4, title: Company Code}
+        MatlSrlNmbrIsAvailable: {type: boolean, title: Checkbox}
+        MatlSrlNmbrIsDeleted: {type: boolean, title: Checkbox}
+        MatlSrlNmbrIsMrkdForDeltn: {type: boolean, title: Checkbox}
+        MatlSrlNmbrIsInactive: {type: boolean, title: Checkbox}
+        MatlSrlNmbrIsInstalled: {type: boolean, title: Checkbox}
+        MatlSrlNmbrIsAllcToParent: {type: boolean, title: Checkbox}
+        MatlSrlNmbrIsInWarehouse: {type: boolean, title: Checkbox}
+        MatlSrlNmbrIsAssgdToDeliv: {type: boolean, title: Checkbox}
+        MatlSrlNmbrIsAtCustomer: {type: boolean, title: Checkbox}
+        MatlSrlNmbrIsUndrCnstrctn: {type: boolean, title: Checkbox}
+        MatlSrlNmbrIsOnHold: {type: boolean, title: Checkbox}
+        MatlSrlNmbrIsLocked: {type: boolean, title: Checkbox}
+        MatlSrlNmbrIsIDUndefined: {type: boolean, title: Checkbox}
+        MatlSrlNmbrIsAssgdToJITCall: {type: boolean, title: Checkbox}
+        MatlSrlNmbrDocIsCreated: {type: boolean, title: Checkbox}
+        MatlSrlNmbrHndlgUntIsAssgd: {type: boolean, title: Checkbox}
+        MatlSrlNmbrInvtryIsActv: {type: boolean, title: Checkbox}
+        MatlSrlNmbrUUIDIsGnrtd: {type: boolean, title: Checkbox}
+        MatlSrlNmbrUUIDIsAttached: {type: boolean, title: Checkbox}
+        MatlSrlNmbrUUIDIsSent: {type: boolean, title: Checkbox}
+        MatlSrlNmbrUUIDIsConfd: {type: boolean, title: Checkbox}
+        SAP__Messages:
+          type: array
+          items: {$ref: '#/components/schemas/com.sap.gateway.srvd_a2x.api_materialserialnumber.v0001.SAP__Message'}
+        _Partner:
+          type: array
+          items: {$ref: '#/components/schemas/com.sap.gateway.srvd_a2x.api_materialserialnumber.v0001.MaterialSerialNumberPartner_Type'}
+        _Warranty:
+          type: array
+          items: {$ref: '#/components/schemas/com.sap.gateway.srvd_a2x.api_materialserialnumber.v0001.MaterialSerialNumberWarranty_Type'}
+      title: Material Serial Number
+    com.sap.gateway.srvd_a2x.api_materialserialnumber.v0001.MaterialSerialNumber_Type-create:
+      type: object
+      properties:
+        Material: {type: string, maxLength: 18, title: Material, description: Material Number}
+        SerialNumber: {type: string, maxLength: 18, title: Serial Number}
+        Equipment: {type: string, maxLength: 18, title: Equipment, description: Equipment Number}
+        EquipmentCategory: {type: string, maxLength: 1, title: Equipment category}
+        UniqueItemIdentifierRespPlant: {type: string, maxLength: 4, title: Resp. Plant UII, description: Plant Responsible for UII}
+        HasEquipmentData: {type: boolean, title: EquipmentData exists, description: Equipment data exists}
+        MatlSrlNmbrMasterBatch: {type: string, maxLength: 10, title: Batch, description: Batch Number}
+        MatlSrlNmbrLastGdsMvtDte: {type: string, nullable: true, format: date, example: '2017-04-13', title: Date L.GoodsMvt, description: Date of Last Goods Movement}
+        MaterialSerialNumberStockBatch: {type: string, maxLength: 10, title: Stock batch, description: Batch Number}
+        InventoryStockType: {type: string, maxLength: 2, x-sap-object-node-type-reference: InventoryStockType, title: Stock Type, description: Stock Type of Goods Movement (Primary Posting)}
+        Plant: {type: string, maxLength: 4, title: Plant}
+        StorageLocation: {type: string, maxLength: 4, x-sap-object-node-type-reference: StorageLocation, title: Storage Location}
+        InventorySpecialStockType: {type: string, maxLength: 1, x-sap-object-node-type-reference: InventorySpecialStockType, title: Special Stock, description: Special Stock Indicator}
+        Customer: {type: string, maxLength: 10, title: Spec. stock customer, description: Special stock customer account number}
+        Supplier: {type: string, maxLength: 10, title: Special stock vendor, description: Account number of the vendor}
+        SalesOrder: {type: string, maxLength: 10, title: Sales Order, description: Sales Order Number}
+        SalesOrderItem: {type: string, maxLength: 6, title: Sales Order Item, description: Item Number in Sales Order}
+        WBSElement: {type: string, maxLength: 24, title: WBS Element, description: Work Breakdown Structure Element (WBS Element) Edited}
+        StockOwner: {type: string, maxLength: 10, title: Owner of stock}
+        SAP__Messages:
+          type: array
+          items: {$ref: '#/components/schemas/com.sap.gateway.srvd_a2x.api_materialserialnumber.v0001.SAP__Message-create'}
+        _Partner:
+          type: array
+          items: {$ref: '#/components/schemas/com.sap.gateway.srvd_a2x.api_materialserialnumber.v0001.MaterialSerialNumberPartner_Type-create'}
+        _Warranty:
+          type: array
+          items: {$ref: '#/components/schemas/com.sap.gateway.srvd_a2x.api_materialserialnumber.v0001.MaterialSerialNumberWarranty_Type-create'}
+      required: [Material, EquipmentCategory]
+      title: Material Serial Number (for create)
+    com.sap.gateway.srvd_a2x.api_materialserialnumber.v0001.MaterialSerialNumber_Type-update:
+      type: object
+      properties:
+        Equipment: {type: string, maxLength: 18, title: Equipment, description: Equipment Number}
+        EquipmentCategory: {type: string, maxLength: 1, title: Equipment category}
+        HasEquipmentData: {type: boolean, title: EquipmentData exists, description: Equipment data exists}
+        MatlSrlNmbrMasterBatch: {type: string, maxLength: 10, title: Batch, description: Batch Number}
+        MatlSrlNmbrLastGdsMvtDte: {type: string, nullable: true, format: date, example: '2017-04-13', title: Date L.GoodsMvt, description: Date of Last Goods Movement}
+        MaterialSerialNumberStockBatch: {type: string, maxLength: 10, title: Stock batch, description: Batch Number}
+        InventoryStockType: {type: string, maxLength: 2, x-sap-object-node-type-reference: InventoryStockType, title: Stock Type, description: Stock Type of Goods Movement (Primary Posting)}
+        Plant: {type: string, maxLength: 4, title: Plant}
+        StorageLocation: {type: string, maxLength: 4, x-sap-object-node-type-reference: StorageLocation, title: Storage Location}
+        InventorySpecialStockType: {type: string, maxLength: 1, x-sap-object-node-type-reference: InventorySpecialStockType, title: Special Stock, description: Special Stock Indicator}
+        Customer: {type: string, maxLength: 10, title: Spec. stock customer, description: Special stock customer account number}
+        Supplier: {type: string, maxLength: 10, title: Special stock vendor, description: Account number of the vendor}
+        SalesOrder: {type: string, maxLength: 10, title: Sales Order, description: Sales Order Number}
+        SalesOrderItem: {type: string, maxLength: 6, title: Sales Order Item, description: Item Number in Sales Order}
+        WBSElement: {type: string, maxLength: 24, title: WBS Element, description: Work Breakdown Structure Element (WBS Element) Edited}
+        StockOwner: {type: string, maxLength: 10, title: Owner of stock}
+        SAP__Messages:
+          type: array
+          items: {$ref: '#/components/schemas/com.sap.gateway.srvd_a2x.api_materialserialnumber.v0001.SAP__Message-update'}
+      title: Material Serial Number (for update)
+    com.sap.gateway.srvd_a2x.api_materialserialnumber.v0001.SerializedMatlItmChgMatlR_Type:
+      type: object
+      properties:
+        Material: {type: string, maxLength: 18, title: Material, description: Material Number}
+        SerialNumber: {type: string, maxLength: 18, title: Serial Number}
+      title: SerializedMatlItmChgMatlR_Type
+    com.sap.gateway.srvd_a2x.api_materialserialnumber.v0001.SerializedMatlItmChgMatlR_Type-create:
+      type: object
+      properties:
+        Material: {type: string, maxLength: 18, title: Material, description: Material Number}
+        SerialNumber: {type: string, maxLength: 18, title: Serial Number}
+      title: SerializedMatlItmChgMatlR_Type (for create)
+    com.sap.gateway.srvd_a2x.api_materialserialnumber.v0001.SerializedMatlItmChgMatlR_Type-update:
+      type: object
+      properties:
+        Material: {type: string, maxLength: 18, title: Material, description: Material Number}
+        SerialNumber: {type: string, maxLength: 18, title: Serial Number}
+      title: SerializedMatlItmChgMatlR_Type (for update)
+    com.sap.gateway.srvd_a2x.api_materialserialnumber.v0001.SerializedMatlItmChgSrlNmbrR_Type:
+      type: object
+      properties:
+        Material: {type: string, maxLength: 18, title: Material, description: Material Number}
+        SerialNumber: {type: string, maxLength: 18, title: Serial Number}
+      title: SerializedMatlItmChgSrlNmbrR_Type
+    com.sap.gateway.srvd_a2x.api_materialserialnumber.v0001.SerializedMatlItmChgSrlNmbrR_Type-create:
+      type: object
+      properties:
+        Material: {type: string, maxLength: 18, title: Material, description: Material Number}
+        SerialNumber: {type: string, maxLength: 18, title: Serial Number}
+      title: SerializedMatlItmChgSrlNmbrR_Type (for create)
+    com.sap.gateway.srvd_a2x.api_materialserialnumber.v0001.SerializedMatlItmChgSrlNmbrR_Type-update:
+      type: object
+      properties:
+        Material: {type: string, maxLength: 18, title: Material, description: Material Number}
+        SerialNumber: {type: string, maxLength: 18, title: Serial Number}
+      title: SerializedMatlItmChgSrlNmbrR_Type (for update)
+    com.sap.gateway.srvd_a2x.api_materialserialnumber.v0001.EquipCrteMassMatlSrlNmbrR_Type:
+      type: object
+      properties:
+        SerialNumber: {type: string, maxLength: 18, title: Last Serial Number, description: Serial Number}
+      title: EquipCrteMassMatlSrlNmbrR_Type
+    com.sap.gateway.srvd_a2x.api_materialserialnumber.v0001.EquipCrteMassMatlSrlNmbrR_Type-create:
+      type: object
+      properties:
+        SerialNumber: {type: string, maxLength: 18, title: Last Serial Number, description: Serial Number}
+      title: EquipCrteMassMatlSrlNmbrR_Type (for create)
+    com.sap.gateway.srvd_a2x.api_materialserialnumber.v0001.EquipCrteMassMatlSrlNmbrR_Type-update:
+      type: object
+      properties:
+        SerialNumber: {type: string, maxLength: 18, title: Last Serial Number, description: Serial Number}
+      title: EquipCrteMassMatlSrlNmbrR_Type (for update)
+    com.sap.gateway.srvd_a2x.api_materialserialnumber.v0001.D_EQUIPCREATESERIALNUMBERLISTP:
+      type: object
+      properties:
+        SerialNumber: {type: string, maxLength: 18, title: Serial Number}
+      title: D_EQUIPCREATESERIALNUMBERLISTP
+    com.sap.gateway.srvd_a2x.api_materialserialnumber.v0001.D_EQUIPCREATESERIALNUMBERLISTP-create:
+      type: object
+      properties:
+        SerialNumber: {type: string, maxLength: 18, title: Serial Number}
+      title: D_EQUIPCREATESERIALNUMBERLISTP (for create)
+    com.sap.gateway.srvd_a2x.api_materialserialnumber.v0001.D_EQUIPCREATESERIALNUMBERLISTP-update:
+      type: object
+      properties:
+        SerialNumber: {type: string, maxLength: 18, title: Serial Number}
+      title: D_EQUIPCREATESERIALNUMBERLISTP (for update)
+    com.sap.gateway.srvd_a2x.api_materialserialnumber.v0001.SAP__Message:
+      type: object
+      properties:
+        code: {type: string}
+        message: {type: string}
+        target: {type: string, nullable: true}
+        additionalTargets:
+          type: array
+          items: {type: string}
+        transition: {type: boolean}
+        numericSeverity: {type: integer, format: uint8}
+        longtextUrl: {type: string, nullable: true}
+      title: SAP__Message
+    com.sap.gateway.srvd_a2x.api_materialserialnumber.v0001.SAP__Message-create:
+      type: object
+      properties:
+        code: {type: string}
+        message: {type: string}
+        target: {type: string, nullable: true}
+        additionalTargets:
+          type: array
+          items: {type: string}
+        transition: {type: boolean}
+        numericSeverity: {type: integer, format: uint8}
+        longtextUrl: {type: string, nullable: true}
+      title: SAP__Message (for create)
+    com.sap.gateway.srvd_a2x.api_materialserialnumber.v0001.SAP__Message-update:
+      type: object
+      properties:
+        code: {type: string}
+        message: {type: string}
+        target: {type: string, nullable: true}
+        additionalTargets:
+          type: array
+          items: {type: string}
+        transition: {type: boolean}
+        numericSeverity: {type: integer, format: uint8}
+        longtextUrl: {type: string, nullable: true}
+      title: SAP__Message (for update)
+    count:
+      anyOf:
+      - {type: number}
+      - {type: string}
+      description: The number of entities in the collection. Available when using the [$count](http://docs.oasis-open.org/odata/odata/v4.01/odata-v4.01-part1-protocol.html#sec_SystemQueryOptioncount) query option.
+    error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code: {type: string}
+            message: {type: string}
+            target: {type: string}
+            details:
+              type: array
+              items:
+                type: object
+                required: [code, message]
+                properties:
+                  code: {type: string}
+                  message: {type: string}
+                  target: {type: string}
+            innererror: {type: object, description: The structure of this object is service-specific}
+  parameters:
+    top:
+      name: $top
+      in: query
+      description: Show only the first n items, see [Paging - Top](http://docs.oasis-open.org/odata/odata/v4.01/odata-v4.01-part1-protocol.html#sec_SystemQueryOptiontop)
+      schema: {type: integer, minimum: 0}
+      example: 50
+    skip:
+      name: $skip
+      in: query
+      description: Skip the first n items, see [Paging - Skip](http://docs.oasis-open.org/odata/odata/v4.01/odata-v4.01-part1-protocol.html#sec_SystemQueryOptionskip)
+      schema: {type: integer, minimum: 0}
+    count:
+      name: $count
+      in: query
+      description: Include count of items, see [Count](http://docs.oasis-open.org/odata/odata/v4.01/odata-v4.01-part1-protocol.html#sec_SystemQueryOptioncount)
+      schema: {type: boolean}
+    search:
+      name: $search
+      in: query
+      description: Search items by search phrases, see [Searching](http://docs.oasis-open.org/odata/odata/v4.01/odata-v4.01-part1-protocol.html#sec_SystemQueryOptionsearch)
+      schema: {type: string}
+  responses:
+    error:
+      description: Error
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/error'}

@@ -1,0 +1,641 @@
+openapi: 3.0.0
+info: {title: SEPA Mandate - Manage in Accounts Receivable, version: 1.0.0, description: 'This service enables you to create, read, and update SEPA mandates for Accounts Receivable. You can also create and read about the usage of SEPA mandates.'}
+externalDocs: {description: Business Documentation, url: 'https://help.sap.com/http.svc/ahp2/SAP_S4HANA_CLOUD/2608.latest/EN/ed/139844691f43c6baf38f0f2ddef5eb/frameset.htm'}
+x-sap-api-type: ODATA
+x-sap-shortText: Transfer data from an external system to Accounts Receivable in SAP S/4HANA Cloud using this synchronous inbound service
+x-sap-software-min-version: '2608'
+x-sap-ext-overview:
+- name: Communication Scenario
+  values:
+  - {text: Finance - Accounts Receivable SEPA Mandate Integration (SAP_COM_0719), format: plain}
+- name: Custom Communication Scenario
+  values:
+  - {text: 'You can use this API in custom communication scenarios. For more information, see Custom Communication Scenario app.', format: plain}
+- name: Scope Items
+  values:
+  - {text: '[Direct Debit (19M)](https://me.sap.com/processnavigator/SolP/19M " Link To BP ")', format: markdown}
+- name: Authentication Methods
+  values:
+  - {text: x509, format: plain}
+- name: Business Object
+  values:
+  - {text: SEPA Mandate, format: plain}
+servers:
+- url: https://{host}:{port}/sap/opu/odata/sap/API_APAR_SEPA_MANDATE_SRV
+  variables:
+    host: {default: ''}
+    port: {default: ''}
+- {url: 'https://sandbox.api.sap.com/s4hanacloud/sap/opu/odata/sap/API_APAR_SEPA_MANDATE_SRV'}
+x-sap-extensible: {supported: 'no'}
+tags:
+- {name: SEPA Mandate}
+- {name: SEPA Mandate Usage}
+paths:
+  /SEPAMandateSet:
+    get:
+      summary: Reads SEPA mandates.
+      description: Returns the data that is available for the active version of a SEPA mandate. A filter is required. Only a limited number of properties are available for filtering. For details, see the business documentation.
+      tags: [SEPA Mandate]
+      parameters:
+      - name: $filter
+        in: query
+        description: Filter items by property values, see [Filtering](https://help.sap.com/doc/5890d27be418427993fafa6722cdc03b/Cloud/en-US/OdataV2.pdf#page=64)
+        schema: {type: string}
+      - {$ref: '#/components/parameters/count'}
+      - name: $select
+        in: query
+        description: Select properties to be returned, see [Select](https://help.sap.com/doc/5890d27be418427993fafa6722cdc03b/Cloud/en-US/OdataV2.pdf#page=68)
+        explode: false
+        schema:
+          type: array
+          uniqueItems: true
+          items:
+            type: string
+            enum: [SEPAMandateApplication, Creditor, SEPAMandate, SEPAPaymentType, SenderType, Sender, SenderLastName, SenderFirstName, SenderStreetName, SenderHouseNumber, SenderPostalCode, SenderCityName, SenderCountry, SenderLanguage, SenderIBAN, SenderBankSWIFTCode, AlternativePayerName, RecipientType, Recipient, RecipientName1, RecipientName2, RecipientStreetName, RecipientHouseNumber, RecipientPostalCode, RecipientCityName, RecipientCountry, SEPAMandateReferenceType, SEPAMandateReference, SEPAMandateReferenceDesc, ValidityStartDate, ValidityEndDate, SEPASignatureCityName, SEPASignatureDate, SEPAMandateStatus, AlternativePayer, AlternativePayeeName, AlternativePayee, SEPAMandateIsB2BMandate, SenderExternalID, SEPAMandateOrganizationalUnit1, SEPAMandateOrganizationalUnit2, SEPAMandateOrganizationalUnit3, SEPAMandateOrganizationalUnit4, SEPAMandateFirstUseDate, SEPAMandateFirstUseObjTypeCode, SEPAMandateFirstUsePaymentDoc, SEPAMandateLastUseDate, SEPAMandateLastUseObjTypeCode, SEPAMandateLastUsePaymentDoc, SepaCreditorIdOrigin, OriginalSEPAMandate, Version, CreatedByUser, CreationDate, CreationTime, SEPAMandateUsage]
+      - name: $expand
+        in: query
+        description: Expand related entities, see [Expand](https://help.sap.com/doc/5890d27be418427993fafa6722cdc03b/Cloud/en-US/OdataV2.pdf#page=63)
+        explode: false
+        schema:
+          type: array
+          uniqueItems: true
+          items:
+            type: string
+            enum: [SEPAMandateUsage]
+      responses:
+        '200':
+          description: Retrieved entities
+          content:
+            application/json:
+              schema:
+                title: Wrapper
+                type: object
+                properties:
+                  d:
+                    title: Collection of SEPAMandateType
+                    type: object
+                    properties:
+                      __count: {$ref: '#/components/schemas/count'}
+                      results:
+                        type: array
+                        items: {$ref: '#/components/schemas/API_APAR_NOAPP_SEPA_MANDATE_SRV.SEPAMandateType'}
+        4XX: {$ref: '#/components/responses/error'}
+    post:
+      summary: Creates a new SEPA mandate.
+      description: Creates a SEPA mandate in Accounts Receivable.
+      tags: [SEPA Mandate]
+      requestBody:
+        required: true
+        description: New entity
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/API_APAR_NOAPP_SEPA_MANDATE_SRV.SEPAMandateType-create'}
+      responses:
+        '201':
+          description: Created entity
+          content:
+            application/json:
+              schema:
+                title: SEPAMandateType
+                type: object
+                properties:
+                  d: {$ref: '#/components/schemas/API_APAR_NOAPP_SEPA_MANDATE_SRV.SEPAMandateType'}
+        4XX: {$ref: '#/components/responses/error'}
+  /SEPAMandateSet(Creditor='{Creditor}',SEPAMandate='{SEPAMandate}'):
+    parameters:
+    - name: Creditor
+      in: path
+      required: true
+      description: Creditor Identification Number
+      schema: {type: string, maxLength: 35}
+    - name: SEPAMandate
+      in: path
+      required: true
+      description: Unique Reference to Mandate for each Payee
+      schema: {type: string, maxLength: 35}
+    get:
+      summary: Reads a SEPA mandate by key.
+      description: Returns the active SEPA mandate for a specific key. The key consists of the properties creditor and SEPA mandate.
+      tags: [SEPA Mandate]
+      parameters:
+      - name: $select
+        in: query
+        description: Select properties to be returned, see [Select](https://help.sap.com/doc/5890d27be418427993fafa6722cdc03b/Cloud/en-US/OdataV2.pdf#page=68)
+        explode: false
+        schema:
+          type: array
+          uniqueItems: true
+          items:
+            type: string
+            enum: [SEPAMandateApplication, Creditor, SEPAMandate, SEPAPaymentType, SenderType, Sender, SenderLastName, SenderFirstName, SenderStreetName, SenderHouseNumber, SenderPostalCode, SenderCityName, SenderCountry, SenderLanguage, SenderIBAN, SenderBankSWIFTCode, AlternativePayerName, RecipientType, Recipient, RecipientName1, RecipientName2, RecipientStreetName, RecipientHouseNumber, RecipientPostalCode, RecipientCityName, RecipientCountry, SEPAMandateReferenceType, SEPAMandateReference, SEPAMandateReferenceDesc, ValidityStartDate, ValidityEndDate, SEPASignatureCityName, SEPASignatureDate, SEPAMandateStatus, AlternativePayer, AlternativePayeeName, AlternativePayee, SEPAMandateIsB2BMandate, SenderExternalID, SEPAMandateOrganizationalUnit1, SEPAMandateOrganizationalUnit2, SEPAMandateOrganizationalUnit3, SEPAMandateOrganizationalUnit4, SEPAMandateFirstUseDate, SEPAMandateFirstUseObjTypeCode, SEPAMandateFirstUsePaymentDoc, SEPAMandateLastUseDate, SEPAMandateLastUseObjTypeCode, SEPAMandateLastUsePaymentDoc, SepaCreditorIdOrigin, OriginalSEPAMandate, Version, CreatedByUser, CreationDate, CreationTime, SEPAMandateUsage]
+      - name: $expand
+        in: query
+        description: Expand related entities, see [Expand](https://help.sap.com/doc/5890d27be418427993fafa6722cdc03b/Cloud/en-US/OdataV2.pdf#page=63)
+        explode: false
+        schema:
+          type: array
+          uniqueItems: true
+          items:
+            type: string
+            enum: [SEPAMandateUsage]
+      responses:
+        '200':
+          description: Retrieved entity
+          content:
+            application/json:
+              schema:
+                title: SEPAMandateType
+                type: object
+                properties:
+                  d: {$ref: '#/components/schemas/API_APAR_NOAPP_SEPA_MANDATE_SRV.SEPAMandateType'}
+        4XX: {$ref: '#/components/responses/error'}
+    patch:
+      summary: Updates an existing SEPA mandate.
+      description: Updates the active version of a specific SEPA mandate.
+      tags: [SEPA Mandate]
+      requestBody:
+        required: true
+        description: New property values
+        content:
+          application/json:
+            schema:
+              title: Modified SEPAMandateType
+              type: object
+              properties:
+                d: {$ref: '#/components/schemas/API_APAR_NOAPP_SEPA_MANDATE_SRV.SEPAMandateType-update'}
+      responses:
+        '204': {description: Success}
+        4XX: {$ref: '#/components/responses/error'}
+  /SEPAMandateSet(Creditor='{Creditor}',SEPAMandate='{SEPAMandate}')/SEPAMandateUsage:
+    parameters:
+    - name: Creditor
+      in: path
+      required: true
+      description: Creditor Identification Number
+      schema: {type: string, maxLength: 35}
+    - name: SEPAMandate
+      in: path
+      required: true
+      description: Unique Reference to Mandate for each Payee
+      schema: {type: string, maxLength: 35}
+    get:
+      summary: Reads the SEPA mandate usage for a specified SEPA mandate.
+      description: Returns the SEPA mandate usage for a SEPA mandate specified by its key.
+      tags: [SEPA Mandate, SEPA Mandate Usage]
+      parameters:
+      - {$ref: '#/components/parameters/top'}
+      - {$ref: '#/components/parameters/skip'}
+      - name: $filter
+        in: query
+        description: Filter items by property values, see [Filtering](https://help.sap.com/doc/5890d27be418427993fafa6722cdc03b/Cloud/en-US/OdataV2.pdf#page=64)
+        schema: {type: string}
+      - {$ref: '#/components/parameters/count'}
+      - name: $select
+        in: query
+        description: Select properties to be returned, see [Select](https://help.sap.com/doc/5890d27be418427993fafa6722cdc03b/Cloud/en-US/OdataV2.pdf#page=68)
+        explode: false
+        schema:
+          type: array
+          uniqueItems: true
+          items:
+            type: string
+            enum: [SEPAMandateApplication, Creditor, SEPAMandate, SEPAMandateUseDate, SEPAMandateUseObjectType, SEPAMandateUsePaymentDoc]
+      responses:
+        '200':
+          description: Retrieved entities
+          content:
+            application/json:
+              schema:
+                title: Wrapper
+                type: object
+                properties:
+                  d:
+                    title: Collection of SEPAMandateUsage
+                    type: object
+                    properties:
+                      __count: {$ref: '#/components/schemas/count'}
+                      results:
+                        type: array
+                        items: {$ref: '#/components/schemas/API_APAR_NOAPP_SEPA_MANDATE_SRV.SEPAMandateUsage'}
+        4XX: {$ref: '#/components/responses/error'}
+    post:
+      summary: Creates a SEPA mandate usage for a specified SEPA mandate.
+      description: Creates a SEPA mandate usage for a specified SEPA mandate using all properties.
+      tags: [SEPA Mandate, SEPA Mandate Usage]
+      requestBody:
+        required: true
+        description: New entity
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/API_APAR_NOAPP_SEPA_MANDATE_SRV.SEPAMandateUsage-create'}
+      responses:
+        '201':
+          description: Created entity
+          content:
+            application/json:
+              schema:
+                title: SEPAMandateUsage
+                type: object
+                properties:
+                  d: {$ref: '#/components/schemas/API_APAR_NOAPP_SEPA_MANDATE_SRV.SEPAMandateUsage'}
+        4XX: {$ref: '#/components/responses/error'}
+  /SEPAMandateUsageSet:
+    get:
+      summary: Reads the SEPA mandate usage.
+      description: Returns all usage data that is available for a SEPA mandate. A filter is required. Only a limited number of properties are available for filtering.
+      tags: [SEPA Mandate Usage]
+      parameters:
+      - name: $filter
+        in: query
+        description: Filter items by property values, see [Filtering](https://help.sap.com/doc/5890d27be418427993fafa6722cdc03b/Cloud/en-US/OdataV2.pdf#page=64)
+        schema: {type: string}
+      - {$ref: '#/components/parameters/count'}
+      - name: $select
+        in: query
+        description: Select properties to be returned, see [Select](https://help.sap.com/doc/5890d27be418427993fafa6722cdc03b/Cloud/en-US/OdataV2.pdf#page=68)
+        explode: false
+        schema:
+          type: array
+          uniqueItems: true
+          items:
+            type: string
+            enum: [SEPAMandateApplication, Creditor, SEPAMandate, SEPAMandateUseDate, SEPAMandateUseObjectType, SEPAMandateUsePaymentDoc]
+      responses:
+        '200':
+          description: Retrieved entities
+          content:
+            application/json:
+              schema:
+                title: Wrapper
+                type: object
+                properties:
+                  d:
+                    title: Collection of SEPAMandateUsage
+                    type: object
+                    properties:
+                      __count: {$ref: '#/components/schemas/count'}
+                      results:
+                        type: array
+                        items: {$ref: '#/components/schemas/API_APAR_NOAPP_SEPA_MANDATE_SRV.SEPAMandateUsage'}
+        4XX: {$ref: '#/components/responses/error'}
+    post:
+      summary: Creates a new entity for the SEPA mandate usage.
+      description: Creates an entity for the SEPA mandate usage. All properties must be provided.
+      tags: [SEPA Mandate Usage]
+      requestBody:
+        required: true
+        description: New entity
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/API_APAR_NOAPP_SEPA_MANDATE_SRV.SEPAMandateUsage-create'}
+      responses:
+        '201':
+          description: Created entity
+          content:
+            application/json:
+              schema:
+                title: SEPAMandateUsage
+                type: object
+                properties:
+                  d: {$ref: '#/components/schemas/API_APAR_NOAPP_SEPA_MANDATE_SRV.SEPAMandateUsage'}
+        4XX: {$ref: '#/components/responses/error'}
+  ? /SEPAMandateUsageSet(Creditor='{Creditor}',SEPAMandate='{SEPAMandate}',SEPAMandateUseDate=datetime'{SEPAMandateUseDate}',SEPAMandateUseObjectType='{SEPAMandateUseObjectType}',SEPAMandateUsePaymentDoc='{SEPAMandateUsePaymentDoc}')
+  : parameters:
+    - name: Creditor
+      in: path
+      required: true
+      description: Creditor ID
+      schema: {type: string, maxLength: 35}
+    - name: SEPAMandate
+      in: path
+      required: true
+      description: Mandate Refeference
+      schema: {type: string, maxLength: 35}
+    - name: SEPAMandateUseDate
+      in: path
+      required: true
+      description: Date
+      schema: {type: string, pattern: '^[0-9]{4}-[0-9]{2}-[0-9]{2}T([01][0-9]|2[0-3]):[0-5][0-9](:[0-5][0-9](\.[0-9]+)?)?$', example: '2017-04-13T23:59'}
+    - name: SEPAMandateUseObjectType
+      in: path
+      required: true
+      description: Object Type
+      schema: {type: string, maxLength: 10}
+    - name: SEPAMandateUsePaymentDoc
+      in: path
+      required: true
+      description: Key
+      schema: {type: string, maxLength: 70}
+    get:
+      summary: Reads the SEPA mandate usage by key.
+      description: Returns the SEPA mandate usage for a SEPA mandate specified by its key. The key consists of all properties from the SEPA mandate usage.
+      tags: [SEPA Mandate Usage]
+      parameters:
+      - name: $select
+        in: query
+        description: Select properties to be returned, see [Select](https://help.sap.com/doc/5890d27be418427993fafa6722cdc03b/Cloud/en-US/OdataV2.pdf#page=68)
+        explode: false
+        schema:
+          type: array
+          uniqueItems: true
+          items:
+            type: string
+            enum: [SEPAMandateApplication, Creditor, SEPAMandate, SEPAMandateUseDate, SEPAMandateUseObjectType, SEPAMandateUsePaymentDoc]
+      responses:
+        '200':
+          description: Retrieved entity
+          content:
+            application/json:
+              schema:
+                title: SEPAMandateUsage
+                type: object
+                properties:
+                  d: {$ref: '#/components/schemas/API_APAR_NOAPP_SEPA_MANDATE_SRV.SEPAMandateUsage'}
+        4XX: {$ref: '#/components/responses/error'}
+  /$batch:
+    post:
+      summary: Send a group of requests
+      description: |-
+        Group multiple requests into a single request payload, see [Batch Requests](https://help.sap.com/doc/5890d27be418427993fafa6722cdc03b/Cloud/en-US/OdataV2.pdf#page=152).
+
+        *Please note that "Try it out" is not supported for this request.*
+      tags: [Batch Requests]
+      requestBody:
+        required: true
+        description: Batch request
+        content:
+          multipart/mixed;boundary=request-separator:
+            schema: {type: string}
+            example: |-
+              --request-separator
+              Content-Type: application/http
+              Content-Transfer-Encoding: binary
+
+              GET SEPAMandateSet HTTP/1.1
+              Accept: application/json
+
+
+              --request-separator--
+      responses:
+        '202':
+          description: Batch response
+          content:
+            multipart/mixed:
+              schema: {type: string}
+              example: |-
+                --response-separator
+                Content-Type: application/http
+
+                HTTP/1.1 200 OK
+                Content-Type: application/json
+
+                {...}
+                --response-separator--
+        4XX: {$ref: '#/components/responses/error'}
+components:
+  schemas:
+    API_APAR_NOAPP_SEPA_MANDATE_SRV.SEPAMandateType:
+      type: object
+      properties:
+        SEPAMandateApplication: {type: string, maxLength: 1, title: Application of SEPA Mandate}
+        Creditor: {type: string, maxLength: 35, title: Creditor Identification Number}
+        SEPAMandate: {type: string, maxLength: 35, title: Unique Reference to Mandate for each Payee}
+        SEPAPaymentType: {type: string, maxLength: 1, title: Payment Type}
+        SenderType: {type: string, maxLength: 10, title: SenderType}
+        Sender: {type: string, maxLength: 70, title: ID of Sender}
+        SenderLastName: {type: string, maxLength: 40, title: Last name of Sender}
+        SenderFirstName: {type: string, maxLength: 40, title: First name of Sender}
+        SenderStreetName: {type: string, maxLength: 60, title: Sender Street}
+        SenderHouseNumber: {type: string, maxLength: 10, title: Sender House Number}
+        SenderPostalCode: {type: string, maxLength: 10, title: Sender Postal Code}
+        SenderCityName: {type: string, maxLength: 40, title: Sender City}
+        SenderCountry: {type: string, maxLength: 3, title: Sender Country/Region}
+        SenderLanguage: {type: string, maxLength: 2, title: Sender Language}
+        SenderIBAN: {type: string, maxLength: 34, title: Sender IBAN}
+        SenderBankSWIFTCode: {type: string, maxLength: 11, title: SWIFT/BIC for International Payments}
+        AlternativePayerName: {type: string, maxLength: 40, title: Name of Alternative Debtor}
+        RecipientType: {type: string, maxLength: 10, title: Recipient Type}
+        Recipient: {type: string, maxLength: 70, title: Recipient ID}
+        RecipientName1: {type: string, maxLength: 40, title: Name 1 of organization}
+        RecipientName2: {type: string, maxLength: 40, title: Name 2 of organization}
+        RecipientStreetName: {type: string, maxLength: 60, title: Street}
+        RecipientHouseNumber: {type: string, maxLength: 10, title: House Number}
+        RecipientPostalCode: {type: string, maxLength: 10, title: Postal Code}
+        RecipientCityName: {type: string, maxLength: 40, title: City}
+        RecipientCountry: {type: string, maxLength: 3, title: Country/Region}
+        SEPAMandateReferenceType: {type: string, maxLength: 10, title: SEPA Mandate Reference Type}
+        SEPAMandateReference: {type: string, maxLength: 70, title: SEPA Mandate Reference ID}
+        SEPAMandateReferenceDesc: {type: string, maxLength: 50, title: Explanation}
+        ValidityStartDate: {type: string, nullable: true, example: /Date(1492098664000)/, title: Valid From}
+        ValidityEndDate: {type: string, nullable: true, example: /Date(1492098664000)/, title: Valid To}
+        SEPASignatureCityName: {type: string, maxLength: 40, title: Location of signature}
+        SEPASignatureDate: {type: string, nullable: true, example: /Date(1492098664000)/, title: Date of Signature}
+        SEPAMandateStatus: {type: string, maxLength: 1, title: Status of SEPA Mandate}
+        AlternativePayer: {type: string, maxLength: 70, title: ID Alternative Debtor}
+        AlternativePayeeName: {type: string, maxLength: 40, title: Name Alternative Payee}
+        AlternativePayee: {type: string, maxLength: 70, title: ID Alternative Payee}
+        SEPAMandateIsB2BMandate: {type: boolean, title: B2B Mandate}
+        SenderExternalID: {type: string, maxLength: 35, title: External Reference of Sender ID}
+        SEPAMandateOrganizationalUnit1: {type: string, maxLength: 20, title: Organization ID}
+        SEPAMandateOrganizationalUnit2: {type: string, maxLength: 20, title: Organization ID}
+        SEPAMandateOrganizationalUnit3: {type: string, maxLength: 35, title: Organization}
+        SEPAMandateOrganizationalUnit4: {type: string, maxLength: 35, title: Organization}
+        SEPAMandateFirstUseDate: {type: string, nullable: true, example: /Date(1492098664000)/, title: First Use Date}
+        SEPAMandateFirstUseObjTypeCode: {type: string, maxLength: 10, title: Type of First Usage}
+        SEPAMandateFirstUsePaymentDoc: {type: string, maxLength: 70, title: ID of First Usage}
+        SEPAMandateLastUseDate: {type: string, nullable: true, example: /Date(1492098664000)/, title: Last Use Date}
+        SEPAMandateLastUseObjTypeCode: {type: string, maxLength: 10, title: Type of Last Usage}
+        SEPAMandateLastUsePaymentDoc: {type: string, maxLength: 70, title: ID of Last Usage}
+        SepaCreditorIdOrigin: {type: string, maxLength: 35, title: Origin Creditor}
+        OriginalSEPAMandate: {type: string, maxLength: 35, title: Origin Mandate}
+        Version: {type: string, maxLength: 4, title: Mandate Version}
+        CreatedByUser: {type: string, maxLength: 12, title: Created By}
+        CreationDate: {type: string, nullable: true, example: /Date(1492098664000)/, title: Created on}
+        CreationTime: {type: string, nullable: true, example: PT15H51M04S, title: Created at}
+        SEPAMandateUsage:
+          type: object
+          properties:
+            results:
+              type: array
+              items: {$ref: '#/components/schemas/API_APAR_NOAPP_SEPA_MANDATE_SRV.SEPAMandateUsage'}
+      title: SEPA Mandate
+    API_APAR_NOAPP_SEPA_MANDATE_SRV.SEPAMandateType-create:
+      type: object
+      properties:
+        SEPAMandateApplication: {type: string, maxLength: 1, title: Application of SEPA Mandate}
+        Creditor: {type: string, maxLength: 35, title: Creditor Identification Number}
+        SEPAMandate: {type: string, maxLength: 35, title: Unique Reference to Mandate for each Payee}
+        SEPAPaymentType: {type: string, maxLength: 1, title: Payment Type}
+        SenderType: {type: string, maxLength: 10, title: SenderType}
+        Sender: {type: string, maxLength: 70, title: ID of Sender}
+        SenderLastName: {type: string, maxLength: 40, title: Last name of Sender}
+        SenderFirstName: {type: string, maxLength: 40, title: First name of Sender}
+        SenderStreetName: {type: string, maxLength: 60, title: Sender Street}
+        SenderHouseNumber: {type: string, maxLength: 10, title: Sender House Number}
+        SenderPostalCode: {type: string, maxLength: 10, title: Sender Postal Code}
+        SenderCityName: {type: string, maxLength: 40, title: Sender City}
+        SenderCountry: {type: string, maxLength: 3, title: Sender Country/Region}
+        SenderLanguage: {type: string, maxLength: 2, title: Sender Language}
+        SenderIBAN: {type: string, maxLength: 34, title: Sender IBAN}
+        SenderBankSWIFTCode: {type: string, maxLength: 11, title: SWIFT/BIC for International Payments}
+        AlternativePayerName: {type: string, maxLength: 40, title: Name of Alternative Debtor}
+        RecipientType: {type: string, maxLength: 10, title: Recipient Type}
+        Recipient: {type: string, maxLength: 70, title: Recipient ID}
+        RecipientName1: {type: string, maxLength: 40, title: Name 1 of organization}
+        RecipientName2: {type: string, maxLength: 40, title: Name 2 of organization}
+        RecipientStreetName: {type: string, maxLength: 60, title: Street}
+        RecipientHouseNumber: {type: string, maxLength: 10, title: House Number}
+        RecipientPostalCode: {type: string, maxLength: 10, title: Postal Code}
+        RecipientCityName: {type: string, maxLength: 40, title: City}
+        RecipientCountry: {type: string, maxLength: 3, title: Country/Region}
+        SEPAMandateReferenceType: {type: string, maxLength: 10, title: SEPA Mandate Reference Type}
+        SEPAMandateReference: {type: string, maxLength: 70, title: SEPA Mandate Reference ID}
+        SEPAMandateReferenceDesc: {type: string, maxLength: 50, title: Explanation}
+        ValidityStartDate: {type: string, nullable: true, example: /Date(1492098664000)/, title: Valid From}
+        ValidityEndDate: {type: string, nullable: true, example: /Date(1492098664000)/, title: Valid To}
+        SEPASignatureCityName: {type: string, maxLength: 40, title: Location of signature}
+        SEPASignatureDate: {type: string, nullable: true, example: /Date(1492098664000)/, title: Date of Signature}
+        SEPAMandateStatus: {type: string, maxLength: 1, title: Status of SEPA Mandate}
+        AlternativePayer: {type: string, maxLength: 70, title: ID Alternative Debtor}
+        AlternativePayeeName: {type: string, maxLength: 40, title: Name Alternative Payee}
+        AlternativePayee: {type: string, maxLength: 70, title: ID Alternative Payee}
+        SEPAMandateIsB2BMandate: {type: boolean, title: B2B Mandate}
+        SenderExternalID: {type: string, maxLength: 35, title: External Reference of Sender ID}
+        SEPAMandateOrganizationalUnit1: {type: string, maxLength: 20, title: Organization ID}
+        SEPAMandateOrganizationalUnit2: {type: string, maxLength: 20, title: Organization ID}
+        SEPAMandateOrganizationalUnit3: {type: string, maxLength: 35, title: Organization}
+        SEPAMandateOrganizationalUnit4: {type: string, maxLength: 35, title: Organization}
+        SEPAMandateFirstUseDate: {type: string, nullable: true, example: /Date(1492098664000)/, title: First Use Date}
+        SEPAMandateFirstUseObjTypeCode: {type: string, maxLength: 10, title: Type of First Usage}
+        SEPAMandateFirstUsePaymentDoc: {type: string, maxLength: 70, title: ID of First Usage}
+        SEPAMandateLastUseDate: {type: string, nullable: true, example: /Date(1492098664000)/, title: Last Use Date}
+        SEPAMandateLastUseObjTypeCode: {type: string, maxLength: 10, title: Type of Last Usage}
+        SEPAMandateLastUsePaymentDoc: {type: string, maxLength: 70, title: ID of Last Usage}
+        SepaCreditorIdOrigin: {type: string, maxLength: 35, title: Origin Creditor}
+        OriginalSEPAMandate: {type: string, maxLength: 35, title: Origin Mandate}
+        SEPAMandateUsage:
+          type: object
+          properties:
+            results:
+              type: array
+              items: {$ref: '#/components/schemas/API_APAR_NOAPP_SEPA_MANDATE_SRV.SEPAMandateUsage-create'}
+      required: [Creditor, SEPAMandate]
+      title: SEPA Mandate (for create)
+    API_APAR_NOAPP_SEPA_MANDATE_SRV.SEPAMandateType-update:
+      type: object
+      properties:
+        SenderType: {type: string, maxLength: 10, title: SenderType}
+        Sender: {type: string, maxLength: 70, title: ID of Sender}
+        SenderLastName: {type: string, maxLength: 40, title: Last name of Sender}
+        SenderFirstName: {type: string, maxLength: 40, title: First name of Sender}
+        SenderStreetName: {type: string, maxLength: 60, title: Sender Street}
+        SenderHouseNumber: {type: string, maxLength: 10, title: Sender House Number}
+        SenderPostalCode: {type: string, maxLength: 10, title: Sender Postal Code}
+        SenderCityName: {type: string, maxLength: 40, title: Sender City}
+        SenderCountry: {type: string, maxLength: 3, title: Sender Country/Region}
+        SenderLanguage: {type: string, maxLength: 2, title: Sender Language}
+        SenderIBAN: {type: string, maxLength: 34, title: Sender IBAN}
+        SenderBankSWIFTCode: {type: string, maxLength: 11, title: SWIFT/BIC for International Payments}
+        AlternativePayerName: {type: string, maxLength: 40, title: Name of Alternative Debtor}
+        RecipientType: {type: string, maxLength: 10, title: Recipient Type}
+        Recipient: {type: string, maxLength: 70, title: Recipient ID}
+        RecipientName1: {type: string, maxLength: 40, title: Name 1 of organization}
+        RecipientName2: {type: string, maxLength: 40, title: Name 2 of organization}
+        RecipientStreetName: {type: string, maxLength: 60, title: Street}
+        RecipientHouseNumber: {type: string, maxLength: 10, title: House Number}
+        RecipientPostalCode: {type: string, maxLength: 10, title: Postal Code}
+        RecipientCityName: {type: string, maxLength: 40, title: City}
+        RecipientCountry: {type: string, maxLength: 3, title: Country/Region}
+        SEPAMandateReferenceType: {type: string, maxLength: 10, title: SEPA Mandate Reference Type}
+        SEPAMandateReference: {type: string, maxLength: 70, title: SEPA Mandate Reference ID}
+        SEPAMandateReferenceDesc: {type: string, maxLength: 50, title: Explanation}
+        ValidityStartDate: {type: string, nullable: true, example: /Date(1492098664000)/, title: Valid From}
+        ValidityEndDate: {type: string, nullable: true, example: /Date(1492098664000)/, title: Valid To}
+        SEPASignatureCityName: {type: string, maxLength: 40, title: Location of signature}
+        SEPASignatureDate: {type: string, nullable: true, example: /Date(1492098664000)/, title: Date of Signature}
+        SEPAMandateStatus: {type: string, maxLength: 1, title: Status of SEPA Mandate}
+        AlternativePayer: {type: string, maxLength: 70, title: ID Alternative Debtor}
+        AlternativePayeeName: {type: string, maxLength: 40, title: Name Alternative Payee}
+        AlternativePayee: {type: string, maxLength: 70, title: ID Alternative Payee}
+        SEPAMandateIsB2BMandate: {type: boolean, title: B2B Mandate}
+        SenderExternalID: {type: string, maxLength: 35, title: External Reference of Sender ID}
+        SEPAMandateOrganizationalUnit1: {type: string, maxLength: 20, title: Organization ID}
+        SEPAMandateOrganizationalUnit2: {type: string, maxLength: 20, title: Organization ID}
+        SEPAMandateOrganizationalUnit3: {type: string, maxLength: 35, title: Organization}
+        SEPAMandateOrganizationalUnit4: {type: string, maxLength: 35, title: Organization}
+        SEPAMandateFirstUseDate: {type: string, nullable: true, example: /Date(1492098664000)/, title: First Use Date}
+        SEPAMandateFirstUseObjTypeCode: {type: string, maxLength: 10, title: Type of First Usage}
+        SEPAMandateFirstUsePaymentDoc: {type: string, maxLength: 70, title: ID of First Usage}
+        SEPAMandateLastUseDate: {type: string, nullable: true, example: /Date(1492098664000)/, title: Last Use Date}
+        SEPAMandateLastUseObjTypeCode: {type: string, maxLength: 10, title: Type of Last Usage}
+        SEPAMandateLastUsePaymentDoc: {type: string, maxLength: 70, title: ID of Last Usage}
+        SepaCreditorIdOrigin: {type: string, maxLength: 35, title: Origin Creditor}
+      title: SEPA Mandate (for update)
+    API_APAR_NOAPP_SEPA_MANDATE_SRV.SEPAMandateUsage:
+      type: object
+      properties:
+        SEPAMandateApplication: {type: string, maxLength: 1, title: Application}
+        Creditor: {type: string, maxLength: 35, title: Creditor ID}
+        SEPAMandate: {type: string, maxLength: 35, title: Mandate Refeference}
+        SEPAMandateUseDate: {type: string, example: /Date(1492098664000)/, title: Date}
+        SEPAMandateUseObjectType: {type: string, maxLength: 10, title: Object Type}
+        SEPAMandateUsePaymentDoc: {type: string, maxLength: 70, title: Key}
+      title: SEPA Mandate Usage
+    API_APAR_NOAPP_SEPA_MANDATE_SRV.SEPAMandateUsage-create:
+      type: object
+      properties:
+        SEPAMandateApplication: {type: string, maxLength: 1, title: Application}
+        Creditor: {type: string, maxLength: 35, title: Creditor ID}
+        SEPAMandate: {type: string, maxLength: 35, title: Mandate Refeference}
+        SEPAMandateUseDate: {type: string, example: /Date(1492098664000)/, title: Date}
+        SEPAMandateUseObjectType: {type: string, maxLength: 10, title: Object Type}
+        SEPAMandateUsePaymentDoc: {type: string, maxLength: 70, title: Key}
+      required: [Creditor, SEPAMandate, SEPAMandateUseDate, SEPAMandateUseObjectType, SEPAMandateUsePaymentDoc]
+      title: SEPA Mandate Usage (for create)
+    API_APAR_NOAPP_SEPA_MANDATE_SRV.SEPAMandateUsage-update: {type: object, title: SEPA Mandate Usage (for update)}
+    count: {type: string, description: 'The number of entities in the collection. Available when using the [$inlinecount](https://help.sap.com/doc/5890d27be418427993fafa6722cdc03b/Cloud/en-US/OdataV2.pdf#page=67) query option.'}
+    error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code: {type: string}
+            message:
+              type: object
+              required: [lang, value]
+              properties:
+                lang: {type: string}
+                value: {type: string}
+            innererror: {type: object, description: The structure of this object is service-specific}
+  parameters:
+    top:
+      name: $top
+      in: query
+      description: Show only the first n items, see [Paging - Top](https://help.sap.com/doc/5890d27be418427993fafa6722cdc03b/Cloud/en-US/OdataV2.pdf#page=66)
+      schema: {type: integer, minimum: 0}
+      example: 50
+    skip:
+      name: $skip
+      in: query
+      description: Skip the first n items, see [Paging - Skip](https://help.sap.com/doc/5890d27be418427993fafa6722cdc03b/Cloud/en-US/OdataV2.pdf#page=65)
+      schema: {type: integer, minimum: 0}
+    count:
+      name: $inlinecount
+      in: query
+      description: Include count of items, see [Inlinecount](https://help.sap.com/doc/5890d27be418427993fafa6722cdc03b/Cloud/en-US/OdataV2.pdf#page=67)
+      schema:
+        type: string
+        enum: [allpages, none]
+  responses:
+    error:
+      description: Error
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/error'}
+  securitySchemes:
+    BasicAuth: {type: http, scheme: basic}
+security:
+- BasicAuth: []
