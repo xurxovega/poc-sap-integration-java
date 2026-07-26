@@ -14,6 +14,7 @@ legacy hacia **SAP S/4 Public Cloud**. Migración del POC Python a
 - [`docs/architecture/INTEGRATION-PATTERNS.md`](docs/architecture/INTEGRATION-PATTERNS.md) — esquemas visuales (Mermaid) de los patrones de integración con SAP: CDC→OData S/4 y CDC→BTP (implementados); pull desde BTP, batch disparado por topic Kafka y eventos S/4 (stock) como implementación futura.
 - [`docs/integrations/SAP_CLOUD_SDK.md`](docs/integrations/SAP_CLOUD_SDK.md) — guía de integración con SAP Cloud SDK: OData VDM (Business Partner), OpenAPI (APIs propias de SAP y callbacks), BTP destinations, arquitectura hexagonal, módulos Maven.
 - [`docs/testing/TESTING.md`](docs/testing/TESTING.md) — estrategia y catálogo de la suite de tests (211 tests, tipos, convenciones, contratos SAP, issues conocidos).
+- [`docs/testing/GUIA-PRUEBAS.md`](docs/testing/GUIA-PRUEBAS.md) — guía práctica de pruebas por niveles: suite automática, entorno local con mock de SAP, flujo REST, CDC end-to-end con Debezium, resiliencia (retry/DLT/CSRF), métricas y pruebas contra tenant real.
 - [`docs/integration-guide/README.md`](docs/integration-guide/README.md) — estado de la integración SAP: brechas resueltas (resiliencia, OAuth2, CSRF, idempotencia, DLT, CDC) y pendientes (saga por feature, contactos, mandatos).
 - [`docs/GLOSSARY.md`](docs/GLOSSARY.md) — glosario de términos del proyecto con definiciones y enlaces.
 
