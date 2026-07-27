@@ -262,6 +262,177 @@ mvn -pl customer -am spring-boot:run
 
 ---
 
+## Plan de pruebas (con todos los servicios levantados)
+
+> Precondición común a todos los casos: infraestructura arriba (§2.1), mock de
+> SAP en `:8090` con el stub catch-all 201 (§2.2), conectores Debezium
+> registrados (§4.1) y `customer-app` corriendo en `:8081` (§2.3). Ejecutar en
+> orden: algunos casos dependen del anterior. Tras cada caso, la columna
+> "verificar en" indica dónde mirar y qué debe verse.
+
+| ID | Caso | Resultado esperado |
+|----|------|--------------------|
+| CP-01 | Salud del entorno | Todo UP / RUNNING |
+| CP-02 | Sync REST happy path | `SENT_SAP` + 4 llamadas al mock |
+| CP-03 | Idempotencia (mismo hash) | Salta el pipeline, 0 llamadas nuevas |
+| CP-04 | Re-sincronización (hash nuevo) | Ciclo completo otra vez |
+| CP-05 | Validación negativa | `INVALID` con errores, sin llamadas a SAP |
+| CP-06 | CDC — alta (INSERT) | Cadena completa hasta `SENT_SAP` |
+| CP-07 | CDC — modificación (UPDATE) | Payload actualizado llega al mock |
+| CP-08 | CDC — borrado (DELETE) | Delete a SAP + imagen Mongo eliminada |
+| CP-09 | Dominio article (Postgres) | Cadena article hasta el mock |
+| CP-10 | SAP caído (503) | 3 reintentos + `SAP_ERROR` |
+| CP-11 | Mensaje envenenado | Acaba en `outbox.CUSTOMER.DLT` |
+| CP-12 | Ruta OData nativa | URLs `/sap/opu/odata/...` en el mock |
+| CP-13 | Métricas | Contadores por estado incrementados |
+
+### CP-01 — Salud del entorno
+
+1. `docker compose ps` en `external-services/` → todos `running/healthy`.
+2. `curl -s localhost:8083/connectors?expand=status | jq` → ambos conectores `RUNNING`.
+3. `curl -s localhost:8081/actuator/health` → `"status":"UP"`.
+
+### CP-02 — Sync REST happy path
+
+**Dato de entrada**: cliente seedeado `CUST-001` (Acme Corporation, ya en SQL Server).
+
+1. Llama al API de ingesta:
+   ```bash
+   curl -s -X POST http://localhost:8081/customers/sync -H "Content-Type: application/json" \
+     -d '{"entityId":"CUST-001","operation":"UPDATE","payloadHash":"cp02-'$(date +%s)'","payload":"{}"}'
+   ```
+2. **Verificar en** la respuesta: `"state":"SENT_SAP"`.
+3. **Verificar en** el mock (`curl -s localhost:8090/__admin/requests | jq '.meta.total'`):
+   +4 llamadas (address, fiscal, contact, banking) con `"BusinessPartner":"CUST-001"` en el body.
+4. **Verificar en** Mongo la traza completa de estados (RECEIVED → FETCHING →
+   VALIDATING → VALID → INDEXING → INDEXED → SENDING_SAP → SENT_SAP):
+   ```bash
+   docker exec mongodb mongosh customer --quiet --eval \
+     'db.sync_state.find({entityId:"CUST-001"},{stateCode:1,timestamp:1}).sort({timestamp:1})'
+   ```
+5. **Verificar en** Mongo la imagen (`db.customers_current.findOne({_id:"CUST-001"})`)
+   y en ES el histórico (`curl -s "localhost:9200/customers_history/_search?q=customerId:CUST-001"`).
+
+### CP-03 — Idempotencia (mismo payloadHash)
+
+1. Repite el `curl` de CP-02 con **el mismo** `payloadHash` (cópialo, no uses `date`).
+2. **Verificar en** la respuesta: `SENT_SAP` inmediato.
+3. **Verificar en** el mock: el contador `meta.total` **no aumenta**.
+4. **Verificar en** el log de customer-app: mensaje de dedupe/salto por hash ya enviado.
+
+### CP-04 — Re-sincronización (hash nuevo sobre entidad ya enviada)
+
+1. Repite el `curl` de CP-02 con un `payloadHash` distinto.
+2. **Verificar**: ciclo completo de nuevo (la re-entrada `SENT_SAP → RECEIVED`
+   es legal) — nueva tanda de estados en `sync_state` y +4 llamadas al mock.
+
+### CP-05 — Validación negativa
+
+**Dato de entrada**: corromper el email de `CUST-002` en el legacy.
+
+1. ```bash
+   docker exec sqlserver-source /opt/mssql-tools18/bin/sqlcmd -C \
+     -S localhost -U sa -P 'SqlServer_Pa55w0rd!' -d poc \
+     -Q "UPDATE dbo.customers SET email = 'no-es-un-email' WHERE id = 'CUST-002'"
+   ```
+   (el propio UPDATE dispara CDC; espera 2-3 s, o lanza además un sync REST con hash nuevo)
+2. **Verificar en** Mongo: estado final `INVALID` para `CUST-002` (o la feature
+   CONTACT inválida), y errores de validación en el log de la app.
+3. **Verificar en** el mock: **ninguna** llamada nueva para la feature inválida.
+4. Restaura el dato para no contaminar el resto del plan:
+   `UPDATE dbo.customers SET email = 'contacto@globex.es' WHERE id = 'CUST-002'`.
+
+### CP-06 — CDC: alta de un cliente nuevo
+
+**Dato de entrada**: cliente nuevo `CUST-100` (Weyland Yutani).
+
+1. ```bash
+   docker exec sqlserver-source /opt/mssql-tools18/bin/sqlcmd -C \
+     -S localhost -U sa -P 'SqlServer_Pa55w0rd!' -d poc \
+     -Q "INSERT INTO dbo.customers (id, code, name, status, street, city, postal_code, country, region, tax_id, vat_number, legal_name, tax_residency, email, phone, website, iban, bic) VALUES ('CUST-100','C100','Weyland Yutani','ACTIVE','Gran Via 1','Madrid','28013','ES','Madrid','B99999999','ESB99999999','Weyland Yutani S.L.','ES','info@weyland.example','+34 600 555 666','https://weyland.example','ES9121000418450200051332','CAIXESBB')"
+   ```
+2. **Verificar en** la outbox: fila nueva con `operation='CREATE'`
+   (query de §4.3a).
+3. **Verificar en** Kafka: mensaje en `outbox.CUSTOMER` con key `CUST-100`
+   (consumer de §4.3b).
+4. **Verificar en** Mongo: `sync_state` de `CUST-100` termina en `SENT_SAP`
+   y existe `customers_current` con `_id:"CUST-100"`.
+5. **Verificar en** el mock: llamadas con `"BusinessPartner":"CUST-100"`.
+
+### CP-07 — CDC: modificación
+
+1. ```bash
+   docker exec sqlserver-source /opt/mssql-tools18/bin/sqlcmd -C \
+     -S localhost -U sa -P 'SqlServer_Pa55w0rd!' -d poc \
+     -Q "UPDATE dbo.customers SET phone = '+34 600 777 888' WHERE id = 'CUST-100'"
+   ```
+2. **Verificar en** el mock: la última llamada de contact lleva el teléfono nuevo:
+   `curl -s localhost:8090/__admin/requests | jq '.requests[0].request.body'`.
+3. **Verificar en** Mongo: la imagen refleja el teléfono nuevo.
+
+### CP-08 — CDC: borrado
+
+1. ```bash
+   docker exec sqlserver-source /opt/mssql-tools18/bin/sqlcmd -C \
+     -S localhost -U sa -P 'SqlServer_Pa55w0rd!' -d poc \
+     -Q "DELETE FROM dbo.customers WHERE id = 'CUST-100'"
+   ```
+2. **Verificar en** el log de customer-app: el evento `DELETE` enruta a
+   `DeleteCustomerUseCase`.
+3. **Verificar en** el mock: llamada de borrado para `CUST-100`.
+4. **Verificar en** Mongo: `db.customers_current.findOne({_id:"CUST-100"})` → `null`.
+
+### CP-09 — Dominio article (Postgres → Kafka → SAP)
+
+**Precondición extra**: article-app corriendo
+(`SAP_S4_BASE_URL=http://localhost:8090 SAP_BTP_BASE_URL=http://localhost:8090 mvn -pl article -am spring-boot:run`, puerto 8082).
+
+1. ```bash
+   docker exec postgres-source psql -U postgres -d poc -c \
+     "INSERT INTO articles (id, sku, description, category, unit, status) VALUES ('ART-100','SKU-100','Detector de movimiento','ELECTRONICA','UN','ACTIVE')"
+   ```
+2. **Verificar en** Kafka: mensaje en `outbox.ARTICLE` con key `ART-100`.
+3. **Verificar en** Mongo (BD `article`): `sync_state` en `SENT_SAP` y doc en
+   `articles_current`.
+4. **Verificar en** el mock: llamada de producto para `ART-100`.
+
+### CP-10 — SAP caído (5xx): retry + estado de error
+
+1. Añade el stub 503 prioritario (§5.1) al mock.
+2. Lanza un sync REST de `CUST-001` con hash nuevo.
+3. **Verificar en** la respuesta: `"state":"SAP_ERROR"`.
+4. **Verificar en** el mock: cada URL aparece **3 veces** (reintentos con backoff).
+5. **Verificar en** Mongo: última transición `SAP_ERROR` (estado recuperable).
+6. Borra el stub 503 y **verifica la recuperación**: nuevo sync con hash nuevo → `SENT_SAP`.
+
+### CP-11 — Mensaje envenenado → DLT
+
+1. Publica basura en el topic (§5.2).
+2. **Verificar en** el log: 3 intentos de parseo fallidos con backoff.
+3. **Verificar en** Kafka: el mensaje aparece en `outbox.CUSTOMER.DLT`.
+4. **Verificar**: el listener sigue vivo (repite CP-02 y funciona).
+
+### CP-12 — Ruta OData nativa (patrón 1) en lugar de BTP
+
+1. Reinicia customer-app añadiendo:
+   `SAP_ODATA_ADDRESS_ENABLED=true SAP_ODATA_FISCAL_ENABLED=true SAP_ODATA_CONTACT_ENABLED=true SAP_ODATA_BANKING_ENABLED=true`.
+2. Lanza un sync REST de `CUST-001` con hash nuevo.
+3. **Verificar en** el mock: las URLs ahora son
+   `/sap/opu/odata/sap/API_BUSINESS_PARTNER/A_BusinessPartnerAddress`, `A_BusinessPartnerTaxNumber`, etc.,
+   y el body usa los campos oficiales (`StreetName`, `CityName`, `BPTaxType`...)
+   **sin** envoltura `{"d":...}`.
+
+### CP-13 — Métricas
+
+1. `curl -s localhost:8081/actuator/prometheus | grep sap_sync_state_total`
+2. **Verificar**: contadores por estado coherentes con lo ejecutado
+   (p. ej. `state="SENT_SAP"` ≥ nº de casos felices, `state="SAP_ERROR"` ≥ 1
+   por CP-10, `state="INVALID"` ≥ 1 por CP-05).
+
+> Registro sugerido: apunta por caso ✅/❌ + evidencia (respuesta, query o
+> captura). Si un caso falla, la tabla de troubleshooting de abajo cubre las
+> causas más comunes.
+
 ## Troubleshooting rápido
 
 | Síntoma | Causa probable | Solución |
