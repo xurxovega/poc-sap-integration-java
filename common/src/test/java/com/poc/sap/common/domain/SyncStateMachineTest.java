@@ -52,6 +52,11 @@ class SyncStateMachineTest {
     }
 
     @Test
+    void validAllowsDirectSentSapWhenNoRealChanges() {
+        assertThat(machine.canTransition(SyncState.VALID, SyncState.SENT_SAP)).isTrue();
+    }
+
+    @Test
     void rejectsInvalidTransition() {
         assertThatThrownBy(() -> machine.transition(SyncState.RECEIVED, SyncState.SENT_SAP))
                 .isInstanceOf(IllegalStateException.class)

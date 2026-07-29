@@ -35,7 +35,9 @@ public final class SyncStateMachine {
         TRANSITIONS.put(RECEIVED, EnumSet.of(FETCHING, ERROR));
         TRANSITIONS.put(FETCHING, EnumSet.of(VALIDATING, ERROR, COMMUNICATION_ERROR));
         TRANSITIONS.put(VALIDATING, EnumSet.of(VALID, INVALID, ERROR));
-        TRANSITIONS.put(VALID, EnumSet.of(INDEXING, ERROR));
+        // VALID → SENT_SAP: atajo "sin cambios reales" — el snapshot re-leido del
+        // legacy es identico a la imagen ya sincronizada; no hay nada que enviar.
+        TRANSITIONS.put(VALID, EnumSet.of(INDEXING, SENT_SAP, ERROR));
         TRANSITIONS.put(INVALID, EnumSet.of(RECEIVED));
         TRANSITIONS.put(INDEXING, EnumSet.of(INDEXED, ERROR));
         TRANSITIONS.put(INDEXED, EnumSet.of(SENDING_SAP, ERROR));

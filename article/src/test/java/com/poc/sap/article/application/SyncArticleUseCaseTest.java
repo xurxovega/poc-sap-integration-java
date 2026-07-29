@@ -67,6 +67,39 @@ class SyncArticleUseCaseTest {
     }
 
     @Test
+    void unchangedSnapshotAfterSentSapSkipsResend() {
+        Article a = validArticle();
+        when(legacyRepo.fetch("A-1")).thenReturn(Optional.of(a));
+        when(stateRepo.currentState("article", "A-1")).thenReturn(Optional.of(SyncState.SENT_SAP));
+        when(imageStore.find("A-1")).thenReturn(Optional.of(a));
+
+        SyncState result = useCase.execute(ingestion());
+
+        assertThat(result).isEqualTo(SyncState.SENT_SAP);
+        verify(imageStore, never()).save(anyString(), any());
+        verify(historyIndexer, never()).index(anyString(), any(), anyString());
+        verify(sapOutbound, never()).send(any(), any(), any());
+    }
+
+    @Test
+    void changedSnapshotAfterSentSapIsResent() {
+        Article stored = validArticle();
+        Article modified = new Article("A-1", "SKU-001", "Tornillo M8", "Hardware", "UN",
+                Article.Status.ACTIVE);
+        when(legacyRepo.fetch("A-1")).thenReturn(Optional.of(modified));
+        when(stateRepo.currentState("article", "A-1")).thenReturn(Optional.of(SyncState.SENT_SAP));
+        when(imageStore.find("A-1")).thenReturn(Optional.of(stored));
+        when(sapOutbound.send(eq("A-1"), anyString(), any()))
+                .thenReturn(new SapResponse(201, "", null));
+
+        SyncState result = useCase.execute(ingestion());
+
+        assertThat(result).isEqualTo(SyncState.SENT_SAP);
+        verify(imageStore).save(eq("A-1"), eq(modified));
+        verify(sapOutbound).send(eq("A-1"), anyString(), any());
+    }
+
+    @Test
     void fetchEmptyReturnsError() {
         when(legacyRepo.fetch("A-1")).thenReturn(Optional.empty());
 

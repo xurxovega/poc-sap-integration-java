@@ -94,6 +94,10 @@ public class SyncCustomerUseCase {
         log.info("SyncCustomer inicio entityId={} origin={} features={}",
                 message.entityId(), message.origin(), features);
 
+        boolean lastCycleSent = stateRepo.currentState(DOMAIN, message.entityId())
+                .filter(s -> s == SyncState.SENT_SAP)
+                .isPresent();
+
         transition(message, null, SyncState.RECEIVED);
         transition(message, SyncState.RECEIVED, SyncState.FETCHING);
 
@@ -112,6 +116,18 @@ public class SyncCustomerUseCase {
             return SyncState.INVALID;
         }
         transition(message, SyncState.VALIDATING, SyncState.VALID);
+
+        // Deteccion de "sin cambios reales": si el ciclo anterior termino en
+        // SENT_SAP y el snapshot re-leido del legacy es identico a la imagen
+        // actual (Mongo, staging), la modificacion no afecta a datos
+        // sincronizados y no se reenvia a SAP. El historico ELK conserva el
+        // snapshot de cada envio real para auditar la comparacion.
+        if (lastCycleSent && imageStore.find(customer.id()).filter(customer::equals).isPresent()) {
+            log.info("SyncCustomer sin cambios reales entityId={} (snapshot == imagen staging), no se reenvia",
+                    message.entityId());
+            transition(message, SyncState.VALID, SyncState.SENT_SAP);
+            return SyncState.SENT_SAP;
+        }
 
         transition(message, SyncState.VALID, SyncState.INDEXING);
         imageStore.save(customer.id(), customer);

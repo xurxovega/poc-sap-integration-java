@@ -159,6 +159,42 @@ class SyncCustomerUseCaseTest {
     }
 
     @Test
+    void unchangedSnapshotAfterSentSapSkipsResend() {
+        Customer c = CustomerFixtures.validCustomer();
+        when(legacyRepo.fetch("C-1")).thenReturn(Optional.of(c));
+        when(stateRepo.currentState("customer", "C-1")).thenReturn(Optional.of(SyncState.SENT_SAP));
+        when(imageStore.find("C-1")).thenReturn(Optional.of(c));
+
+        SyncState result = useCase.execute(CustomerFixtures.ingestionMessage());
+
+        assertThat(result).isEqualTo(SyncState.SENT_SAP);
+        verify(imageStore, never()).save(anyString(), any());
+        verify(historyIndexer, never()).index(anyString(), any(), anyString());
+        verify(address, never()).execute(any(), anyString());
+        verify(banking, never()).execute(any(), anyString());
+    }
+
+    @Test
+    void changedSnapshotAfterSentSapIsResent() {
+        Customer stored = CustomerFixtures.validCustomer();
+        Customer modified = new Customer(stored.id(), stored.code(), stored.name() + " MOD",
+                stored.status(), stored.address(), stored.fiscal(), stored.contact(), stored.banking());
+        when(legacyRepo.fetch("C-1")).thenReturn(Optional.of(modified));
+        when(stateRepo.currentState("customer", "C-1")).thenReturn(Optional.of(SyncState.SENT_SAP));
+        when(imageStore.find("C-1")).thenReturn(Optional.of(stored));
+        when(address.execute(eq(modified), anyString())).thenReturn(SyncState.SENT_SAP);
+        when(fiscal.execute(eq(modified), anyString())).thenReturn(SyncState.SENT_SAP);
+        when(contact.execute(eq(modified), anyString())).thenReturn(SyncState.SENT_SAP);
+        when(banking.execute(eq(modified), anyString())).thenReturn(SyncState.SENT_SAP);
+
+        SyncState result = useCase.execute(CustomerFixtures.ingestionMessage());
+
+        assertThat(result).isEqualTo(SyncState.SENT_SAP);
+        verify(imageStore).save(eq("C-1"), eq(modified));
+        verify(historyIndexer).index(eq("C-1"), eq(modified), anyString());
+    }
+
+    @Test
     void emptyFeaturesThrowsIllegalArgument() {
         assertThatThrownBy(() ->
                 useCase.execute(CustomerFixtures.ingestionMessage(), EnumSet.noneOf(CustomerFeature.class)))
