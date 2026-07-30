@@ -33,4 +33,11 @@ public class ElasticsearchCustomerIndexer implements CustomerHistoryIndexerPort 
                 .map(CustomerHistoryDoc::toDomain)
                 .toList();
     }
+
+    @Override
+    public List<Snapshot<Customer>> snapshots(String entityId) {
+        return repo.findByCustomerIdOrderByTimestampDesc(entityId).stream()
+                .map(d -> new Snapshot<>(d.getPayloadHash(), d.getTimestamp(), d.toDomain()))
+                .toList();
+    }
 }

@@ -28,4 +28,11 @@ public class ElasticsearchArticleIndexer implements ArticleHistoryIndexerPort {
                 .map(ArticleHistoryDoc::toDomain)
                 .toList();
     }
+
+    @Override
+    public List<Snapshot<Article>> snapshots(String entityId) {
+        return repo.findByArticleIdOrderByTimestampDesc(entityId).stream()
+                .map(d -> new Snapshot<>(d.getPayloadHash(), d.getTimestamp(), d.toDomain()))
+                .toList();
+    }
 }
