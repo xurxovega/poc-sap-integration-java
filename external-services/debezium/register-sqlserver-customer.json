@@ -15,6 +15,7 @@
     "table.include.list": "dbo.outbox_customer",
     "snapshot.mode": "initial",
     "tombstones.on.delete": "false",
+    "include.schema.changes": "false",
 
     "schema.history.internal.kafka.bootstrap.servers": "kafka-broker:29092",
     "schema.history.internal.kafka.topic": "schemahistory.outbox_customer",
@@ -24,6 +25,7 @@
     "transforms": "unwrap,extractPayload,extractKey,route",
     "transforms.unwrap.type": "io.debezium.transforms.ExtractNewRecordState",
     "transforms.unwrap.drop.tombstones": "true",
+    "transforms.unwrap.delete.handling.mode": "drop",
     "transforms.extractPayload.type": "org.apache.kafka.connect.transforms.ExtractField$Value",
     "transforms.extractPayload.field": "payload",
     "transforms.extractKey.type": "org.apache.kafka.connect.transforms.ExtractField$Key",

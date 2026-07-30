@@ -24,6 +24,7 @@
     "transforms": "unwrap,extractPayload,extractKey,route",
     "transforms.unwrap.type": "io.debezium.transforms.ExtractNewRecordState",
     "transforms.unwrap.drop.tombstones": "true",
+    "transforms.unwrap.delete.handling.mode": "drop",
     "transforms.extractPayload.type": "org.apache.kafka.connect.transforms.ExtractField$Value",
     "transforms.extractPayload.field": "payload",
     "transforms.extractKey.type": "org.apache.kafka.connect.transforms.ExtractField$Key",
