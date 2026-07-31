@@ -93,6 +93,8 @@ Estados SAP: `RECEIVED -> FETCHING -> VALIDATING -> {VALID|INVALID} -> INDEXING 
 | Atomicidad Mongo / race condition en estado sync | `MongoSyncStateRepository.transition` | inconsistencias bajo concurrencia |
 | Sin mapeo fino de errores SAP | `WebClientSapClient` | diagnóstico deficiente |
 | `supplier` vacío + MinIO sin uso | `SupplierApplicationPlaceholder`, compose | dominio/infra no operativos |
+| APIs REST sin autenticación | controllers de `customer`/`article` | bloqueante para exponer las APIs a terceros o a un MCP ([`docs/integrations/MCP.md`](../integrations/MCP.md) §4) |
+| Servidor MCP para agentes IA (propuesta) | servicio `mcp-server` futuro | requiere autenticación + ofuscación de PII — ver [`docs/integrations/MCP.md`](../integrations/MCP.md) |
 
 ## Cómo extender (patron)
 
