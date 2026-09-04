@@ -10,6 +10,7 @@ legacy hacia **SAP S/4 Public Cloud**. Migración del POC Python a
 - [`docs/specs/TECH.md`](docs/specs/TECH.md) — stack tecnológico: Java 25 + Spring Boot 4.0 + Maven, puertos y adaptadores, persistencia, observabilidad, testing.
 - [`docs/specs/sap/`](docs/specs/sap/) — [README.md](docs/specs/sap/README.md): catálogo de las specs OpenAPI oficiales de S/4HANA Cloud usadas o previstas (Business Partner, mandato SEPA, producto, stock, precios, características, números de serie, bancos, activos fijos) con enlaces al [SAP Business Accelerator Hub](https://api.sap.com/package/SAPS4HANACloud/odata); las copias canónicas viven en `sap-api-models/specs/<dominio>/`.
 - [`docs/architecture/OVERVIEW.md`](docs/architecture/OVERVIEW.md) — mapas y esquemas del aplicativo: módulos, aggregate Customer, flujos CDC/REST/feature, puertos y adaptadores, máquina de estados, deployment, convención de paquetes.
+- [`docs/QUICK_START.md`](docs/QUICK_START.md) — **arranque rápido**: requisitos, compilación, infraestructura local en contenedores, SAP simulado, arranque de cada app, primer smoke test, CDC end-to-end, puertos y problemas frecuentes.
 - [`docs/architecture/FLOWS.md`](docs/architecture/FLOWS.md) — flujos de integración SAP con nombres de clase para navegar el código: CDC completo, consulta BP, creación BP, callback BTP, mapa de rutas BTP vs directo, actualización BP.
 - [`docs/architecture/INTEGRATION-PATTERNS.md`](docs/architecture/INTEGRATION-PATTERNS.md) — esquemas visuales (Mermaid) de los patrones de integración con SAP: CDC→OData S/4 y CDC→BTP (implementados); pull desde BTP, batch disparado por topic Kafka y eventos S/4 (stock) como implementación futura.
 - [`docs/architecture/MAPA-FUNCIONAL.html`](docs/architecture/MAPA-FUNCIONAL.html) — mapa funcional navegable en un solo fichero HTML (ábrelo con doble clic): mapa clicable de todas las piezas y cómo se conectan, 16 diagramas de secuencia Mermaid por dominio con sus subentidades, tablas de referencia (puertos, topics, almacenes, endpoints, configuración) y la lista de brechas verificadas contra el código. Distingue lo implementado de lo propuesto y permite filtrar por estado.
@@ -187,10 +188,12 @@ Asegura que VS Code usa el JDK correcto para la importación del proyecto:
 
 ## Perfil dev y secrets locales
 
-Por perfil `dev` se cargan `application-dev.yml` (cada dominio) o variables de
-entorno. **Nunca commitear secretos**. Copia `application-dev.yml.example` a
-`application-dev.yml` y ajústalo. En `application.yml` ya hay placeholders
-${...} para todo lo sensible.
+Los valores sensibles se inyectan por **variables de entorno** (ver la tabla en [`docs/QUICK_START.md`](docs/QUICK_START.md#4-arrancar-las-aplicaciones)) o, si
+lo prefieres, creando un `application-local.yml` en `src/main/resources` de cada
+dominio y arrancando con `--spring.profiles.active=local` (ese nombre ya está
+en `.gitignore`, junto con `application-secrets.yml` y `.env`). En
+`application.yml` y `application-common.yml` ya hay placeholders `${...}` para
+todo lo sensible. **Nunca commitear secretos.**
 
 ## Testing
 
