@@ -4,6 +4,9 @@ Infraestructura externa necesaria para ejecutar `poc-sap-integration-java` en lo
 
 Equivalente al `docker-compose.yml` del proyecto Python de referencia, pero adaptado a las URLs y credenciales por defecto de las apps Java.
 
+> Arranque de punta a punta (infra + apps + primer smoke test):
+> [`../docs/QUICK_START.md`](../docs/QUICK_START.md).
+
 ## Servicios incluidos
 
 | Servicio | Puerto | Uso | Credenciales |
