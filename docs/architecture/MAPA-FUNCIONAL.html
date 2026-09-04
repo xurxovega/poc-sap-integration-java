@@ -1,0 +1,1894 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mapa funcional · poc-sap-integration-java</title>
+<style>
+/* ---------------------------------------------------------------- tokens */
+:root {
+  color-scheme: light;
+  --bg:        #f6f7f9;
+  --surface:   #ffffff;
+  --surface-2: #eef1f5;
+  --line:      #d3d9e0;
+  --line-soft: #e6eaef;
+  --ink:       #16202b;
+  --ink-2:     #4c5a68;
+  --ink-3:     #75838f;
+  --accent:    #1f5fa8;
+  --accent-bg: #e4eefb;
+  --ok:        #1c7a4a;
+  --ok-bg:     #e3f4ea;
+  --warn:      #9a6206;
+  --warn-bg:   #fbf0da;
+  --future:    #6a4bab;
+  --future-bg: #eee8fa;
+  --danger:    #a72f2f;
+  --danger-bg: #fbe6e6;
+  --mono: ui-monospace, "Cascadia Mono", "SF Mono", Consolas, "Liberation Mono", monospace;
+  --sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --radius: 8px;
+  --shadow: 0 1px 2px rgba(16,24,40,.06), 0 4px 12px rgba(16,24,40,.05);
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg:        #10151b;
+  --surface:   #172029;
+  --surface-2: #1e2932;
+  --line:      #2e3d49;
+  --line-soft: #26333d;
+  --ink:       #e4eaf0;
+  --ink-2:     #a9b8c6;
+  --ink-3:     #7d8d9b;
+  --accent:    #6fb0f5;
+  --accent-bg: #17293d;
+  --ok:        #62c493;
+  --ok-bg:     #133528;
+  --warn:      #e2b25c;
+  --warn-bg:   #35290f;
+  --future:    #b39bec;
+  --future-bg: #251f3d;
+  --danger:    #f08a8a;
+  --danger-bg: #3a1c1c;
+  --shadow: 0 1px 2px rgba(0,0,0,.4), 0 4px 14px rgba(0,0,0,.3);
+}
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; scroll-padding-top: 130px; }
+body {
+  margin: 0; background: var(--bg); color: var(--ink);
+  font: 15px/1.6 var(--sans);
+  overflow-x: hidden;
+}
+h1, h2, h3, h4 { line-height: 1.25; margin: 0 0 .5em; font-weight: 650; letter-spacing: -.01em; }
+h1 { font-size: 1.35rem; }
+h2 { font-size: 1.5rem; margin-top: 0; }
+h3 { font-size: 1.08rem; margin-top: 2rem; }
+h4 { font-size: .95rem; margin-top: 1.5rem; color: var(--ink-2); }
+p  { margin: 0 0 1em; color: var(--ink-2); max-width: 78ch; }
+a  { color: var(--accent); }
+code, kbd { font-family: var(--mono); font-size: .875em; background: var(--surface-2);
+  padding: .1em .35em; border-radius: 4px; border: 1px solid var(--line-soft); }
+hr { border: 0; border-top: 1px solid var(--line-soft); margin: 2.5rem 0; }
+
+/* ---------------------------------------------------------------- header */
+header.top {
+  position: sticky; top: 0; z-index: 50;
+  background: var(--surface); border-bottom: 1px solid var(--line);
+  padding: .7rem clamp(.8rem, 2vw, 1.5rem);
+}
+.top-row { display: flex; flex-wrap: wrap; gap: .75rem 1.25rem; align-items: center; }
+.brand { display: flex; flex-direction: column; gap: .1rem; margin-right: auto; }
+.brand h1 { margin: 0; }
+.brand .meta { font-size: .74rem; color: var(--ink-3); font-family: var(--mono); }
+.controls { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; }
+.filters { display: flex; gap: .3rem; flex-wrap: wrap; }
+.filters label {
+  display: inline-flex; align-items: center; gap: .35rem; cursor: pointer;
+  font-size: .78rem; padding: .28rem .6rem; border-radius: 999px;
+  border: 1px solid var(--line); background: var(--surface-2); user-select: none;
+}
+.filters label:has(input:not(:checked)) { opacity: .45; text-decoration: line-through; }
+.filters input { margin: 0; accent-color: var(--accent); }
+#buscador {
+  font: inherit; font-size: .82rem; padding: .35rem .6rem; min-width: 190px;
+  border: 1px solid var(--line); border-radius: var(--radius);
+  background: var(--surface-2); color: var(--ink);
+}
+.btn {
+  font: inherit; font-size: .8rem; padding: .35rem .7rem; cursor: pointer;
+  border: 1px solid var(--line); border-radius: var(--radius);
+  background: var(--surface-2); color: var(--ink);
+}
+.btn:hover { border-color: var(--accent); color: var(--accent); }
+
+/* ---------------------------------------------------------------- badges */
+.badge {
+  display: inline-flex; align-items: center; gap: .3rem; white-space: nowrap;
+  font-size: .68rem; font-weight: 600; letter-spacing: .02em; text-transform: uppercase;
+  padding: .12rem .45rem; border-radius: 4px; border: 1px solid transparent;
+}
+.badge.impl   { color: var(--ok);     background: var(--ok-bg);     border-color: var(--ok); }
+.badge.parcial{ color: var(--warn);   background: var(--warn-bg);   border-color: var(--warn); border-style: dashed; }
+.badge.prop   { color: var(--future); background: var(--future-bg); border-color: var(--future); border-style: dotted; }
+.badge.gap    { color: var(--danger); background: var(--danger-bg); border-color: var(--danger); }
+
+/* ---------------------------------------------------------------- layout */
+.shell { display: grid; grid-template-columns: 232px minmax(0,1fr); gap: 0; align-items: start; }
+nav.toc {
+  position: sticky; top: 68px; align-self: start;
+  max-height: calc(100vh - 68px); overflow-y: auto;
+  padding: 1.25rem .75rem 3rem; border-right: 1px solid var(--line-soft);
+}
+nav.toc strong { display: block; font-size: .68rem; text-transform: uppercase;
+  letter-spacing: .08em; color: var(--ink-3); margin: 1.1rem 0 .4rem; }
+nav.toc strong:first-child { margin-top: 0; }
+nav.toc a {
+  display: block; padding: .26rem .5rem; border-radius: 6px; font-size: .82rem;
+  color: var(--ink-2); text-decoration: none; border-left: 2px solid transparent;
+}
+nav.toc a:hover { background: var(--surface-2); color: var(--ink); }
+nav.toc a.activo { background: var(--accent-bg); color: var(--accent); border-left-color: var(--accent); font-weight: 600; }
+main { padding: 1.75rem clamp(.9rem, 2.5vw, 2.25rem) 6rem; min-width: 0; }
+section { scroll-margin-top: 130px; margin-bottom: 3.5rem; }
+.intro { border-left: 3px solid var(--accent); padding-left: 1rem; }
+
+/* ------------------------------------------------------------- mapa grid */
+.mapa {
+  display: grid; gap: .7rem; margin: 1.25rem 0;
+  grid-template-columns: repeat(6, minmax(150px, 1fr));
+  overflow-x: auto; padding-bottom: .5rem;
+}
+.carril { display: flex; flex-direction: column; gap: .45rem; min-width: 150px; }
+.carril > h4 {
+  margin: 0 0 .15rem; font-size: .66rem; text-transform: uppercase; letter-spacing: .07em;
+  color: var(--ink-3); border-bottom: 1px solid var(--line-soft); padding-bottom: .3rem;
+}
+.pieza {
+  display: block; width: 100%; text-align: left; cursor: pointer; font: inherit;
+  background: var(--surface); color: var(--ink); border: 1px solid var(--line);
+  border-radius: var(--radius); padding: .5rem .55rem; box-shadow: var(--shadow);
+  transition: border-color .12s, transform .12s, box-shadow .12s;
+}
+.pieza:hover { border-color: var(--accent); transform: translateY(-1px); }
+.pieza .n { display: block; font-weight: 620; font-size: .8rem; line-height: 1.3; }
+.pieza .s { display: block; font-size: .68rem; color: var(--ink-3);
+  font-family: var(--mono); margin-top: .18rem; word-break: break-word; }
+.pieza[data-estado="parcial"] { border-style: dashed; border-color: var(--warn); }
+.pieza[data-estado="prop"]    { border-style: dotted; border-color: var(--future);
+  background: transparent; box-shadow: none; }
+.pieza[data-estado="parcial"] .n::after { content: " 🟡"; }
+.pieza[data-estado="prop"]    .n::after { content: " 🔮"; }
+.pieza[data-estado="impl"]    .n::after { content: " ✅"; font-size: .7em; }
+.pieza.sel { outline: 2px solid var(--accent); outline-offset: 1px; }
+.pieza.rel { border-color: var(--accent); background: var(--accent-bg); }
+.pieza.oculto, .oculto { display: none !important; }
+.pieza.nomatch { opacity: .2; }
+.transversal { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: .9rem; }
+.transversal .pieza { width: auto; flex: 1 1 200px; }
+
+/* ------------------------------------------------------------ panel info */
+aside.panel {
+  position: fixed; right: 1rem; bottom: 1rem; width: min(370px, calc(100vw - 2rem));
+  max-height: min(62vh, 620px); overflow-y: auto; z-index: 60;
+  background: var(--surface); border: 1px solid var(--accent);
+  border-radius: var(--radius); box-shadow: 0 12px 32px rgba(16,24,40,.22);
+  padding: .9rem 1rem 1.1rem;
+}
+aside.panel[hidden] { display: none; }
+aside.panel h3 { margin: 0 .5rem .35rem 0; font-size: 1rem; display: inline; }
+aside.panel .cerrar { position: absolute; top: .5rem; right: .55rem; }
+aside.panel dt { font-size: .68rem; text-transform: uppercase; letter-spacing: .06em;
+  color: var(--ink-3); margin-top: .8rem; }
+aside.panel dd { margin: .2rem 0 0; font-size: .82rem; color: var(--ink-2); }
+aside.panel dd ul { margin: .2rem 0 0; padding-left: 1.1rem; }
+aside.panel dd li { margin-bottom: .15rem; }
+aside.panel .ruta { font-family: var(--mono); font-size: .74rem; word-break: break-all; }
+aside.panel .saltos { display: flex; flex-wrap: wrap; gap: .3rem; margin-top: .3rem; }
+aside.panel .saltos a { font-size: .72rem; padding: .18rem .45rem; border-radius: 5px;
+  background: var(--accent-bg); text-decoration: none; border: 1px solid var(--line); }
+
+/* -------------------------------------------------------------- diagrama */
+.diagrama { margin: 1rem 0 2rem; border: 1px solid var(--line); border-radius: var(--radius);
+  background: var(--surface); overflow: hidden; }
+.diagrama > figcaption {
+  padding: .55rem .85rem; border-bottom: 1px solid var(--line-soft);
+  background: var(--surface-2); font-size: .85rem; font-weight: 620;
+  display: flex; align-items: center; gap: .5rem; flex-wrap: wrap;
+}
+.diagrama > figcaption .desc { font-weight: 400; color: var(--ink-3); font-size: .78rem; }
+.lienzo { overflow-x: auto; padding: .9rem; }
+pre.mermaid { margin: 0; font-family: var(--mono); font-size: .76rem; white-space: pre; }
+pre.mermaid[data-fallback] {
+  background: var(--surface-2); border: 1px dashed var(--line); border-radius: 6px;
+  padding: .8rem; color: var(--ink-2);
+}
+.aviso-offline {
+  margin: .9rem 0; padding: .6rem .8rem; font-size: .8rem; border-radius: var(--radius);
+  background: var(--warn-bg); color: var(--warn); border: 1px solid var(--warn);
+}
+.aviso-offline[hidden] { display: none; }
+
+/* ----------------------------------------------------------------- notas */
+.nota {
+  border-left: 3px solid var(--ink-3); background: var(--surface); padding: .6rem .85rem;
+  margin: 0 0 1.25rem; font-size: .85rem; border-radius: 0 var(--radius) var(--radius) 0;
+}
+.nota.alerta { border-left-color: var(--danger); background: var(--danger-bg); }
+.nota.ojo    { border-left-color: var(--warn);   background: var(--warn-bg); }
+.nota.fut    { border-left-color: var(--future); background: var(--future-bg); }
+.nota p:last-child { margin-bottom: 0; }
+.nota strong { color: var(--ink); }
+
+/* ---------------------------------------------------------------- tablas */
+.tabla-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: var(--radius);
+  margin: 1rem 0 2rem; background: var(--surface); }
+table { border-collapse: collapse; width: 100%; font-size: .82rem; min-width: 560px; }
+th, td { text-align: left; padding: .48rem .7rem; border-bottom: 1px solid var(--line-soft);
+  vertical-align: top; }
+th { background: var(--surface-2); font-size: .7rem; text-transform: uppercase;
+  letter-spacing: .05em; color: var(--ink-3); font-weight: 650; position: sticky; top: 0; }
+tbody tr:last-child td { border-bottom: 0; }
+tbody tr:hover { background: var(--surface-2); }
+td code { background: transparent; border: 0; padding: 0; color: var(--ink); }
+tr.nomatch { display: none; }
+
+/* --------------------------------------------------------------- tarjeta */
+.tarjetas { display: grid; gap: .8rem; grid-template-columns: repeat(auto-fit, minmax(250px,1fr)); margin: 1rem 0 2rem; }
+.tarjeta { border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface);
+  padding: .8rem .9rem; }
+.tarjeta[data-estado="prop"] { border-style: dotted; border-color: var(--future); background: transparent; }
+.tarjeta h4 { margin-top: 0; color: var(--ink); }
+.tarjeta p { font-size: .82rem; margin-bottom: .5rem; }
+.tarjeta .ruta { font-family: var(--mono); font-size: .72rem; color: var(--ink-3); word-break: break-all; }
+
+/* ------------------------------------------------------------ responsive */
+@media (max-width: 1080px) {
+  .shell { grid-template-columns: 1fr; }
+  nav.toc { position: static; max-height: none; border-right: 0;
+    border-bottom: 1px solid var(--line-soft); display: flex; flex-wrap: wrap; gap: .25rem; padding: .8rem; }
+  nav.toc strong { width: 100%; margin: .4rem 0 .1rem; }
+  nav.toc a { border-left: 0; }
+  .mapa { grid-template-columns: repeat(3, minmax(160px,1fr)); }
+}
+@media (max-width: 720px) {
+  .mapa { grid-template-columns: 1fr; }
+  aside.panel { right: .5rem; left: .5rem; width: auto; max-height: 55vh; }
+  html { scroll-padding-top: 190px; }
+}
+@media print {
+  header.top, nav.toc, aside.panel, .controls { display: none !important; }
+  .shell { display: block; }
+  .diagrama { break-inside: avoid; }
+}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="top-row">
+    <div class="brand">
+      <h1>Mapa funcional · <code>poc-sap-integration-java</code></h1>
+      <span class="meta">rama feature/saneamiento-integracion-sap · generado 2026-09-02 · contrastado contra el código, no solo contra docs/</span>
+    </div>
+    <div class="controls">
+      <input id="buscador" type="search" placeholder="Buscar pieza, clase, topic…" aria-label="Buscar">
+      <div class="filters" role="group" aria-label="Filtrar por estado">
+        <label><input type="checkbox" data-filtro="impl" checked> ✅ Implementado</label>
+        <label><input type="checkbox" data-filtro="parcial" checked> 🟡 Parcial</label>
+        <label><input type="checkbox" data-filtro="prop" checked> 🔮 Propuesto</label>
+      </div>
+      <button class="btn" id="tema" type="button">◐ Tema</button>
+    </div>
+  </div>
+</header>
+
+<div class="shell">
+
+<nav class="toc" aria-label="Índice">
+  <strong>General</strong>
+  <a href="#mapa">Mapa de piezas</a>
+  <a href="#como-leer">Cómo leer este mapa</a>
+  <strong>Dominios</strong>
+  <a href="#customer">Customer</a>
+  <a href="#article">Article</a>
+  <a href="#supplier">Supplier</a>
+  <strong>Shared kernel</strong>
+  <a href="#common">common · transversal</a>
+  <strong>Futuro</strong>
+  <a href="#futuros">Patrones no implementados</a>
+  <strong>Referencia</strong>
+  <a href="#ref-puertos">Puertos y adaptadores</a>
+  <a href="#ref-mensajeria">Mensajería y CDC</a>
+  <a href="#ref-datos">Almacenes de datos</a>
+  <a href="#ref-rest">Endpoints REST</a>
+  <a href="#ref-config">Configuración</a>
+  <strong>Estado real</strong>
+  <a href="#brechas">Brechas y puntos frágiles</a>
+  <a href="#fuentes">Fuentes y cómo mantener esto</a>
+</nav>
+
+<main>
+
+<div class="aviso-offline" id="aviso-offline" hidden>
+  <strong>Mermaid no se ha podido cargar</strong> (sin conexión o CDN bloqueado). Los diagramas se muestran
+  como código fuente Mermaid, legible tal cual y pegable en <a href="https://mermaid.live">mermaid.live</a>.
+</div>
+
+<!-- ================================================================ MAPA -->
+<section id="mapa">
+  <h2>Mapa de piezas</h2>
+  <p class="intro">
+    Seis carriles, de la izquierda (origen del dato) a la derecha (SAP). Pulsa cualquier pieza para ver
+    su responsabilidad, los ficheros donde vive, la configuración que la gobierna y los diagramas donde
+    aparece; al seleccionarla se resaltan las piezas con las que habla.
+  </p>
+
+  <div class="mapa">
+
+    <div class="carril">
+      <h4>1 · Origen legacy</h4>
+      <button class="pieza" data-id="sqlserver" data-estado="impl">
+        <span class="n">SQL Server <code>poc</code></span><span class="s">dbo.customers</span></button>
+      <button class="pieza" data-id="outbox-cust" data-estado="impl">
+        <span class="n">Outbox customer</span><span class="s">dbo.outbox_customer + trigger</span></button>
+      <button class="pieza" data-id="postgres" data-estado="impl">
+        <span class="n">PostgreSQL <code>poc</code></span><span class="s">articles</span></button>
+      <button class="pieza" data-id="outbox-art" data-estado="impl">
+        <span class="n">Outbox article</span><span class="s">outbox_article + trigger</span></button>
+    </div>
+
+    <div class="carril">
+      <h4>2 · Captura CDC</h4>
+      <button class="pieza" data-id="debezium" data-estado="impl">
+        <span class="n">Debezium / Kafka Connect</span><span class="s">2 conectores + SMTs</span></button>
+      <button class="pieza" data-id="topic-cust" data-estado="impl">
+        <span class="n">Topic outbox.CUSTOMER</span><span class="s">key = entityId</span></button>
+      <button class="pieza" data-id="topic-art" data-estado="impl">
+        <span class="n">Topic outbox.ARTICLE</span><span class="s">key = entityId</span></button>
+      <button class="pieza" data-id="dlt" data-estado="parcial">
+        <span class="n">Dead letter topics</span><span class="s">*.DLT, sin consumidor</span></button>
+    </div>
+
+    <div class="carril">
+      <h4>3 · Ingesta</h4>
+      <button class="pieza" data-id="listener-cust" data-estado="impl">
+        <span class="n">CustomerKafkaListener</span><span class="s">origin = CDC</span></button>
+      <button class="pieza" data-id="listener-art" data-estado="parcial">
+        <span class="n">ArticleKafkaListener</span><span class="s">descarta los DELETE</span></button>
+      <button class="pieza" data-id="ctrl-sync" data-estado="impl">
+        <span class="n">Controllers de sync</span><span class="s">POST /{dominio}/sync</span></button>
+      <button class="pieza" data-id="ctrl-hist" data-estado="impl">
+        <span class="n">Controllers de histórico</span><span class="s">GET /history · /history/diff</span></button>
+      <button class="pieza" data-id="eventmesh" data-estado="prop">
+        <span class="n">Consumer Event Mesh</span><span class="s">eventos S/4 (stock)</span></button>
+      <button class="pieza" data-id="batch" data-estado="prop">
+        <span class="n">BatchTriggerListener</span><span class="s">corte D+1 por topic</span></button>
+    </div>
+
+    <div class="carril">
+      <h4>4 · Pipeline de dominio</h4>
+      <button class="pieza" data-id="uc-sync-cust" data-estado="impl">
+        <span class="n">SyncCustomerUseCase</span><span class="s">orquestador del aggregate</span></button>
+      <button class="pieza" data-id="uc-features" data-estado="impl">
+        <span class="n">Use cases por feature</span><span class="s">ADDRESS · FISCAL · CONTACT · BANKING</span></button>
+      <button class="pieza" data-id="uc-sync-art" data-estado="impl">
+        <span class="n">SyncArticleUseCase</span><span class="s">entidad plana</span></button>
+      <button class="pieza" data-id="uc-delete" data-estado="parcial">
+        <span class="n">Use cases de borrado</span><span class="s">Customer · Mandate</span></button>
+      <button class="pieza" data-id="validators" data-estado="impl">
+        <span class="n">Validadores de dominio</span><span class="s">ValidationResult acumulativo</span></button>
+      <button class="pieza" data-id="statemachine" data-estado="impl">
+        <span class="n">SyncStateMachine</span><span class="s">12 estados, dominio-agnóstica</span></button>
+      <button class="pieza" data-id="uc-hist" data-estado="impl">
+        <span class="n">History use cases + JsonDiff</span><span class="s">auditoría de versiones</span></button>
+    </div>
+
+    <div class="carril">
+      <h4>5 · Persistencia</h4>
+      <button class="pieza" data-id="mongo-img" data-estado="impl">
+        <span class="n">Mongo · imagen actual</span><span class="s">customers_current · articles_current</span></button>
+      <button class="pieza" data-id="mongo-state" data-estado="impl">
+        <span class="n">Mongo · sync_state</span><span class="s">log append-only de transiciones</span></button>
+      <button class="pieza" data-id="es-hist" data-estado="impl">
+        <span class="n">Elasticsearch · histórico</span><span class="s">customers_history · articles_history</span></button>
+      <button class="pieza" data-id="minio" data-estado="prop">
+        <span class="n">MinIO / S3</span><span class="s">levantado, sin uso en Java</span></button>
+    </div>
+
+    <div class="carril">
+      <h4>6 · Salida SAP</h4>
+      <button class="pieza" data-id="adapters-btp" data-estado="parcial">
+        <span class="n">Familia BTP</span><span class="s">Btp*Adapter + S4BankingAdapter</span></button>
+      <button class="pieza" data-id="adapters-odata" data-estado="impl">
+        <span class="n">Familia OData S/4</span><span class="s">BusinessPartner*ODataAdapter</span></button>
+      <button class="pieza" data-id="sapclient" data-estado="impl">
+        <span class="n">WebClientSapClient</span><span class="s">retry · circuit breaker · idempotencia</span></button>
+      <button class="pieza" data-id="auth" data-estado="impl">
+        <span class="n">Auth y CSRF</span><span class="s">xsuaa · S4 oauth2/basic · x-csrf-token</span></button>
+      <button class="pieza" data-id="s4" data-estado="impl">
+        <span class="n">S/4HANA Public Cloud</span><span class="s">API_BUSINESS_PARTNER · API_PRODUCT</span></button>
+      <button class="pieza" data-id="btp-api" data-estado="prop">
+        <span class="n">API BTP intermedia</span><span class="s">CAP o Integration Suite</span></button>
+    </div>
+
+  </div>
+
+  <h4>Transversal</h4>
+  <div class="transversal">
+    <button class="pieza" data-id="metrics" data-estado="parcial">
+      <span class="n">Observabilidad</span><span class="s">SyncMetrics · Actuator · Prometheus</span></button>
+    <button class="pieza" data-id="sapmodels" data-estado="impl">
+      <span class="n">sap-api-models</span><span class="s">modelos generados de specs oficiales</span></button>
+    <button class="pieza" data-id="sdk-client" data-estado="parcial">
+      <span class="n">sap-sdk-client</span><span class="s">spike desechable, repo anidado</span></button>
+    <button class="pieza" data-id="mcp" data-estado="prop">
+      <span class="n">Servidor MCP</span><span class="s">consulta para agentes IA</span></button>
+  </div>
+</section>
+
+<!-- =========================================================== CÓMO LEER -->
+<section id="como-leer">
+  <h2>Cómo leer este mapa</h2>
+
+  <div class="tarjetas">
+    <div class="tarjeta">
+      <h4><span class="badge impl">Implementado</span></h4>
+      <p>Existe en el código de esta rama y hay tests que lo cubren. Borde sólido.</p>
+    </div>
+    <div class="tarjeta" data-estado="parcial" style="border-style:dashed;border-color:var(--warn)">
+      <h4><span class="badge parcial">Parcial</span></h4>
+      <p>El código existe pero le falta el otro extremo, tiene una brecha conocida o no se ejercita
+         en el camino real. Borde discontinuo.</p>
+    </div>
+    <div class="tarjeta" data-estado="prop">
+      <h4><span class="badge prop">Propuesto</span></h4>
+      <p>Acordado o documentado, <strong>sin una línea de código</strong>. Borde punteado y fondo
+         transparente.</p>
+    </div>
+  </div>
+
+  <div class="nota ojo">
+    <p><strong>Lo primero que hay que saber:</strong> con la configuración por defecto
+    (<code>sap.odata.*.enabled = false</code> en <code>common/src/main/resources/application-common.yml</code>)
+    la plataforma <em>no</em> habla con SAP real. Envía a los paths BTP placeholder
+    <code>/sap/btp/odata/*</code>, que corresponden a una API intermedia que todavía no existe.
+    La ruta contra <code>API_BUSINESS_PARTNER</code> real está implementada pero hay que activarla
+    feature a feature.</p>
+  </div>
+
+  <p>
+    Tres dominios, un artefacto desplegable por dominio, arquitectura hexagonal en cuatro capas
+    (<code>domain</code> → <code>application</code> → <code>adapters</code> → <code>bootstrap</code>).
+    <code>common</code> es el shared kernel: máquina de estados, cliente SAP, métricas y el repositorio
+    de estado, reutilizados por todos los dominios sin dependencias cruzadas entre ellos.
+  </p>
+</section>
+
+<!-- ============================================================ CUSTOMER -->
+<section id="customer">
+  <h2>Dominio Customer <span class="badge impl">Implementado</span></h2>
+  <p class="intro">
+    <code>customer/</code> · <code>customer-app</code> :8081 · legacy SQL Server · topic
+    <code>outbox.CUSTOMER</code> · Mongo <code>customer</code> · índice <code>customers_history</code>.
+    Es el único dominio con <strong>subentidades</strong>: el aggregate <code>Customer</code> se
+    descompone en cuatro <em>features</em> (<code>AddressData</code>, <code>FiscalData</code>,
+    <code>ContactData</code>, <code>BankingData</code>) más la entidad hija <code>Mandate</code>,
+    y <strong>cada feature lleva su propio ciclo de estado</strong> bajo el identificador compuesto
+    <code>customerId:FEATURE</code>.
+  </p>
+
+  <div class="tarjetas">
+    <div class="tarjeta">
+      <h4>Customer · aggregate root</h4>
+      <p><code>id, code, name, status</code> — <code>Status = ACTIVE | INACTIVE | BLOCKED</code></p>
+      <span class="ruta">customer/src/main/java/com/poc/sap/customer/domain/Customer.java</span>
+    </div>
+    <div class="tarjeta">
+      <h4>AddressData · FISCAL · CONTACT · BANKING</h4>
+      <p>Value objects con validador propio. <code>BankingData</code> arrastra
+         <code>List&lt;String&gt; mandateIds</code>.</p>
+      <span class="ruta">customer/…/domain/feature/{address,fiscal,contact,banking}/</span>
+    </div>
+    <div class="tarjeta">
+      <h4>Mandate · entidad hija</h4>
+      <p><code>id, customerId, iban, bic, signatureDate</code> —
+         <code>Status = ACTIVE | REVOKED | EXPIRED</code>. No llega del legacy hoy.</p>
+      <span class="ruta">customer/…/domain/Mandate.java</span>
+    </div>
+  </div>
+
+  <h3 id="c1">C1 · CDC end-to-end: de un UPDATE en SQL Server a SAP</h3>
+  <figure class="diagrama">
+    <figcaption>C1 <span class="badge impl">Implementado</span>
+      <span class="desc">el camino principal, con dedupe, máquina de estados y rama de DLT</span></figcaption>
+    <div class="lienzo"><pre class="mermaid">
+sequenceDiagram
+    autonumber
+    participant SQL as SQL Server&lt;br/&gt;dbo.customers
+    participant OB as dbo.outbox_customer&lt;br/&gt;trg_customers_outbox
+    participant DZ as Debezium&lt;br/&gt;outbox-customer-sqlserver
+    participant K as Kafka&lt;br/&gt;outbox.CUSTOMER
+    participant L as CustomerKafkaListener
+    participant UC as SyncCustomerUseCase
+    participant ST as Mongo sync_state
+    participant IMG as Mongo customers_current
+    participant ES as ES customers_history
+    participant F as Use cases de feature
+
+    SQL-&gt;&gt;OB: AFTER INSERT / UPDATE / DELETE
+    Note over OB: JSON aplanado address.* fiscal.* contact.* banking.*&lt;br/&gt;payloadHash = HASHBYTES SHA2_256
+    OB-&gt;&gt;DZ: captura CDC, sp_cdc_enable_table
+    DZ-&gt;&gt;K: SMTs unwrap, ExtractField value payload,&lt;br/&gt;ExtractField key entity_id, RegexRouter
+    K-&gt;&gt;L: consume, key = entityId, orden por entidad
+    L-&gt;&gt;L: parse entityId, operation, payloadHash, payload
+    alt operation = DELETE
+        L-&gt;&gt;UC: DeleteCustomerUseCase, ver C5
+    else CREATE o UPDATE
+        L-&gt;&gt;UC: execute IngestionMessage origin=CDC
+    end
+    UC-&gt;&gt;ST: alreadySent customer, entityId, payloadHash
+    alt ya existe SENT_SAP con ese hash
+        ST--&gt;&gt;UC: true
+        UC--&gt;&gt;L: SENT_SAP, dedupe, no hace nada mas
+    else hash nuevo
+        UC-&gt;&gt;ST: null → RECEIVED → FETCHING
+        UC-&gt;&gt;SQL: SqlServerCustomerRepository.fetch entityId
+        Note over UC,SQL: se re-lee el estado ACTUAL del legacy,&lt;br/&gt;no se usa el payload del mensaje
+        alt no existe la fila
+            UC-&gt;&gt;ST: FETCHING → ERROR
+        else existe
+            UC-&gt;&gt;ST: FETCHING → VALIDATING
+            UC-&gt;&gt;UC: CustomerValidations.validate customer, features
+            alt invalido
+                UC-&gt;&gt;ST: VALIDATING → INVALID
+            else valido
+                UC-&gt;&gt;ST: VALIDATING → VALID
+                Note over UC,IMG: aqui se evalua el atajo sin cambios reales, ver C2
+                UC-&gt;&gt;ST: VALID → INDEXING
+                UC-&gt;&gt;IMG: save id, customer
+                UC-&gt;&gt;ES: index id, customer, payloadHash
+                UC-&gt;&gt;ST: INDEXING → INDEXED → SENDING_SAP
+                UC-&gt;&gt;F: fan-out por feature, ver C3
+                F--&gt;&gt;UC: estado de cada feature
+                UC-&gt;&gt;ST: SENDING_SAP → SENT_SAP / SAP_ERROR / INVALID
+            end
+        end
+    end
+    Note over K,L: si el listener lanza excepcion: 3 intentos con backoff&lt;br/&gt;y el registro acaba en outbox.CUSTOMER.DLT
+</pre></div>
+  </figure>
+
+  <h3 id="c2">C2 · Atajo «sin cambios reales»</h3>
+  <p>
+    Una modificación en el legacy que no toca ningún campo sincronizado no debe costar una llamada a SAP.
+    El use case compara el snapshot recién leído contra la <em>imagen staging</em> de Mongo y, si el ciclo
+    anterior acabó en <code>SENT_SAP</code> y son iguales, salta directo a <code>SENT_SAP</code>.
+    Esa arista <code>VALID → SENT_SAP</code> está declarada explícitamente en la máquina de estados.
+  </p>
+  <figure class="diagrama">
+    <figcaption>C2 <span class="badge impl">Implementado</span>
+      <span class="desc">SyncCustomerUseCase.java:125-130 · SyncStateMachine.java:40</span></figcaption>
+    <div class="lienzo"><pre class="mermaid">
+sequenceDiagram
+    autonumber
+    participant UC as SyncCustomerUseCase
+    participant ST as Mongo sync_state
+    participant SQL as Legacy SQL Server
+    participant IMG as Mongo customers_current
+    participant SAP as Adaptadores SAP
+
+    Note over UC: al entrar guarda lastCycleSent =&lt;br/&gt;currentState del aggregate == SENT_SAP
+    UC-&gt;&gt;SQL: fetch entityId, snapshot re-leido
+    UC-&gt;&gt;ST: VALIDATING → VALID
+    UC-&gt;&gt;IMG: find customer.id
+    alt lastCycleSent y snapshot.equals imagen staging
+        IMG--&gt;&gt;UC: imagen identica
+        UC-&gt;&gt;ST: VALID → SENT_SAP, atajo
+        Note over UC,SAP: no se reindexa en ES y no se envia nada a SAP&lt;br/&gt;el historico conserva el snapshot del ultimo envio real
+    else hay cambios, o no habia ciclo previo enviado
+        UC-&gt;&gt;ST: VALID → INDEXING
+        UC-&gt;&gt;IMG: save
+        UC-&gt;&gt;SAP: continua el pipeline normal
+    end
+</pre></div>
+  </figure>
+
+  <h3 id="c3">C3 · Fan-out por feature y subentidades</h3>
+  <p>
+    El punto donde el aggregate se descompone. <code>SyncCustomerUseCase</code> recorre las features
+    pedidas (por defecto las cuatro) y delega en el use case de cada una; cada uno valida su value object,
+    lleva <strong>su propio ciclo de estado</strong> bajo <code>customerId:FEATURE</code> —arrancando
+    directamente en <code>VALIDATING</code>, que por eso es un estado inicial válido— y llama a su puerto SAP.
+  </p>
+  <figure class="diagrama">
+    <figcaption>C3 <span class="badge impl">Implementado</span>
+      <span class="desc">bucle secuencial sobre <code>Set&lt;CustomerFeature&gt;</code>, no paralelo y sin saga</span></figcaption>
+    <div class="lienzo"><pre class="mermaid">
+sequenceDiagram
+    autonumber
+    participant UC as SyncCustomerUseCase
+    participant A as SyncAddressUseCase
+    participant FI as SyncFiscalUseCase
+    participant CO as SyncContactUseCase
+    participant BA as SyncBankingUseCase
+    participant ST as Mongo sync_state
+    participant SAP as Puerto SAP de cada feature
+
+    Note over UC: INDEXED → SENDING_SAP&lt;br/&gt;dispatch: Map de CustomerFeature a use case&lt;br/&gt;recorrido SECUENCIAL, no hay paralelismo ni compensacion
+
+    Note over A,SAP: ADDRESS, detalle completo. Las otras tres siguen el mismo patron
+    UC-&gt;&gt;A: execute customer, payloadHash
+    A-&gt;&gt;A: AddressValidator.validate AddressData
+    A-&gt;&gt;ST: VALIDATING → VALID, entityId = CUST-001:ADDRESS
+    A-&gt;&gt;ST: VALID → SENDING_SAP
+    A-&gt;&gt;SAP: AddressSapPort.send id, hash, AddressData
+    SAP--&gt;&gt;A: SapResponse
+    A-&gt;&gt;ST: SENDING_SAP → SENT_SAP o SAP_ERROR
+    A--&gt;&gt;UC: estado de la feature
+
+    UC-&gt;&gt;FI: execute, FiscalValidator + FiscalSapPort
+    FI--&gt;&gt;UC: estado, entityId = CUST-001:FISCAL
+    UC-&gt;&gt;CO: execute, ContactValidator + ContactSapPort
+    CO--&gt;&gt;UC: estado, entityId = CUST-001:CONTACT
+    UC-&gt;&gt;BA: execute, BankingValidator + BankingSapPort
+    BA--&gt;&gt;UC: estado, entityId = CUST-001:BANKING
+
+    Note over UC: agregacion: anyInvalid → INVALID&lt;br/&gt;allOk → SENT_SAP&lt;br/&gt;cualquier otro caso → SAP_ERROR
+    UC-&gt;&gt;ST: SENDING_SAP → estado agregado del aggregate
+</pre></div>
+  </figure>
+  <div class="nota alerta">
+    <p><strong>No hay saga.</strong> Si <code>ADDRESS</code> y <code>FISCAL</code> se envían bien y
+    <code>BANKING</code> falla, el aggregate queda en <code>SAP_ERROR</code> pero las dos primeras
+    features <em>ya están en SAP</em> y no se compensan. Además, <code>SAP_ERROR → SENDING_SAP</code>
+    está permitido por la máquina de estados pero <strong>ningún job lo dispara</strong>: el reproceso
+    hoy es manual. Está listado como pendiente en <code>docs/integration-guide/README.md</code>.</p>
+  </div>
+
+  <h3 id="c4">C4 · Qué adaptador se activa: BTP o OData directo</h3>
+  <p>
+    Cada puerto de feature tiene dos implementaciones mutuamente excluyentes por
+    <code>@ConditionalOnProperty</code>. La decisión es por configuración y <strong>por feature</strong>:
+    se puede llevar <code>ADDRESS</code> por OData real y dejar <code>CONTACT</code> en BTP.
+  </p>
+  <figure class="diagrama">
+    <figcaption>C4 <span class="badge impl">Implementado</span>
+      <span class="desc">ejemplo con ADDRESS; idéntico para FISCAL, CONTACT, BANKING y el Customer general</span></figcaption>
+    <div class="lienzo"><pre class="mermaid">
+sequenceDiagram
+    autonumber
+    participant UC as SyncAddressUseCase
+    participant P as AddressSapPort&lt;br/&gt;interfaz de dominio
+    participant BTP as BtpAddressAdapter
+    participant OD as BusinessPartnerAddressODataAdapter
+    participant CL as WebClientSapClient
+    participant DEST as Destino SAP
+
+    UC-&gt;&gt;P: send entityId, payloadHash, AddressData
+    alt sap.odata.address.enabled = false, POR DEFECTO
+        P-&gt;&gt;BTP: Spring inyecta el adaptador BTP, matchIfMissing
+        BTP-&gt;&gt;BTP: BtpAddressDto.from address&lt;br/&gt;campos BusinessPartner, Street, City, PostalCode, Country, Region
+        BTP-&gt;&gt;CL: send SapDestination.BTP, /sap/btp/odata/CustomerAddress
+        CL-&gt;&gt;DEST: POST sap.btp.base-url + path&lt;br/&gt;Bearer xsuaa, Idempotency-Key
+        Note over DEST: la API BTP intermedia NO EXISTE todavia&lt;br/&gt;el path y el DTO son contrato placeholder
+    else sap.odata.address.enabled = true
+        P-&gt;&gt;OD: Spring inyecta el adaptador OData
+        OD-&gt;&gt;OD: modelo generado desde API_BUSINESS_PARTNER.yaml&lt;br/&gt;APIBUSINESSPARTNERABusinessPartnerAddressTypeCreate
+        OD-&gt;&gt;CL: send SapDestination.S4_NATIVE,&lt;br/&gt;/sap/opu/odata/sap/API_BUSINESS_PARTNER/A_BusinessPartnerAddress
+        CL-&gt;&gt;DEST: POST sap.s4.base-url + path&lt;br/&gt;token S4, x-csrf-token, Idempotency-Key
+        Note over OD,DEST: body OData V2 SIN envoltorio d,&lt;br/&gt;el wrapper d solo aparece en las respuestas
+    end
+    DEST--&gt;&gt;CL: 2xx, 4xx o 5xx
+    CL--&gt;&gt;UC: SapResponse status, body, location
+</pre></div>
+  </figure>
+
+  <h3 id="c5">C5 · Borrado de Customer y de Mandate</h3>
+  <figure class="diagrama">
+    <figcaption>C5 <span class="badge parcial">Parcial</span>
+      <span class="desc">cableado de punta a punta, pero choca con la máquina de estados</span></figcaption>
+    <div class="lienzo"><pre class="mermaid">
+sequenceDiagram
+    autonumber
+    participant K as Kafka outbox.CUSTOMER
+    participant L as CustomerKafkaListener
+    participant DC as DeleteCustomerUseCase
+    participant ST as MongoSyncStateRepository&lt;br/&gt;+ SyncStateMachine
+    participant IMG as Mongo customers_current
+    participant SAP as CustomerSapOutboundPort
+    participant DLT as outbox.CUSTOMER.DLT
+
+    K-&gt;&gt;L: operation = DELETE
+    L-&gt;&gt;DC: execute entityId, payloadHash
+    DC-&gt;&gt;ST: transition from = null → SENDING_SAP
+    Note over ST: el repositorio IGNORA el from recibido:&lt;br/&gt;relee el estado real en Mongo y valida con SyncStateMachine
+    alt el estado actual no admite SENDING_SAP
+        ST--&gt;&gt;DC: IllegalStateException
+        DC--&gt;&gt;L: propaga
+        L-&gt;&gt;DLT: tras 3 intentos
+        Note over ST,DLT: solo INDEXED, SAP_ERROR y COMMUNICATION_ERROR&lt;br/&gt;admiten SENDING_SAP. Ni null, ni SENT_SAP, ni INVALID
+    else estado compatible
+        DC-&gt;&gt;SAP: send customerId, hash, null, body JSON vacio
+        Note over SAP: es un POST al mismo path, NO un HTTP DELETE&lt;br/&gt;SapClient.delete existe pero nadie lo invoca
+        alt respuesta 2xx
+            DC-&gt;&gt;IMG: delete customerId
+            DC-&gt;&gt;ST: SENDING_SAP → SENT_SAP
+        else error
+            DC-&gt;&gt;ST: SENDING_SAP → SAP_ERROR
+        end
+    end
+    Note over DC: DeleteMandateUseCase arranca igual, null → SENDING_SAP,&lt;br/&gt;y reutiliza BankingSapPort con un BankingData que solo lleva el mandateId.&lt;br/&gt;MandateSapOutboundPort esta declarado pero sin implementacion
+</pre></div>
+  </figure>
+  <div class="nota alerta">
+    <p><strong>Punto frágil verificado en código.</strong>
+    <code>DeleteCustomerUseCase.java:38</code> y <code>DeleteMandateUseCase.java:40</code> abren con
+    <code>transition(…, null, SENDING_SAP)</code>, pero
+    <code>MongoSyncStateRepository.transition()</code> (líneas 36-37) descarta el <code>from</code>
+    recibido, relee el estado real y valida contra <code>SyncStateMachine</code>. Como
+    <code>SENDING_SAP</code> solo es alcanzable desde <code>INDEXED</code>, <code>SAP_ERROR</code> y
+    <code>COMMUNICATION_ERROR</code>, el borrado lanza <code>IllegalStateException</code> en la práctica
+    totalidad de los casos y acaba en la DLT. No se ha corregido: queda documentado aquí.</p>
+  </div>
+
+  <h3 id="c6">C6 · Histórico de versiones enviadas y diff</h3>
+  <figure class="diagrama">
+    <figcaption>C6 <span class="badge impl">Implementado</span>
+      <span class="desc">commit 6c5e2b2 · CustomerHistoryController + JsonDiff</span></figcaption>
+    <div class="lienzo"><pre class="mermaid">
+sequenceDiagram
+    autonumber
+    participant CLI as Cliente HTTP
+    participant C as CustomerHistoryController
+    participant UC as CustomerHistoryUseCase
+    participant IDX as ElasticsearchCustomerIndexer&lt;br/&gt;indice customers_history
+    participant JD as JsonDiff
+
+    CLI-&gt;&gt;C: GET /customers/CUST-001/history?full=true
+    C-&gt;&gt;UC: history entityId, full
+    UC-&gt;&gt;IDX: findByCustomerIdOrderByTimestampDesc
+    IDX--&gt;&gt;UC: lista de Snapshot payloadHash, timestamp, entity
+    Note over IDX: id del documento = entityId + guion + payloadHash&lt;br/&gt;solo se indexan los envios reales, el atajo de C2 no crea version
+    UC--&gt;&gt;C: versiones de mas reciente a mas antigua
+    C--&gt;&gt;CLI: 200, con snapshot completo si full=true
+
+    CLI-&gt;&gt;C: GET /customers/CUST-001/history/diff?from=h1&amp;to=h2
+    C-&gt;&gt;UC: diff entityId, from, to
+    Note over UC: sin parametros compara la ultima version contra la anterior
+    UC-&gt;&gt;IDX: snapshots entityId
+    alt no hay historico, hash inexistente o no hay version previa
+        UC--&gt;&gt;C: NoSuchElementException
+        C--&gt;&gt;CLI: 404
+    else
+        UC-&gt;&gt;JD: diff before, after
+        JD--&gt;&gt;UC: Map de ruta a Change before, after
+        Note over JD: rutas aplanadas con puntos e indices:&lt;br/&gt;address.city, fiscal.taxId, banking.mandateIds cero
+        UC--&gt;&gt;C: HistoryDiff entityId, from, to, changes
+        C--&gt;&gt;CLI: 200
+    end
+</pre></div>
+  </figure>
+
+  <h3 id="c7">C7 · Entrada REST: sync y validate</h3>
+  <p>
+    Entrada alternativa al CDC que reutiliza <strong>exactamente el mismo pipeline</strong>: lo único que
+    cambia es el <code>IngestionOrigin</code>. <code>/validate</code> corta antes de indexar y de enviar.
+  </p>
+  <figure class="diagrama">
+    <figcaption>C7 <span class="badge impl">Implementado</span>
+      <span class="desc">SyncCustomerController · <strong>sin autenticación</strong></span></figcaption>
+    <div class="lienzo"><pre class="mermaid">
+sequenceDiagram
+    autonumber
+    participant CLI as Cliente HTTP o curl
+    participant C as SyncCustomerController
+    participant SU as SyncCustomerUseCase
+    participant VU as ValidateCustomerUseCase
+
+    CLI-&gt;&gt;C: POST /customers/sync&lt;br/&gt;entityId, operation, payloadHash, payload
+    C-&gt;&gt;SU: execute IngestionMessage origin=REST
+    Note over SU: mismo pipeline que C1: dedupe, fetch legacy,&lt;br/&gt;validar, imagen, historico, fan-out por feature
+    SU--&gt;&gt;C: SyncState final
+    C--&gt;&gt;CLI: 200, entityId y state
+
+    CLI-&gt;&gt;C: POST /customers/validate, entityId y payloadHash
+    C-&gt;&gt;VU: execute
+    Note over VU: solo valida, no indexa ni envia a SAP
+    VU--&gt;&gt;C: VALID o INVALID
+    C--&gt;&gt;CLI: 200, state
+    Note over CLI,C: NO hay autenticacion en ninguno de los dos endpoints
+</pre></div>
+  </figure>
+</section>
+
+<!-- ============================================================= ARTICLE -->
+<section id="article">
+  <h2>Dominio Article <span class="badge impl">Implementado</span></h2>
+  <p class="intro">
+    <code>article/</code> · <code>article-app</code> :8082 · legacy PostgreSQL · topic
+    <code>outbox.ARTICLE</code> · Mongo <code>article</code> · índice <code>articles_history</code>.
+    Mismo pipeline que Customer pero con una entidad <strong>plana, sin subentidades</strong>:
+    <code>Article(id, sku, description, category, unit, status)</code> con
+    <code>Status = ACTIVE | INACTIVE | DISCONTINUED</code>. Un único puerto de salida, sin fan-out.
+  </p>
+
+  <h3 id="a1">A1 · CDC end-to-end</h3>
+  <figure class="diagrama">
+    <figcaption>A1 <span class="badge impl">Implementado</span>
+      <span class="desc">PostgreSQL con pgoutput y slot lógico · destino API_PRODUCT</span></figcaption>
+    <div class="lienzo"><pre class="mermaid">
+sequenceDiagram
+    autonumber
+    participant PG as PostgreSQL&lt;br/&gt;tabla articles
+    participant OB as outbox_article&lt;br/&gt;articles_outbox_fn
+    participant DZ as Debezium&lt;br/&gt;outbox-article-postgres
+    participant K as Kafka&lt;br/&gt;outbox.ARTICLE
+    participant L as ArticleKafkaListener
+    participant UC as SyncArticleUseCase
+    participant ST as Mongo sync_state
+    participant IMG as Mongo articles_current
+    participant ES as ES articles_history
+    participant AD as S4ArticleAdapter
+    participant S4 as S/4 API_PRODUCT
+
+    PG-&gt;&gt;OB: trigger trg_articles_outbox
+    Note over OB: payloadHash con digest sha256, pgcrypto&lt;br/&gt;wal_level = logical, slot debezium_outbox_article
+    OB-&gt;&gt;DZ: replicacion logica pgoutput
+    DZ-&gt;&gt;K: RegexRouter → outbox.ARTICLE
+    K-&gt;&gt;L: consume
+    alt operation = DELETE
+        L-&gt;&gt;L: log.warn y DESCARTA, no hay use case de borrado
+    else CREATE o UPDATE
+        L-&gt;&gt;UC: execute IngestionMessage origin=CDC
+        UC-&gt;&gt;ST: alreadySent article, entityId, payloadHash
+        alt duplicado
+            UC--&gt;&gt;L: SENT_SAP, dedupe
+        else
+            UC-&gt;&gt;ST: null → RECEIVED → FETCHING
+            UC-&gt;&gt;PG: PostgresArticleRepository.fetch
+            UC-&gt;&gt;ST: FETCHING → VALIDATING
+            UC-&gt;&gt;UC: ArticleValidations.validate
+            alt invalido
+                UC-&gt;&gt;ST: VALIDATING → INVALID
+            else valido
+                UC-&gt;&gt;ST: VALIDATING → VALID
+                Note over UC,IMG: mismo atajo sin cambios reales que en C2
+                UC-&gt;&gt;IMG: save, VALID → INDEXING
+                UC-&gt;&gt;ES: index id, article, payloadHash
+                UC-&gt;&gt;ST: INDEXING → INDEXED → SENDING_SAP
+                UC-&gt;&gt;AD: ArticleSapOutboundPort.send
+                AD-&gt;&gt;S4: POST /sap/opu/odata/sap/API_PRODUCT&lt;br/&gt;Product, Description, Category, BaseUnit, Status
+                S4--&gt;&gt;AD: respuesta
+                UC-&gt;&gt;ST: SENDING_SAP → SENT_SAP o SAP_ERROR
+            end
+        end
+    end
+    Note over K,L: excepciones en el listener → outbox.ARTICLE.DLT
+</pre></div>
+  </figure>
+  <div class="nota ojo">
+    <p><strong>Dos asimetrías respecto a Customer.</strong>
+    (1) <code>ArticleKafkaListener</code> <em>descarta</em> los eventos <code>DELETE</code> con un
+    <code>log.warn</code>: un artículo borrado en el legacy nunca se notifica a SAP.
+    (2) <code>S4ArticleAdapter</code> construye el JSON <strong>a mano con un text block</strong>,
+    a pesar de que <code>sap-api-models</code> ya genera los modelos de
+    <code>API_PRODUCT_SRV.yaml</code>. Article tampoco tiene familia de adaptadores OData ni
+    feature flag: siempre va por <code>S4_NATIVE</code>.</p>
+  </div>
+
+  <h3 id="a2">A2 · Entrada REST e histórico</h3>
+  <figure class="diagrama">
+    <figcaption>A2 <span class="badge impl">Implementado</span>
+      <span class="desc">no existe <code>/articles/validate</code>; el histórico es homólogo a C6</span></figcaption>
+    <div class="lienzo"><pre class="mermaid">
+sequenceDiagram
+    autonumber
+    participant CLI as Cliente HTTP
+    participant SC as SyncArticleController
+    participant HC as ArticleHistoryController
+    participant UC as SyncArticleUseCase
+    participant HU as ArticleHistoryUseCase
+    participant ES as ES articles_history
+    participant JD as JsonDiff
+
+    CLI-&gt;&gt;SC: POST /articles/sync
+    SC-&gt;&gt;UC: execute IngestionMessage origin=REST
+    UC--&gt;&gt;SC: SyncState
+    SC--&gt;&gt;CLI: 200, entityId y state
+
+    CLI-&gt;&gt;HC: GET /articles/ART-001/history?full=true
+    HC-&gt;&gt;HU: history
+    HU-&gt;&gt;ES: findByArticleIdOrderByTimestampDesc
+    ES--&gt;&gt;HU: snapshots
+    HU--&gt;&gt;CLI: 200
+
+    CLI-&gt;&gt;HC: GET /articles/ART-001/history/diff?from=h1&amp;to=h2
+    HC-&gt;&gt;HU: diff
+    HU-&gt;&gt;JD: diff before, after
+    JD--&gt;&gt;HU: cambios por ruta, sku, description, category, unit, status
+    HU--&gt;&gt;CLI: 200 o 404 si falta la version
+</pre></div>
+  </figure>
+</section>
+
+<!-- ============================================================ SUPPLIER -->
+<section id="supplier">
+  <h2>Dominio Supplier <span class="badge prop">Propuesto</span></h2>
+  <p class="intro">
+    <code>supplier/</code> · puerto :8083 reservado. <strong>No hay implementación</strong>: el módulo
+    contiene una única clase, <code>SupplierApplicationPlaceholder</code>, que lanza
+    <code>UnsupportedOperationException</code>. Su <code>application.yml</code> ya reserva el topic
+    <code>outbox.SUPPLIER</code>, el grupo <code>supplier-consumer</code> y arranca con
+    <code>lazy-initialization: true</code>. No hay diagrama de secuencia porque no hay flujo que trazar.
+  </p>
+  <div class="nota fut">
+    <p><strong>Cuando se implemente</strong>, el trabajo es de adaptadores, no de pipeline: una tabla
+    outbox con su trigger en el legacy, un conector Debezium más, un <code>SupplierKafkaListener</code>,
+    un <code>SupplierLegacyRepositoryPort</code> y un adaptador SAP. Todo lo demás —máquina de estados,
+    dedupe, imagen, histórico, cliente SAP, métricas— ya está en <code>common</code>.
+    En SAP el destino natural es el mismo <code>A_BusinessPartner</code> pero con
+    <code>BusinessPartnerCategory = 1</code> y rol <code>FLVN01</code>, frente al
+    <code>2</code> / <code>FLCU01</code> de Customer.</p>
+  </div>
+</section>
+
+<!-- ============================================================== COMMON -->
+<section id="common">
+  <h2>Shared kernel <code>common</code> · transversal <span class="badge impl">Implementado</span></h2>
+  <p class="intro">
+    Lo que comparten todos los dominios. Un cambio aquí puede obligar a redesplegar los tres artefactos,
+    por eso lleva versionado semántico y pruebas de integración estrictas.
+  </p>
+
+  <h3 id="k1">K1 · Anatomía de una llamada a SAP</h3>
+  <figure class="diagrama">
+    <figcaption>K1 <span class="badge impl">Implementado</span>
+      <span class="desc">WebClientSapClient: auth, CSRF, idempotencia, retry y circuit breaker</span></figcaption>
+    <div class="lienzo"><pre class="mermaid">
+sequenceDiagram
+    autonumber
+    participant AD as Adaptador SAP
+    participant CL as WebClientSapClient
+    participant AU as SapAuthProvider&lt;br/&gt;BtpAuthProvider o S4NativeAuthProvider
+    participant XS as xsuaa o token endpoint S4
+    participant CS as S4CsrfTokenProvider
+    participant R4J as Resilience4j
+    participant SAP as SAP
+
+    AD-&gt;&gt;CL: send destination, path, json, payloadHash
+    CL-&gt;&gt;AU: cabecera Authorization
+    alt token en cache y vigente
+        AU--&gt;&gt;CL: Bearer cacheado
+    else sin token o caducado
+        AU-&gt;&gt;XS: POST grant_type=client_credentials&lt;br/&gt;Basic con client-id y client-secret
+        XS--&gt;&gt;AU: access_token y expires_in
+        Note over AU: renueva 60 s antes de caducar, TTL por defecto 5 min&lt;br/&gt;sin configuracion devuelve stub-btp-token o stub-s4-token
+        AU--&gt;&gt;CL: Bearer nuevo
+    end
+    opt escritura a S4_NATIVE con sap.s4.csrf.enabled
+        CL-&gt;&gt;CS: token
+        CS-&gt;&gt;SAP: GET fetch-path con cabecera x-csrf-token Fetch
+        SAP--&gt;&gt;CS: token y cookies SAP_SESSIONID, sap-usercontext
+        CS--&gt;&gt;CL: token y cookies cacheados
+    end
+    CL-&gt;&gt;R4J: ejecuta con retry 3 intentos, backoff 500 ms x2&lt;br/&gt;y circuit breaker 50 por ciento, ventana 10, abierto 30 s
+    R4J-&gt;&gt;SAP: POST path&lt;br/&gt;Authorization + Idempotency-Key igual a payloadHash
+    alt 403 por CSRF
+        SAP--&gt;&gt;CL: 403
+        CL-&gt;&gt;CS: invalida el token y hace re-fetch
+        CL-&gt;&gt;SAP: reintenta UNA sola vez
+    end
+    alt respuesta 5xx
+        SAP--&gt;&gt;R4J: 5xx
+        Note over R4J: SapServerException, reintenta y cuenta para el circuit breaker
+        R4J--&gt;&gt;CL: agotados los intentos, SapResponse con el status
+    else respuesta 4xx
+        SAP--&gt;&gt;CL: 4xx de contrato o datos, NO se reintenta
+    else error de transporte
+        SAP--&gt;&gt;CL: SapResponse con status 0 y el mensaje
+    else respuesta 2xx
+        SAP--&gt;&gt;CL: 2xx
+    end
+    CL--&gt;&gt;AD: SapResponse, isSuccess si es 2xx
+</pre></div>
+  </figure>
+
+  <h3 id="k2">K2 · Máquina de estados</h3>
+  <p>
+    Doce estados, dominio-agnóstica, en <code>common/…/domain/SyncStateMachine.java</code>. Dos estados
+    iniciales: <code>RECEIVED</code> para el pipeline del aggregate y <code>VALIDATING</code> para el
+    pipeline por feature. <code>SENT_SAP</code> e <code>INVALID</code> cierran el ciclo pero admiten
+    re-entrada: un evento nuevo de la misma entidad reabre el proceso, y la idempotencia la garantiza
+    el dedupe por <code>payloadHash</code>, no el hecho de ser terminal.
+  </p>
+  <figure class="diagrama">
+    <figcaption>K2 <span class="badge impl">Implementado</span>
+      <span class="desc">transiciones exactas de SyncStateMachine.java:35-48 — cualquier otra lanza IllegalStateException</span></figcaption>
+    <div class="lienzo"><pre class="mermaid">
+stateDiagram-v2
+    direction LR
+    [*] --&gt; RECEIVED : pipeline aggregate
+    [*] --&gt; VALIDATING : pipeline por feature
+    RECEIVED --&gt; FETCHING
+    RECEIVED --&gt; ERROR
+    FETCHING --&gt; VALIDATING
+    FETCHING --&gt; ERROR
+    FETCHING --&gt; COMMUNICATION_ERROR
+    VALIDATING --&gt; VALID
+    VALIDATING --&gt; INVALID
+    VALIDATING --&gt; ERROR
+    VALID --&gt; INDEXING
+    VALID --&gt; SENT_SAP : atajo sin cambios reales
+    VALID --&gt; ERROR
+    INDEXING --&gt; INDEXED
+    INDEXING --&gt; ERROR
+    INDEXED --&gt; SENDING_SAP
+    INDEXED --&gt; ERROR
+    SENDING_SAP --&gt; SENT_SAP
+    SENDING_SAP --&gt; SAP_ERROR
+    SENDING_SAP --&gt; INVALID
+    SENDING_SAP --&gt; COMMUNICATION_ERROR
+    SAP_ERROR --&gt; SENDING_SAP : reintento, sin job que lo dispare
+    SAP_ERROR --&gt; ERROR
+    SENT_SAP --&gt; RECEIVED : nuevo evento de la entidad
+    INVALID --&gt; RECEIVED : datos corregidos
+    ERROR --&gt; RECEIVED : recover
+    COMMUNICATION_ERROR --&gt; FETCHING
+    COMMUNICATION_ERROR --&gt; SENDING_SAP
+    COMMUNICATION_ERROR --&gt; ERROR
+</pre></div>
+  </figure>
+  <div class="tabla-wrap">
+    <table>
+      <thead><tr><th>Estado</th><th>Código</th><th>Quién lo emite</th></tr></thead>
+      <tbody>
+        <tr><td><code>RECEIVED</code></td><td>1</td><td>orquestadores de aggregate</td></tr>
+        <tr><td><code>FETCHING</code></td><td>2</td><td>antes de leer el legacy</td></tr>
+        <tr><td><code>VALIDATING</code></td><td>3</td><td>aggregate y también arranque de cada feature</td></tr>
+        <tr><td><code>VALID</code></td><td>4</td><td>validación superada</td></tr>
+        <tr><td><code>INVALID</code></td><td>5</td><td>validación fallida, o alguna feature inválida</td></tr>
+        <tr><td><code>INDEXING</code></td><td>6</td><td>antes de escribir imagen e histórico</td></tr>
+        <tr><td><code>INDEXED</code></td><td>7</td><td>imagen e histórico escritos</td></tr>
+        <tr><td><code>SENDING_SAP</code></td><td>8</td><td>antes de cada llamada a SAP</td></tr>
+        <tr><td><code>SENT_SAP</code></td><td>9</td><td>éxito, o dedupe, o atajo sin cambios reales</td></tr>
+        <tr><td><code>SAP_ERROR</code></td><td>10</td><td>respuesta no 2xx de SAP</td></tr>
+        <tr><td><code>COMMUNICATION_ERROR</code></td><td>98</td><td><span class="badge gap">nadie</span> está en el enum y en las transiciones, pero ningún use case lo emite</td></tr>
+        <tr><td><code>ERROR</code></td><td>99</td><td>fetch vacío y errores genéricos</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3 id="k3">K3 · Reintentos, DLT y qué no llega a ella</h3>
+  <figure class="diagrama">
+    <figcaption>K3 <span class="badge parcial">Parcial</span>
+      <span class="desc">KafkaErrorHandlingConfig · la DLT no tiene consumidor</span></figcaption>
+    <div class="lienzo"><pre class="mermaid">
+sequenceDiagram
+    autonumber
+    participant K as Kafka outbox.CUSTOMER
+    participant L as CustomerKafkaListener
+    participant UC as SyncCustomerUseCase
+    participant EH as DefaultErrorHandler&lt;br/&gt;DeadLetterPublishingRecoverer
+    participant DLT as outbox.CUSTOMER.DLT
+    participant ST as Mongo sync_state
+
+    K-&gt;&gt;L: registro
+    L-&gt;&gt;UC: execute
+    alt SAP responde con error
+        UC-&gt;&gt;ST: SENDING_SAP → SAP_ERROR
+        UC--&gt;&gt;L: devuelve el estado, SIN excepcion
+        L--&gt;&gt;K: se commitea el offset
+        Note over L,DLT: OJO. Un fallo de SAP no llega a la DLT y no hay job&lt;br/&gt;que reprocese SAP_ERROR, aunque la maquina de estados lo permita
+    else excepcion de parseo, de infraestructura o transicion invalida
+        UC--&gt;&gt;L: excepcion
+        L-&gt;&gt;EH: propaga
+        EH-&gt;&gt;L: 3 intentos, backoff exponencial desde 1000 ms x2
+        EH-&gt;&gt;DLT: publica el registro fallido
+        Note over DLT: no hay consumidor de la DLT, el reproceso es manual
+    end
+</pre></div>
+  </figure>
+
+  <h4>Observabilidad</h4>
+  <div class="tabla-wrap">
+    <table>
+      <thead><tr><th>Señal</th><th>Dónde</th><th>Estado</th></tr></thead>
+      <tbody>
+        <tr><td><code>sap_sync_state_total</code> — contador con tags <code>domain</code> y <code>state</code></td>
+            <td><code>common/…/observability/SyncMetrics.java</code>, invocado en cada transición</td>
+            <td><span class="badge impl">Implementado</span></td></tr>
+        <tr><td><code>sap_sync_stage_duration</code> — timer con percentiles p50/p95/p99</td>
+            <td>mismo fichero</td>
+            <td><span class="badge gap">definido pero nunca invocado en código productivo</span></td></tr>
+        <tr><td>Actuator: <code>health</code>, <code>info</code>, <code>metrics</code>, <code>prometheus</code></td>
+            <td>ambas apps, tag global <code>application=sap-integration</code></td>
+            <td><span class="badge impl">Implementado</span></td></tr>
+        <tr><td>Trazas distribuidas</td>
+            <td>el starter OTel se eliminó por incompatibilidad con Boot 4</td>
+            <td><span class="badge parcial">vía javaagent, sin instrumentación propia</span></td></tr>
+        <tr><td>Logs estructurados</td>
+            <td>SLF4J sin <code>logback-spring.xml</code></td>
+            <td><span class="badge gap">no hay configuración de logging</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ============================================================= FUTUROS -->
+<section id="futuros">
+  <h2>Patrones no implementados <span class="badge prop">Propuesto</span></h2>
+  <p class="intro">
+    Identificados y acordados como evolución, pero <strong>sin código</strong>. Se documentan para que el
+    inventario de integraciones esté completo. Ninguna de las clases citadas existe en el repositorio.
+  </p>
+
+  <h3 id="f1">F1 · Pull: BTP orquesta el ciclo</h3>
+  <p>
+    La iniciativa pasa a SAP: un job o iFlow en BTP pregunta qué hay pendiente, procesa en S/4 y notifica
+    el resultado. Existe la property <code>sap.integration.mode: push | pull | both</code>, pero
+    <strong>no la lee nadie</strong>, y el estado <code>PENDING_SAP</code> no forma parte del enum.
+  </p>
+  <figure class="diagrama">
+    <figcaption>F1 <span class="badge prop">Propuesto</span>
+      <span class="desc">requiere estado PENDING_SAP, dos controllers nuevos y validación del token entrante</span></figcaption>
+    <div class="lienzo"><pre class="mermaid">
+sequenceDiagram
+    autonumber
+    participant BTP as BTP, iFlow o CAP job
+    participant GW as Endpoint publicado&lt;br/&gt;GET /btp/pending, NO EXISTE
+    participant ST as Mongo sync_state
+    participant RC as POST /btp/result&lt;br/&gt;NO EXISTE
+    participant S4 as S/4 Public Cloud
+
+    Note over BTP,GW: el CDC no enviaria a SAP: solo dejaria PENDING_SAP y esperaria
+    BTP-&gt;&gt;GW: GET /btp/pending?domain=customer con OAuth2
+    GW-&gt;&gt;ST: findByDomainAndState customer, PENDING_SAP
+    ST--&gt;&gt;GW: entidades pendientes
+    GW--&gt;&gt;BTP: lista entityId, entityType, data, features
+    BTP-&gt;&gt;S4: mapea y hace create o update OData, con dolar batch si es masivo
+    S4--&gt;&gt;BTP: resultado
+    BTP-&gt;&gt;RC: POST /btp/result por entidad
+    alt exito
+        RC-&gt;&gt;ST: PENDING_SAP → SENT_SAP
+    else fallo
+        RC-&gt;&gt;ST: PENDING_SAP → SAP_ERROR
+    end
+    Note over BTP,RC: SAP decide CUANDO procesar, inmediato o batch nocturno.&lt;br/&gt;Falta: contrato versionado, paginacion y resource server contra xsuaa
+</pre></div>
+  </figure>
+
+  <h3 id="f2">F2 · Batch fin de día disparado por topic</h3>
+  <figure class="diagrama">
+    <figcaption>F2 <span class="badge prop">Propuesto</span>
+      <span class="desc">reutiliza el pipeline entero: solo hace falta un listener más</span></figcaption>
+    <div class="lienzo"><pre class="mermaid">
+sequenceDiagram
+    autonumber
+    participant TRG as Kafka topic de disparo&lt;br/&gt;batch.CUSTOMER
+    participant BL as BatchTriggerListener&lt;br/&gt;NO EXISTE
+    participant DB as Legacy o imagen Mongo
+    participant UC as SyncCustomerUseCase&lt;br/&gt;el mismo de C1
+    participant S4 as S/4 Public Cloud
+
+    Note over TRG: quien programa el corte publica el mensaje&lt;br/&gt;con dominio, corte y filtro
+    TRG-&gt;&gt;BL: mensaje de disparo
+    BL-&gt;&gt;DB: SELECT modificados desde el ultimo corte
+    loop por lotes de N entidades
+        BL-&gt;&gt;UC: execute IngestionMessage origin=BATCH
+        Note over UC: el dedupe por payloadHash evita reenviar&lt;br/&gt;lo que el CDC ya mando: CDC y batch conviven
+        UC-&gt;&gt;S4: envios por feature, o dolar batch con changesets
+    end
+    BL-&gt;&gt;BL: informe del corte: procesados, saltados, errores
+    Note over BL,S4: falta anadir soporte dolar batch a SapClient&lt;br/&gt;y un IngestionOrigin BATCH al enum
+</pre></div>
+  </figure>
+
+  <h3 id="f3">F3 · Eventos desde S/4 hacia la plataforma</h3>
+  <p>
+    El sentido inverso. Caso de uso principal identificado: <strong>actualización de stock</strong>
+    (movimientos de mercancía que nacen en SAP). Pendiente de que el equipo SAP decida el mecanismo
+    de publicación.
+  </p>
+  <figure class="diagrama">
+    <figcaption>F3 <span class="badge prop">Propuesto</span>
+      <span class="desc">sin diseño cerrado; encajaría como un adaptador más de IngestionPort</span></figcaption>
+    <div class="lienzo"><pre class="mermaid">
+flowchart LR
+    S4["S/4 Public Cloud&lt;br/&gt;Business Events&lt;br/&gt;stock y mov. de mercancia"] --&gt; EM["SAP Event Mesh&lt;br/&gt;o Advanced Event Mesh"]
+    EM --&gt;|webhook o AMQP| IN["Consumer de plataforma&lt;br/&gt;nuevo adaptador de IngestionPort"]
+    IN --&gt; P["Pipeline actual&lt;br/&gt;validar, imagen, historico, trazabilidad"]
+    P --&gt; LG[("Legacy DB")]
+</pre></div>
+  </figure>
+
+  <h3 id="f4">F4 · Servidor MCP de consulta para agentes IA</h3>
+  <figure class="diagrama">
+    <figcaption>F4 <span class="badge prop">Propuesto</span>
+      <span class="desc">docs/integrations/MCP.md · bloqueado por dos prerrequisitos</span></figcaption>
+    <div class="lienzo"><pre class="mermaid">
+sequenceDiagram
+    autonumber
+    participant AG as Agente IA
+    participant MCP as mcp-server&lt;br/&gt;Spring AI MCP, NO EXISTE
+    participant OF as Capa de ofuscacion&lt;br/&gt;NO EXISTE
+    participant API as REST de customer y article
+
+    AG-&gt;&gt;MCP: get_sync_state, get_history, get_diff,&lt;br/&gt;search_errors, get_metrics
+    MCP-&gt;&gt;API: envoltorio fino sobre los endpoints ya existentes
+    API--&gt;&gt;MCP: datos crudos, incluida informacion personal
+    MCP-&gt;&gt;OF: enmascarar IBAN, BIC, taxId, email, telefono, direccion
+    OF--&gt;&gt;AG: respuesta ofuscada
+    Note over MCP,API: PRERREQUISITO 1: las REST no tienen autenticacion.&lt;br/&gt;Hace falta auth, rol mcp-readonly y auditoria
+    Note over OF: PRERREQUISITO 2: la tabla de mascaras de PII no existe
+</pre></div>
+  </figure>
+</section>
+
+<!-- ============================================================ REF PUERTOS -->
+<section id="ref-puertos">
+  <h2>Referencia · puertos y adaptadores</h2>
+  <p>Un puerto de dominio, dos implementaciones excluyentes por <code>@ConditionalOnProperty</code>.
+     Por defecto todos los flags están a <code>false</code>: se usa la columna BTP.</p>
+  <div class="tabla-wrap">
+    <table>
+      <thead><tr><th>Puerto</th><th>Adaptador por defecto</th><th>Adaptador con flag activo</th><th>Destino</th><th>Path</th></tr></thead>
+      <tbody>
+        <tr><td><code>CustomerSapOutboundPort</code></td><td><code>BtpCustomerAdapter</code></td><td><code>BusinessPartnerODataAdapter</code></td><td>BTP / S4_NATIVE</td><td><code>/sap/btp/odata/Customer</code> · <code>…/A_BusinessPartner</code></td></tr>
+        <tr><td><code>AddressSapPort</code></td><td><code>BtpAddressAdapter</code></td><td><code>BusinessPartnerAddressODataAdapter</code></td><td>BTP / S4_NATIVE</td><td><code>/sap/btp/odata/CustomerAddress</code> · <code>…/A_BusinessPartnerAddress</code></td></tr>
+        <tr><td><code>FiscalSapPort</code></td><td><code>BtpFiscalAdapter</code></td><td><code>BusinessPartnerTaxODataAdapter</code> <span class="badge impl">tax-type ES0</span></td><td>BTP / S4_NATIVE</td><td><code>/sap/btp/odata/CustomerFiscal</code> · <code>…/A_BusinessPartnerTaxNumber</code></td></tr>
+        <tr><td><code>ContactSapPort</code></td><td><code>BtpContactAdapter</code></td><td><code>BusinessPartnerContactODataAdapter</code> <span class="badge gap">pierde datos</span></td><td>BTP / S4_NATIVE</td><td><code>/sap/btp/odata/CustomerContact</code> · <code>…/A_BusinessPartnerContact</code></td></tr>
+        <tr><td><code>BankingSapPort</code></td><td><code>S4BankingAdapter</code></td><td><code>BusinessPartnerBankODataAdapter</code></td><td>S4_NATIVE</td><td><code>…/API_CUSTOMER_MANDATE</code> · <code>…/A_BusinessPartnerBank</code></td></tr>
+        <tr><td><code>MandateSapOutboundPort</code></td><td colspan="4"><span class="badge gap">declarado sin implementación</span> — <code>DeleteMandateUseCase</code> reutiliza <code>BankingSapPort</code></td></tr>
+        <tr><td><code>BusinessPartnerReadPort</code></td><td>—</td><td><code>BusinessPartnerReadAdapter</code> (<code>sap.odata.read.enabled</code>)</td><td>S4_NATIVE</td><td>GET <code>A_BusinessPartner</code> con <code>$top</code> y <code>$filter</code>, desenvuelve el wrapper <code>d</code> <span class="badge gap">sin consumidores</span></td></tr>
+        <tr><td><code>ArticleSapOutboundPort</code></td><td><code>S4ArticleAdapter</code> (siempre activo, JSON a mano)</td><td>—</td><td>S4_NATIVE</td><td><code>/sap/opu/odata/sap/API_PRODUCT</code></td></tr>
+        <tr><td><code>LegacyRepositoryPort&lt;T&gt;</code></td><td><code>SqlServerCustomerRepository</code> · <code>PostgresArticleRepository</code></td><td colspan="3">JPA con <code>ddl-auto: validate</code></td></tr>
+        <tr><td><code>ImageStorePort&lt;T&gt;</code></td><td><code>MongoCustomerImageStore</code> · <code>MongoArticleImageStore</code></td><td colspan="3">colecciones <code>*_current</code></td></tr>
+        <tr><td><code>HistoryIndexerPort&lt;T&gt;</code></td><td><code>ElasticsearchCustomerIndexer</code> · <code>ElasticsearchArticleIndexer</code></td><td colspan="3">índices <code>*_history</code>, <code>createIndex=false</code></td></tr>
+        <tr><td><code>SyncStateRepositoryPort</code></td><td colspan="4"><code>MongoSyncStateRepository</code> — <strong>compartido en <code>common</code></strong>, lo reutilizan todos los dominios</td></tr>
+        <tr><td><code>IngestionPort</code></td><td colspan="4">listeners Kafka y controllers REST; anticipa batch y Event Mesh sin tocar el pipeline</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ========================================================= REF MENSAJERÍA -->
+<section id="ref-mensajeria">
+  <h2>Referencia · mensajería y CDC</h2>
+  <div class="tabla-wrap">
+    <table>
+      <thead><tr><th>Conector Debezium</th><th>Fuente</th><th>Tabla outbox</th><th>Topic</th><th>Consumidor</th></tr></thead>
+      <tbody>
+        <tr><td><code>outbox-customer-sqlserver</code></td><td>SQL Server <code>poc</code>, <code>sp_cdc_enable_table</code>, requiere SQL Server Agent</td><td><code>dbo.outbox_customer</code> + <code>trg_customers_outbox</code></td><td><code>outbox.CUSTOMER</code></td><td><code>CustomerKafkaListener</code>, grupo <code>customer-consumer</code></td></tr>
+        <tr><td><code>outbox-article-postgres</code></td><td>PostgreSQL <code>poc</code>, plugin <code>pgoutput</code>, slot <code>debezium_outbox_article</code></td><td><code>outbox_article</code> + <code>articles_outbox_fn()</code></td><td><code>outbox.ARTICLE</code></td><td><code>ArticleKafkaListener</code>, grupo <code>article-consumer</code></td></tr>
+        <tr><td>—</td><td>—</td><td>—</td><td><code>outbox.SUPPLIER</code> <span class="badge prop">reservado</span></td><td><span class="badge gap">no hay listener</span></td></tr>
+        <tr><td>—</td><td>—</td><td>—</td><td><code>outbox.CUSTOMER.DLT</code> · <code>outbox.ARTICLE.DLT</code></td><td><span class="badge gap">sin consumidor, reproceso manual</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>
+    Cadena de SMTs idéntica en ambos conectores: <code>ExtractNewRecordState</code> (unwrap) →
+    <code>ExtractField$Value</code> sobre <code>payload</code> → <code>ExtractField$Key</code> sobre
+    <code>entity_id</code> → <code>RegexRouter</code>. Con <code>StringConverter</code> en key y value,
+    el mensaje que llega al topic es <em>literalmente</em> el JSON de la columna <code>payload</code>.
+    La key es el <code>entityId</code>, lo que garantiza orden por entidad dentro de su partición.
+  </p>
+  <div class="nota">
+    <p><strong>Contrato del mensaje:</strong>
+    <code>{ "entityId": …, "operation": "CREATE|UPDATE|DELETE", "payloadHash": "&lt;sha256&gt;", "payload": { … } }</code>.
+    Los hashes de SQL Server (UTF-16) y PostgreSQL (UTF-8) no son comparables entre motores; da igual,
+    porque el dedupe siempre es dentro de un mismo dominio.</p>
+  </div>
+</section>
+
+<!-- ============================================================ REF DATOS -->
+<section id="ref-datos">
+  <h2>Referencia · almacenes de datos</h2>
+  <div class="tabla-wrap">
+    <table>
+      <thead><tr><th>Almacén</th><th>Contenido</th><th>Clave / índice</th><th>Para qué</th></tr></thead>
+      <tbody>
+        <tr><td>SQL Server <code>poc</code> :1433</td><td><code>dbo.customers</code>, <code>dbo.outbox_customer</code></td><td>—</td><td>fuente de verdad de Customer; la app solo lee</td></tr>
+        <tr><td>PostgreSQL <code>poc</code> :5432</td><td><code>articles</code>, <code>outbox_article</code></td><td>—</td><td>fuente de verdad de Article</td></tr>
+        <tr><td>Mongo <code>customer</code> / <code>article</code> :27017</td><td><code>customers_current</code>, <code>articles_current</code></td><td>único sobre <code>id</code></td><td>imagen actual (staging); la comparación que habilita el atajo de C2</td></tr>
+        <tr><td>Mongo, ambas BD</td><td><code>sync_state</code></td><td><code>domain + entityId + timestamp desc</code></td><td>log append-only de transiciones; dedupe por <code>payloadHash</code>; base del futuro MCP</td></tr>
+        <tr><td>Elasticsearch :9200</td><td><code>customers_history</code>, <code>articles_history</code></td><td>id = <code>entityId-payloadHash</code>, orden por <code>@timestamp</code></td><td>histórico de las versiones realmente enviadas a SAP; alimenta el diff</td></tr>
+        <tr><td>Kibana :5601</td><td>—</td><td>—</td><td>UI sobre el histórico</td></tr>
+        <tr><td>MinIO :9000 / :9001</td><td>bucket <code>sap-integration</code></td><td>—</td><td><span class="badge gap">levantado en el compose, ningún código Java lo usa</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="nota">
+    <p><strong>Sobre el nombre «imagen».</strong> <code>ImageStorePort</code> no tiene nada que ver con
+    ficheros ni con MinIO: es la <em>imagen actual</em> de la entidad, el snapshot staging en Mongo que
+    se compara contra el legacy para decidir si hay cambios reales.</p>
+  </div>
+  <p>
+    La infraestructura completa está en un único <code>external-services/docker-compose.yml</code>
+    (Zookeeper, Kafka, Kafka Connect, SQL Server + init, PostgreSQL, Mongo, Elasticsearch, Kibana,
+    MinIO + init). <strong>No hay Kubernetes, ni Helm, ni Dockerfiles de las apps Java, ni CI/CD</strong>:
+    el compose levanta solo infraestructura y las apps se arrancan con <code>mvn spring-boot:run</code>
+    desde el host.
+  </p>
+</section>
+
+<!-- ============================================================= REF REST -->
+<section id="ref-rest">
+  <h2>Referencia · endpoints REST</h2>
+  <div class="tabla-wrap">
+    <table>
+      <thead><tr><th>App</th><th>Método y path</th><th>Qué hace</th></tr></thead>
+      <tbody>
+        <tr><td rowspan="4">customer-app :8081</td><td><code>POST /customers/sync</code></td><td>ingesta síncrona; ejecuta el pipeline completo con <code>origin=REST</code></td></tr>
+        <tr><td><code>POST /customers/validate</code></td><td>solo valida, no indexa ni envía a SAP</td></tr>
+        <tr><td><code>GET /customers/{id}/history?full=</code></td><td>versiones enviadas a SAP, de más reciente a más antigua</td></tr>
+        <tr><td><code>GET /customers/{id}/history/diff?from=&amp;to=</code></td><td>diff campo a campo entre dos <code>payloadHash</code>; sin parámetros, última contra anterior; 404 si falta</td></tr>
+        <tr><td rowspan="3">article-app :8082</td><td><code>POST /articles/sync</code></td><td>ingesta síncrona</td></tr>
+        <tr><td><code>GET /articles/{id}/history?full=</code></td><td>homólogo</td></tr>
+        <tr><td><code>GET /articles/{id}/history/diff?from=&amp;to=</code></td><td>homólogo</td></tr>
+        <tr><td>ambas</td><td><code>/actuator/{health,info,metrics,prometheus}</code></td><td>observabilidad</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="nota alerta">
+    <p><strong>Ningún endpoint tiene autenticación.</strong> Es la brecha que bloquea el servidor MCP
+    (F4) y la que habría que resolver antes de publicar cualquier endpoint hacia BTP (F1).
+    No existen endpoints de mandatos, ni de sync por feature individual, ni nada del dominio supplier.</p>
+  </div>
+</section>
+
+<!-- =========================================================== REF CONFIG -->
+<section id="ref-config">
+  <h2>Referencia · configuración que cambia el comportamiento</h2>
+  <p>Todo en <code>common/src/main/resources/application-common.yml</code>, importado por customer y
+     article vía <code>spring.config.import</code>.</p>
+  <div class="tabla-wrap">
+    <table>
+      <thead><tr><th>Propiedad</th><th>Defecto</th><th>Efecto</th></tr></thead>
+      <tbody>
+        <tr><td><code>sap.odata.{address,fiscal,contact,banking,customer,read}.enabled</code></td><td><code>false</code></td><td>a <code>true</code> conmuta esa feature del adaptador BTP al OData real contra <code>API_BUSINESS_PARTNER</code></td></tr>
+        <tr><td><code>sap.integration.mode</code></td><td><code>push</code></td><td><span class="badge gap">declarada pero no la lee ningún componente</span> — los valores <code>pull</code> y <code>both</code> no tienen efecto</td></tr>
+        <tr><td><code>sap.s4.csrf.enabled</code></td><td><code>false</code></td><td>activa el fetch de <code>x-csrf-token</code> + cookies antes de cada escritura a <code>S4_NATIVE</code></td></tr>
+        <tr><td><code>sap.s4.auth.type</code></td><td><code>oauth2</code></td><td><code>oauth2</code> (client_credentials) o <code>basic</code>; sin configurar devuelve <code>stub-s4-token</code></td></tr>
+        <tr><td><code>sap.btp.xsuaa.{client-id,client-secret,token-url}</code></td><td>vacíos</td><td>sin ellos, <code>BtpAuthProvider</code> devuelve <code>stub-btp-token</code></td></tr>
+        <tr><td><code>sap.client.connect-timeout-ms</code> / <code>response-timeout-ms</code></td><td><code>3000</code> / <code>20000</code></td><td>timeouts del WebClient</td></tr>
+        <tr><td><code>sap.client.retry.max-attempts</code> / <code>initial-backoff-ms</code></td><td><code>3</code> / <code>500</code></td><td>retry con backoff exponencial ×2; solo ante 5xx y errores de transporte</td></tr>
+        <tr><td><code>sap.client.circuit-breaker.*</code></td><td>50 % · ventana 10 · 30 s</td><td>umbral de fallo, tamaño de ventana deslizante y tiempo en abierto</td></tr>
+        <tr><td><code>sap.cloud-sdk.local-destination.enabled</code></td><td><code>false</code></td><td>registra un destino <code>local-s4</code> sin auth; el SAP Cloud SDK no se usa para las llamadas reales</td></tr>
+        <tr><td><code>spring.threads.virtual.enabled</code></td><td><code>true</code></td><td>virtual threads de Java 25</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ============================================================= BRECHAS -->
+<section id="brechas">
+  <h2>Brechas y puntos frágiles</h2>
+  <p>Verificado leyendo el código de esta rama, no la documentación. Ordenado por impacto.</p>
+  <div class="tabla-wrap">
+    <table>
+      <thead><tr><th>#</th><th>Qué pasa</th><th>Dónde</th><th>Consecuencia</th></tr></thead>
+      <tbody>
+        <tr><td>1</td>
+            <td><strong>El borrado choca con la máquina de estados.</strong> Los use cases de delete abren con <code>from = null → SENDING_SAP</code>, pero el repositorio ignora ese <code>from</code>, relee el estado real y valida. <code>SENDING_SAP</code> solo es alcanzable desde <code>INDEXED</code>, <code>SAP_ERROR</code> y <code>COMMUNICATION_ERROR</code>.</td>
+            <td><code>DeleteCustomerUseCase.java:38</code> · <code>DeleteMandateUseCase.java:40</code> · <code>MongoSyncStateRepository.java:36-37</code></td>
+            <td><code>IllegalStateException</code> → DLT. El DELETE no llega a SAP.</td></tr>
+        <tr><td>2</td>
+            <td><strong>Por defecto no se habla con SAP real.</strong> Todos los <code>sap.odata.*.enabled</code> están a <code>false</code>, así que se envía a <code>/sap/btp/odata/*</code>, paths de una API intermedia que aún no existe.</td>
+            <td><code>application-common.yml</code></td>
+            <td>El camino por defecto no es ejecutable contra un tenant real.</td></tr>
+        <tr><td>3</td>
+            <td><strong>Sin saga ni reproceso.</strong> El fan-out por feature no es transaccional ni compensable, y aunque <code>SAP_ERROR → SENDING_SAP</code> está permitido, ningún job lo dispara.</td>
+            <td><code>SyncCustomerUseCase.java:144-160</code></td>
+            <td>Fallo parcial: features ya enviadas quedan en SAP sin compensar; el reintento es manual.</td></tr>
+        <tr><td>4</td>
+            <td><strong>Un <code>SAP_ERROR</code> no llega a la DLT.</strong> El use case lo traduce a estado, el listener no lanza excepción y el offset se commitea.</td>
+            <td><code>KafkaErrorHandlingConfig</code> · listeners</td>
+            <td>Los fallos de SAP solo son visibles consultando <code>sync_state</code>.</td></tr>
+        <tr><td>5</td>
+            <td><strong>El adaptador de contacto pierde datos.</strong> <code>BusinessPartnerContactODataAdapter</code> recibe <code>ContactData</code> pero solo envía <code>BusinessPartnerCompany</code> y <code>RelationshipCategory</code>.</td>
+            <td><code>customer/…/adapters/sap/odata/</code></td>
+            <td>Email, teléfono, fax y web nunca llegan a SAP por la ruta OData.</td></tr>
+        <tr><td>6</td>
+            <td><strong>REST sin autenticación.</strong> Ni sync, ni validate, ni histórico.</td>
+            <td>ambos <code>bootstrap/web/</code></td>
+            <td>Bloquea el MCP (F4) y cualquier endpoint publicado hacia BTP (F1).</td></tr>
+        <tr><td>7</td>
+            <td><strong>Credenciales de tenant real en claro</strong> en el spike anidado: URL, <code>sap.username=POSTMAN</code> y contraseña literal.</td>
+            <td><code>sap-sdk-client/src/main/resources/application.properties</code></td>
+            <td><span class="badge gap">rotar la credencial y limpiar el histórico de ese repo</span></td></tr>
+        <tr><td>8</td>
+            <td><strong>Article descarta los DELETE</strong> con un <code>log.warn</code>.</td>
+            <td><code>ArticleKafkaListener</code></td>
+            <td>Un artículo borrado en el legacy nunca se notifica a SAP.</td></tr>
+        <tr><td>9</td>
+            <td><strong>Código implementado sin uso productivo:</strong> <code>SapClient.patch()</code> y <code>delete()</code>, <code>SyncMetrics.recordStageDuration</code>, <code>BusinessPartnerReadAdapter</code>, <code>MandateSapOutboundPort</code>, el estado <code>COMMUNICATION_ERROR</code> y los modelos generados de <code>API_PRODUCT_SRV</code> y <code>API_APAR_SEPA_MANDATE_SRV</code>.</td>
+            <td>varios</td>
+            <td>Superficie muerta que confunde al leer el mapa.</td></tr>
+        <tr><td>10</td>
+            <td><strong>Sin trazas ni logs estructurados</strong>: el starter OTel se quitó por incompatibilidad con Boot 4 y no hay <code>logback-spring.xml</code>. <strong>MinIO</strong> levantado sin uso. <strong>Sin CI/CD ni Dockerfiles</strong> de las apps.</td>
+            <td>varios</td>
+            <td>Operabilidad limitada; el despliegue no está automatizado.</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ============================================================= FUENTES -->
+<section id="fuentes">
+  <h2>Fuentes y cómo mantener esto</h2>
+  <p>
+    Esta página consolida la documentación dispersa del repositorio <em>contrastada contra el código</em>.
+    Cuando difieran, manda el código: varios documentos marcan como «propuesta» cosas que ya existen
+    (por ejemplo <code>BusinessPartnerReadAdapter</code>) y otros describen flujos que nunca se
+    implementaron.
+  </p>
+  <div class="tabla-wrap">
+    <table>
+      <thead><tr><th>Documento</th><th>Qué aporta</th></tr></thead>
+      <tbody>
+        <tr><td><code>docs/architecture/OVERVIEW.md</code></td><td>módulos del reactor, aggregate Customer, deployment, convención de paquetes</td></tr>
+        <tr><td><code>docs/architecture/FLOWS.md</code></td><td>flujos con nombres de clase; marca explícitamente lo propuesto</td></tr>
+        <tr><td><code>docs/architecture/INTEGRATION-PATTERNS.md</code></td><td>los cinco patrones de integración con SAP y su estado</td></tr>
+        <tr><td><code>docs/specs/SPEC.md</code> · <code>TECH.md</code></td><td>especificación funcional agnóstica y su contraparte técnica</td></tr>
+        <tr><td><code>docs/specs/sap/README.md</code></td><td>catálogo de las specs OpenAPI oficiales de S/4HANA usadas o previstas</td></tr>
+        <tr><td><code>docs/integration-guide/README.md</code></td><td>brechas resueltas y pendientes, punto de fallo por sistema</td></tr>
+        <tr><td><code>docs/integrations/MCP.md</code> · <code>SAP_CLOUD_SDK.md</code></td><td>propuesta del MCP y guía del SAP Cloud SDK</td></tr>
+        <tr><td><code>docs/testing/TESTING.md</code> · <code>GUIA-PRUEBAS.md</code></td><td>catálogo de la suite (211 tests) y guía práctica CP-01…CP-13</td></tr>
+        <tr><td><code>external-services/README.md</code> · <code>debezium/README.md</code></td><td>infraestructura local y detalle de los conectores</td></tr>
+        <tr><td><code>docs/GLOSSARY.md</code></td><td>glosario de términos y siglas SAP</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="nota">
+    <p><strong>Para mantener esta página:</strong> los datos de las piezas del mapa viven en el objeto
+    <code>PIEZAS</code> al final del fichero, y cada diagrama es un bloque
+    <code>&lt;pre class="mermaid"&gt;</code>. No hay build ni dependencias que instalar: se edita el HTML
+    y se abre. La única carga externa es Mermaid desde CDN; sin red, la página sigue funcionando y
+    muestra el código de cada diagrama.</p>
+  </div>
+</section>
+
+</main>
+</div>
+
+<aside class="panel" id="panel" hidden aria-live="polite">
+  <button class="btn cerrar" id="cerrar-panel" type="button" aria-label="Cerrar">✕</button>
+  <h3 id="panel-titulo"></h3> <span id="panel-badge"></span>
+  <dl id="panel-cuerpo"></dl>
+</aside>
+
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+<script>
+/* ==================================================== datos de las piezas */
+const PIEZAS = {
+  'sqlserver': {
+    titulo: 'SQL Server · dbo.customers', estado: 'impl',
+    rol: 'Fuente de verdad del dominio Customer. Esquema plano de ~20 columnas que el dominio reparte en las cuatro features. La aplicación solo lee (ddl-auto: validate).',
+    ficheros: ['external-services/sqlserver/init.sql', 'customer/…/adapters/persistence/CustomerEntity.java', 'customer/…/adapters/persistence/SqlServerCustomerRepository.java'],
+    config: ['SQLSERVER_URL (jdbc:sqlserver://localhost:1433;databaseName=poc)'],
+    conexiones: ['outbox-cust','uc-sync-cust'], diagramas: [['c1','C1'],['c2','C2']]
+  },
+  'outbox-cust': {
+    titulo: 'Outbox customer + trigger', estado: 'impl',
+    rol: 'trg_customers_outbox (AFTER INSERT/UPDATE/DELETE) compone el JSON del contrato con las rutas aplanadas address.*, fiscal.*, contact.*, banking.* y el payloadHash SHA-256. CDC habilitado con sp_cdc_enable_table, requiere SQL Server Agent.',
+    ficheros: ['external-services/sqlserver/init.sql'],
+    config: ['MSSQL_AGENT_ENABLED=true'],
+    conexiones: ['sqlserver','debezium'], diagramas: [['c1','C1']]
+  },
+  'postgres': {
+    titulo: 'PostgreSQL · articles', estado: 'impl',
+    rol: 'Fuente de verdad del dominio Article. Arranca con wal_level=logical y max_replication_slots=10 para permitir la replicación lógica de Debezium.',
+    ficheros: ['external-services/postgresql/init.sql', 'article/…/adapters/persistence/ArticleEntity.java', 'article/…/adapters/persistence/PostgresArticleRepository.java'],
+    config: ['POSTGRES_URL (jdbc:postgresql://localhost:5432/poc)'],
+    conexiones: ['outbox-art','uc-sync-art'], diagramas: [['a1','A1']]
+  },
+  'outbox-art': {
+    titulo: 'Outbox article + trigger', estado: 'impl',
+    rol: 'articles_outbox_fn() / trg_articles_outbox. El hash usa digest(…, \'sha256\') de pgcrypto, por lo que no es comparable con el de SQL Server (irrelevante: el dedupe es por dominio).',
+    ficheros: ['external-services/postgresql/init.sql'], config: [],
+    conexiones: ['postgres','debezium'], diagramas: [['a1','A1']]
+  },
+  'debezium': {
+    titulo: 'Debezium / Kafka Connect', estado: 'impl',
+    rol: 'Dos conectores registrados a mano por REST contra :8083. Cadena de SMTs: unwrap → ExtractField$Value(payload) → ExtractField$Key(entity_id) → RegexRouter. Con StringConverter, el value del mensaje es literalmente el JSON de la columna payload.',
+    ficheros: ['external-services/debezium/register-sqlserver-customer.json', 'external-services/debezium/register-postgres-article.json', 'external-services/debezium/README.md'],
+    config: ['group poc-sap-connect', 'snapshot.mode: initial', 'tombstones.on.delete: false'],
+    conexiones: ['outbox-cust','outbox-art','topic-cust','topic-art'], diagramas: [['c1','C1'],['a1','A1']]
+  },
+  'topic-cust': {
+    titulo: 'Topic outbox.CUSTOMER', estado: 'impl',
+    rol: 'Key = entityId, lo que garantiza orden por entidad dentro de su partición. Consumo con auto-offset-reset earliest e isolation.level read_committed.',
+    ficheros: ['customer/src/main/resources/application.yml'],
+    config: ['customer.kafka.topic', 'customer.kafka.group = customer-consumer'],
+    conexiones: ['debezium','listener-cust','dlt'], diagramas: [['c1','C1'],['k3','K3']]
+  },
+  'topic-art': {
+    titulo: 'Topic outbox.ARTICLE', estado: 'impl',
+    rol: 'Homólogo del de customer, consumido por ArticleKafkaListener.',
+    ficheros: ['article/src/main/resources/application.yml'],
+    config: ['article.kafka.topic', 'article.kafka.group = article-consumer'],
+    conexiones: ['debezium','listener-art','dlt'], diagramas: [['a1','A1']]
+  },
+  'dlt': {
+    titulo: 'Dead letter topics', estado: 'parcial',
+    rol: 'DefaultErrorHandler + DeadLetterPublishingRecoverer, 3 intentos con backoff exponencial desde 1000 ms ×2, y publicación en outbox.<DOMINIO>.DLT. No hay consumidor: el reproceso es manual. Ojo: un SAP_ERROR NO llega aquí, porque no se propaga como excepción.',
+    ficheros: ['customer/…/bootstrap/kafka/KafkaErrorHandlingConfig.java', 'article/…/bootstrap/kafka/KafkaErrorHandlingConfig.java'],
+    config: [], conexiones: ['listener-cust','listener-art','uc-delete'], diagramas: [['k3','K3'],['c5','C5']]
+  },
+  'listener-cust': {
+    titulo: 'CustomerKafkaListener', estado: 'impl',
+    rol: 'Parsea entityId, operation, payloadHash y payload, y construye un IngestionMessage con origin=CDC. Enruta los DELETE a DeleteCustomerUseCase y el resto a SyncCustomerUseCase.',
+    ficheros: ['customer/src/main/java/com/poc/sap/customer/bootstrap/kafka/CustomerKafkaListener.java'],
+    config: ['@KafkaListener(topics = "${customer.kafka.topic:outbox.CUSTOMER}")'],
+    conexiones: ['topic-cust','uc-sync-cust','uc-delete','dlt'], diagramas: [['c1','C1'],['c5','C5'],['k3','K3']]
+  },
+  'listener-art': {
+    titulo: 'ArticleKafkaListener', estado: 'parcial',
+    rol: 'Mismo patrón que el de customer, pero DESCARTA los eventos DELETE con un log.warn: no existe use case de borrado en el dominio Article.',
+    ficheros: ['article/src/main/java/com/poc/sap/article/bootstrap/kafka/ArticleKafkaListener.java'],
+    config: ['@KafkaListener(topics = "${article.kafka.topic:outbox.ARTICLE}")'],
+    conexiones: ['topic-art','uc-sync-art','dlt'], diagramas: [['a1','A1']]
+  },
+  'ctrl-sync': {
+    titulo: 'Controllers de sincronización', estado: 'impl',
+    rol: 'Entrada REST equivalente al CDC: solo cambia el IngestionOrigin, el pipeline es el mismo. Customer tiene además /validate, que corta antes de indexar y enviar. SIN AUTENTICACIÓN.',
+    ficheros: ['customer/…/bootstrap/web/SyncCustomerController.java', 'article/…/bootstrap/web/SyncArticleController.java'],
+    config: ['puertos 8081 y 8082'],
+    conexiones: ['uc-sync-cust','uc-sync-art'], diagramas: [['c7','C7'],['a2','A2']]
+  },
+  'ctrl-hist': {
+    titulo: 'Controllers de histórico', estado: 'impl',
+    rol: 'GET /{dominio}/{id}/history y /history/diff?from=&to=. El diff sin parámetros compara la última versión contra la anterior; 404 vía @ExceptionHandler(NoSuchElementException) si falta el histórico, el hash no existe o no hay versión previa.',
+    ficheros: ['customer/…/bootstrap/web/CustomerHistoryController.java', 'article/…/bootstrap/web/ArticleHistoryController.java'],
+    config: [], conexiones: ['uc-hist','es-hist'], diagramas: [['c6','C6'],['a2','A2']]
+  },
+  'eventmesh': {
+    titulo: 'Consumer de Event Mesh', estado: 'prop',
+    rol: 'Sentido inverso: S/4 publica Business Events (el caso principal identificado es la actualización de stock) y la plataforma los consume. Pendiente de que el equipo SAP decida el mecanismo. Encajaría como un adaptador más de IngestionPort reutilizando el pipeline.',
+    ficheros: [], config: [], conexiones: ['s4'], diagramas: [['f3','F3']]
+  },
+  'batch': {
+    titulo: 'BatchTriggerListener', estado: 'prop',
+    rol: 'Corte fin de día / D+1 disparado por un mensaje en un topic dedicado. Reutiliza el pipeline existente; el dedupe por payloadHash hace que CDC y batch convivan sin duplicar envíos. Faltaría soporte $batch en SapClient y un origin BATCH en el enum.',
+    ficheros: [], config: [], conexiones: ['uc-sync-cust','sapclient'], diagramas: [['f2','F2']]
+  },
+  'uc-sync-cust': {
+    titulo: 'SyncCustomerUseCase', estado: 'impl',
+    rol: 'Orquestador del aggregate: dedupe → RECEIVED → FETCHING → re-fetch del legacy → VALIDATING → VALID → [atajo sin cambios reales] → INDEXING → INDEXED → SENDING_SAP → fan-out por feature → estado agregado. Puede ejecutar un subconjunto de features con execute(msg, Set<CustomerFeature>).',
+    ficheros: ['customer/src/main/java/com/poc/sap/customer/application/general/SyncCustomerUseCase.java'],
+    config: [], conexiones: ['listener-cust','ctrl-sync','sqlserver','mongo-img','mongo-state','es-hist','uc-features','validators','statemachine'],
+    diagramas: [['c1','C1'],['c2','C2'],['c3','C3'],['c7','C7']]
+  },
+  'uc-features': {
+    titulo: 'Use cases por feature', estado: 'impl',
+    rol: 'SyncAddressUseCase (AddressData), SyncFiscalUseCase (FiscalData), SyncContactUseCase (ContactData) y SyncBankingUseCase (BankingData, que arrastra los mandateIds de la entidad Mandate). Cada uno valida su value object con su propio validador y lleva su PROPIO ciclo de estado bajo el entityId compuesto customerId:FEATURE, arrancando directamente en VALIDATING. El recorrido es secuencial, no paralelo, y no hay compensación.',
+    ficheros: ['customer/…/application/{address,fiscal,contact,banking}/Sync*UseCase.java', 'customer/…/application/banking/DeleteMandateUseCase.java'],
+    config: [], conexiones: ['uc-sync-cust','adapters-btp','adapters-odata','mongo-state','validators'],
+    diagramas: [['c3','C3'],['c4','C4']]
+  },
+  'uc-sync-art': {
+    titulo: 'SyncArticleUseCase', estado: 'impl',
+    rol: 'Mismo pipeline que el de customer pero sin fan-out: Article es una entidad plana y hay un único puerto de salida.',
+    ficheros: ['article/src/main/java/com/poc/sap/article/application/SyncArticleUseCase.java'],
+    config: [], conexiones: ['listener-art','ctrl-sync','postgres','mongo-img','mongo-state','es-hist','statemachine'],
+    diagramas: [['a1','A1'],['a2','A2']]
+  },
+  'uc-delete': {
+    titulo: 'Use cases de borrado', estado: 'parcial',
+    rol: 'DeleteCustomerUseCase notifica el borrado con un POST (body JSON vacío), no con un HTTP DELETE, y borra la imagen en Mongo si la respuesta es 2xx. DeleteMandateUseCase reutiliza BankingSapPort. AMBOS abren con from=null → SENDING_SAP, transición que la máquina de estados rechaza: acaban en IllegalStateException y DLT.',
+    ficheros: ['customer/…/application/general/DeleteCustomerUseCase.java', 'customer/…/application/banking/DeleteMandateUseCase.java'],
+    config: [], conexiones: ['listener-cust','statemachine','mongo-img','adapters-btp','dlt'], diagramas: [['c5','C5']]
+  },
+  'validators': {
+    titulo: 'Validadores de dominio', estado: 'impl',
+    rol: 'Código puro, sin Spring. CustomerValidations orquesta AddressValidator, FiscalValidator, ContactValidator y BankingValidator por subconjunto de features; los errores se acumulan con ValidationResult.and(...). ArticleValidations es el homólogo plano.',
+    ficheros: ['customer/…/domain/CustomerValidations.java', 'customer/…/domain/feature/{address,fiscal,contact,banking}/*Validator.java', 'article/…/domain/ArticleValidations.java', 'common/…/domain/ValidationResult.java'],
+    config: [], conexiones: ['uc-sync-cust','uc-features','uc-sync-art'], diagramas: [['c1','C1'],['c3','C3']]
+  },
+  'statemachine': {
+    titulo: 'SyncStateMachine', estado: 'impl',
+    rol: '12 estados, dominio-agnóstica. Dos estados iniciales: RECEIVED (aggregate) y VALIDATING (feature). Incluye el atajo VALID → SENT_SAP y la re-entrada desde SENT_SAP/INVALID/ERROR a RECEIVED. Cualquier transición no declarada lanza IllegalStateException.',
+    ficheros: ['common/src/main/java/com/poc/sap/common/domain/SyncStateMachine.java', 'common/…/domain/SyncState.java', 'common/…/domain/SyncStateTransition.java'],
+    config: [], conexiones: ['mongo-state','uc-sync-cust','uc-sync-art','uc-delete'], diagramas: [['k2','K2']]
+  },
+  'uc-hist': {
+    titulo: 'History use cases + JsonDiff', estado: 'impl',
+    rol: 'history(id) devuelve las versiones enviadas a SAP; diff(id, from, to) las compara. JsonDiff aplana ambos objetos a rutas con notación de puntos e índices (address.city, banking.mandateIds[0]) y devuelve un mapa de ruta → Change(before, after).',
+    ficheros: ['customer/…/application/general/CustomerHistoryUseCase.java', 'article/…/application/ArticleHistoryUseCase.java', 'common/src/main/java/com/poc/sap/common/diff/JsonDiff.java'],
+    config: [], conexiones: ['ctrl-hist','es-hist'], diagramas: [['c6','C6'],['a2','A2']]
+  },
+  'mongo-img': {
+    titulo: 'Mongo · imagen actual', estado: 'impl',
+    rol: 'Colecciones customers_current y articles_current, índice único sobre id. Es el snapshot de staging contra el que se compara el legacy para decidir si hay cambios reales. Nada que ver con ficheros ni con MinIO.',
+    ficheros: ['customer/…/adapters/persistence/MongoCustomerImageStore.java', 'article/…/adapters/persistence/MongoArticleImageStore.java', 'external-services/mongodb/init.js'],
+    config: ['MONGO_URL', 'spring.data.mongodb.auto-index-creation: true'],
+    conexiones: ['uc-sync-cust','uc-sync-art','uc-delete'], diagramas: [['c1','C1'],['c2','C2'],['a1','A1']]
+  },
+  'mongo-state': {
+    titulo: 'Mongo · sync_state', estado: 'impl',
+    rol: 'Log append-only de transiciones (domain, entityId, stateCode, origin, payloadHash, timestamp) con índice compuesto domain+entityId+timestamp desc. Da la idempotencia vía alreadySent() y es la base del futuro MCP. El campo from no se persiste: el repositorio siempre relee el estado real antes de validar.',
+    ficheros: ['common/src/main/java/com/poc/sap/common/adapters/persistence/MongoSyncStateRepository.java', 'common/…/adapters/persistence/SyncStateDoc.java'],
+    config: [], conexiones: ['statemachine','uc-sync-cust','uc-features','uc-sync-art','uc-delete','mcp'],
+    diagramas: [['c1','C1'],['c3','C3'],['k2','K2'],['k3','K3']]
+  },
+  'es-hist': {
+    titulo: 'Elasticsearch · histórico', estado: 'impl',
+    rol: 'Índices customers_history y articles_history, id de documento = entityId-payloadHash, orden por @timestamp descendente, createIndex=false. Guarda el snapshot de cada envío real; el atajo «sin cambios reales» no genera versión nueva.',
+    ficheros: ['customer/…/adapters/index/ElasticsearchCustomerIndexer.java', 'customer/…/adapters/index/CustomerHistoryDoc.java', 'article/…/adapters/index/ElasticsearchArticleIndexer.java'],
+    config: ['ES_URL (http://localhost:9200)'],
+    conexiones: ['uc-sync-cust','uc-sync-art','uc-hist','ctrl-hist'], diagramas: [['c6','C6'],['a2','A2']]
+  },
+  'minio': {
+    titulo: 'MinIO / S3', estado: 'prop',
+    rol: 'Levantado en el docker-compose con el bucket sap-integration creado por minio-init, pero NINGÚN código Java lo usa. Reservado para un futuro almacén de ficheros.',
+    ficheros: ['external-services/docker-compose.yml'], config: ['minioadmin / minioadmin123'],
+    conexiones: [], diagramas: []
+  },
+  'adapters-btp': {
+    titulo: 'Familia BTP', estado: 'parcial',
+    rol: 'BtpCustomerAdapter, BtpAddressAdapter, BtpFiscalAdapter, BtpContactAdapter (destino BTP) y S4BankingAdapter (destino S4_NATIVE). Es la ruta ACTIVA POR DEFECTO. Cada uno serializa su propio DTO. El problema: la API BTP intermedia que consumirían no existe todavía; los paths /sap/btp/odata/* y los DTOs son contrato placeholder.',
+    ficheros: ['customer/…/adapters/sap/Btp*Adapter.java', 'customer/…/adapters/sap/S4BankingAdapter.java', 'customer/…/adapters/sap/dto/'],
+    config: ['sap.customer.btp.*-path', 'sap.mandate.s4.path', 'activos cuando sap.odata.<feature>.enabled = false'],
+    conexiones: ['uc-features','sapclient','btp-api'], diagramas: [['c4','C4']]
+  },
+  'adapters-odata': {
+    titulo: 'Familia OData S/4', estado: 'impl',
+    rol: 'BusinessPartnerODataAdapter y sus variantes de Address, Tax, Contact y Bank, más BusinessPartnerReadAdapter para lectura. Usan los modelos generados desde API_BUSINESS_PARTNER.yaml y envían el body OData V2 SIN el envoltorio "d" (ese wrapper solo aparece en las respuestas).',
+    ficheros: ['customer/src/main/java/com/poc/sap/customer/adapters/sap/odata/', 'customer/…/adapters/sap/BusinessPartnerReadAdapter.java'],
+    config: ['sap.odata.{address,fiscal,contact,banking,customer,read}.enabled = true', 'sap.odata.fiscal.tax-type (ES0)'],
+    conexiones: ['uc-features','sapclient','sapmodels','s4'], diagramas: [['c4','C4']]
+  },
+  'sapclient': {
+    titulo: 'WebClientSapClient', estado: 'impl',
+    rol: 'Un WebClient por destino (BTP, S4_NATIVE) sobre Reactor Netty. Añade Idempotency-Key = payloadHash a todas las escrituras. Resilience4j: retry 3 con backoff 500 ms ×2 y circuit breaker 50 % / ventana 10 / 30 s. Los 5xx y los errores de transporte reintentan; los 4xx no. patch() y delete() están implementados pero nadie los invoca.',
+    ficheros: ['common/src/main/java/com/poc/sap/common/sap/WebClientSapClient.java', 'common/…/sap/SapClient.java', 'common/…/sap/SapIntegrationConfig.java'],
+    config: ['sap.client.connect-timeout-ms / response-timeout-ms', 'sap.client.retry.*', 'sap.client.circuit-breaker.*'],
+    conexiones: ['adapters-btp','adapters-odata','auth','s4','btp-api'], diagramas: [['k1','K1'],['c4','C4']]
+  },
+  'auth': {
+    titulo: 'Autenticación y CSRF', estado: 'impl',
+    rol: 'BtpAuthProvider (client_credentials contra xsuaa) y S4NativeAuthProvider (oauth2 o basic). OAuth2TokenClient cachea el token y lo renueva 60 s antes de caducar; sin configuración devuelve stub-btp-token / stub-s4-token. S4CsrfTokenProvider hace el fetch de x-csrf-token + cookies, con re-fetch y un único reintento ante 403. No hay mTLS.',
+    ficheros: ['common/src/main/java/com/poc/sap/common/sap/auth/', 'common/…/sap/odata/S4CsrfTokenProvider.java'],
+    config: ['sap.btp.xsuaa.*', 'sap.s4.auth.type / token-url / client-id / client-secret / username / password', 'sap.s4.csrf.enabled / fetch-path'],
+    conexiones: ['sapclient','s4'], diagramas: [['k1','K1']]
+  },
+  's4': {
+    titulo: 'SAP S/4HANA Public Cloud', estado: 'impl',
+    rol: 'Destino final. API_BUSINESS_PARTNER (OData V2) para Customer y API_PRODUCT para Article. Los adaptadores escriben A_BusinessPartner, A_BusinessPartnerAddress, A_BusinessPartnerTaxNumber, A_BusinessPartnerContact y A_BusinessPartnerBank.',
+    ficheros: ['sap-api-models/specs/customer/API_BUSINESS_PARTNER.yaml', 'docs/specs/sap/README.md'],
+    config: ['sap.s4.base-url (SAP_S4_BASE_URL)'],
+    conexiones: ['sapclient','adapters-odata','auth','eventmesh'], diagramas: [['c4','C4'],['k1','K1'],['a1','A1']]
+  },
+  'btp-api': {
+    titulo: 'API BTP intermedia', estado: 'prop',
+    rol: 'CAP app o iFlow de Integration Suite que encapsularía los mapeos finos, el enriquecimiento y la orquestación de varios servicios S/4. El lado plataforma está implementado; ESTE extremo no existe, y por eso los paths y DTOs BTP son placeholder. La tecnología (CAP vs Integration Suite) está sin decidir.',
+    ficheros: [], config: [], conexiones: ['adapters-btp','sapclient','s4'], diagramas: [['c4','C4']]
+  },
+  'metrics': {
+    titulo: 'Observabilidad', estado: 'parcial',
+    rol: 'sap_sync_state_total (contador con tags domain y state) se incrementa en CADA transición. sap_sync_stage_duration está definido pero nunca se invoca en código productivo. Actuator expone health, info, metrics y prometheus. Sin trazas propias (el starter OTel se quitó por incompatibilidad con Boot 4; la vía es el javaagent) y sin logging estructurado.',
+    ficheros: ['common/src/main/java/com/poc/sap/common/observability/SyncMetrics.java'],
+    config: ['management.endpoints.web.exposure.include', 'tag global application=sap-integration'],
+    conexiones: ['uc-sync-cust','uc-features','uc-sync-art'], diagramas: []
+  },
+  'sapmodels': {
+    titulo: 'sap-api-models', estado: 'impl',
+    rol: 'Modelos Java generados con el openapi-generator del SAP Cloud SDK desde las specs oficiales, con generateApis=false (solo modelos). Tres generaciones activas: API_BUSINESS_PARTNER (con consumidor), API_APAR_SEPA_MANDATE_SRV y API_PRODUCT_SRV (ambas generadas pero sin consumidor).',
+    ficheros: ['sap-api-models/pom.xml', 'sap-api-models/specs/customer/', 'sap-api-models/specs/article/', 'sap-api-models/specs/finance/'],
+    config: [], conexiones: ['adapters-odata'], diagramas: []
+  },
+  'sdk-client': {
+    titulo: 'sap-sdk-client', estado: 'parcial',
+    rol: 'Repositorio git ANIDADO E INDEPENDIENTE (por eso aparece como untracked): no está en el reactor Maven, usa Spring Boot 3.5 y Java 17. App demo con un proxy CRUD sobre la API Business Partner, 66 APIs y 564 modelos generados comiteados. Declarado spike OpenAPI desechable en docs/integration-guide/README.md. ATENCIÓN: su application.properties tiene URL de tenant real, usuario y contraseña en claro — rotar la credencial.',
+    ficheros: ['sap-sdk-client/README.md', 'sap-sdk-client/src/main/resources/application.properties'],
+    config: [], conexiones: [], diagramas: []
+  },
+  'mcp': {
+    titulo: 'Servidor MCP', estado: 'prop',
+    rol: 'Servicio aparte, envoltorio fino sobre las REST existentes. Fase 1: cinco tools de lectura (get_sync_state, get_history, get_diff, search_errors, get_metrics); fase 2: dos de mutación. Bloqueado por dos prerrequisitos: autenticación en las REST (con rol mcp-readonly y auditoría) y ofuscación de PII (IBAN, BIC, taxId, email, teléfono, dirección).',
+    ficheros: ['docs/integrations/MCP.md'], config: [],
+    conexiones: ['ctrl-hist','mongo-state'], diagramas: [['f4','F4']]
+  }
+};
+
+const ETIQUETA_ESTADO = { impl: '✅ Implementado', parcial: '🟡 Parcial', prop: '🔮 Propuesto' };
+
+/* ============================================================== mermaid */
+(function () {
+  const bloques = Array.from(document.querySelectorAll('pre.mermaid'));
+  bloques.forEach(b => b.dataset.src = b.textContent);
+
+  function temaActual() {
+    return document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'default';
+  }
+
+  function fallback() {
+    document.getElementById('aviso-offline').hidden = false;
+    bloques.forEach(b => { b.dataset.fallback = '1'; b.textContent = b.dataset.src; });
+  }
+
+  window.renderDiagramas = function () {
+    if (!window.mermaid) { fallback(); return; }
+    try {
+      bloques.forEach(b => {
+        b.removeAttribute('data-processed');
+        b.innerHTML = '';
+        b.textContent = b.dataset.src;
+      });
+      window.mermaid.initialize({
+        startOnLoad: false,
+        theme: temaActual(),
+        securityLevel: 'strict',
+        fontFamily: 'ui-monospace, Consolas, monospace',
+        sequence: { useMaxWidth: false, wrap: false, actorMargin: 34, noteMargin: 8 },
+        flowchart: { useMaxWidth: false }
+      });
+      window.mermaid.run({ nodes: bloques });
+    } catch (e) {
+      console.error('Mermaid falló al renderizar:', e);
+      fallback();
+    }
+  };
+
+  if (document.readyState === 'complete') window.renderDiagramas();
+  else window.addEventListener('load', window.renderDiagramas);
+})();
+
+/* ================================================================= tema */
+(function () {
+  const raiz = document.documentElement;
+  const guardado = (() => { try { return localStorage.getItem('mapa-tema'); } catch { return null; } })();
+  if (guardado) raiz.setAttribute('data-theme', guardado);
+  else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches)
+    raiz.setAttribute('data-theme', 'dark');
+
+  document.getElementById('tema').addEventListener('click', () => {
+    const nuevo = raiz.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+    raiz.setAttribute('data-theme', nuevo);
+    try { localStorage.setItem('mapa-tema', nuevo); } catch { /* modo privado */ }
+    if (window.renderDiagramas) window.renderDiagramas();
+  });
+})();
+
+/* ================================================================ panel */
+(function () {
+  const panel   = document.getElementById('panel');
+  const titulo  = document.getElementById('panel-titulo');
+  const badge   = document.getElementById('panel-badge');
+  const cuerpo  = document.getElementById('panel-cuerpo');
+  const piezas  = Array.from(document.querySelectorAll('.pieza'));
+
+  function limpiar() {
+    piezas.forEach(p => p.classList.remove('sel', 'rel'));
+  }
+
+  function cerrar() { panel.hidden = true; limpiar(); }
+
+  /* El texto de PIEZAS lleva literales tipo Set<CustomerFeature> u outbox.<DOMINIO>.DLT:
+     sin escapar, el navegador se los comería como etiquetas. */
+  function esc(s) {
+    return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+
+  function bloque(termino, html) {
+    return html ? '<dt>' + termino + '</dt><dd>' + html + '</dd>' : '';
+  }
+
+  function abrir(id, boton) {
+    const d = PIEZAS[id];
+    if (!d) return;
+    limpiar();
+    boton.classList.add('sel');
+    (d.conexiones || []).forEach(c => {
+      const otro = document.querySelector('.pieza[data-id="' + c + '"]');
+      if (otro) otro.classList.add('rel');
+    });
+
+    titulo.textContent = d.titulo;
+    badge.className = 'badge ' + d.estado;
+    badge.textContent = ETIQUETA_ESTADO[d.estado];
+
+    const lista = arr => '<ul>' + arr.map(x => '<li class="ruta">' + esc(x) + '</li>').join('') + '</ul>';
+    const saltos = (d.diagramas || []).length
+      ? '<div class="saltos">' + d.diagramas.map(([anc, et]) =>
+          '<a href="#' + esc(anc) + '">' + esc(et) + '</a>').join('') + '</div>'
+      : '';
+
+    cuerpo.innerHTML =
+      bloque('Qué hace', esc(d.rol)) +
+      bloque('Dónde vive', d.ficheros && d.ficheros.length ? lista(d.ficheros) : '') +
+      bloque('Configuración', d.config && d.config.length ? lista(d.config) : '') +
+      bloque('Aparece en', saltos);
+
+    panel.hidden = false;
+  }
+
+  piezas.forEach(p => p.addEventListener('click', () => {
+    const id = p.dataset.id;
+    if (p.classList.contains('sel')) { cerrar(); return; }
+    abrir(id, p);
+  }));
+
+  document.getElementById('cerrar-panel').addEventListener('click', cerrar);
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') cerrar(); });
+})();
+
+/* =============================================================== filtros */
+(function () {
+  const piezas   = Array.from(document.querySelectorAll('.pieza'));
+  const secciones = { prop: ['futuros', 'supplier'] };
+
+  function aplicar() {
+    const activos = {};
+    document.querySelectorAll('[data-filtro]').forEach(cb => activos[cb.dataset.filtro] = cb.checked);
+
+    piezas.forEach(p => p.classList.toggle('oculto', !activos[p.dataset.estado]));
+    document.querySelectorAll('.tarjeta[data-estado]').forEach(t =>
+      t.classList.toggle('oculto', !activos[t.dataset.estado]));
+
+    // Secciones y diagramas completos que solo tienen sentido con su estado activo.
+    (secciones.prop || []).forEach(id => {
+      const s = document.getElementById(id);
+      if (s) s.classList.toggle('oculto', !activos.prop);
+    });
+    document.querySelectorAll('nav.toc a').forEach(a => {
+      const destino = document.querySelector(a.getAttribute('href'));
+      a.classList.toggle('oculto', !!destino && destino.classList.contains('oculto'));
+    });
+    document.querySelectorAll('.diagrama').forEach(f => {
+      const b = f.querySelector('figcaption .badge');
+      if (!b) return;
+      const est = b.classList.contains('impl') ? 'impl'
+                : b.classList.contains('parcial') ? 'parcial' : 'prop';
+      f.classList.toggle('oculto', !activos[est]);
+    });
+  }
+
+  document.querySelectorAll('[data-filtro]').forEach(cb => cb.addEventListener('change', aplicar));
+  aplicar();
+})();
+
+/* ============================================================== buscador */
+(function () {
+  const input  = document.getElementById('buscador');
+  const piezas = Array.from(document.querySelectorAll('.pieza'));
+  const filas  = Array.from(document.querySelectorAll('tbody tr'));
+
+  function textoPieza(p) {
+    const d = PIEZAS[p.dataset.id] || {};
+    return (p.textContent + ' ' + (d.rol || '') + ' ' +
+            (d.ficheros || []).join(' ') + ' ' + (d.config || []).join(' ')).toLowerCase();
+  }
+
+  input.addEventListener('input', () => {
+    const q = input.value.trim().toLowerCase();
+    piezas.forEach(p => p.classList.toggle('nomatch', q !== '' && !textoPieza(p).includes(q)));
+    filas.forEach(f => f.classList.toggle('nomatch',
+      q !== '' && !f.textContent.toLowerCase().includes(q)));
+  });
+})();
+
+/* ============================================================= scroll-spy */
+(function () {
+  const enlaces = new Map();
+  document.querySelectorAll('nav.toc a').forEach(a => {
+    const s = document.querySelector(a.getAttribute('href'));
+    if (s) enlaces.set(s, a);
+  });
+  if (!('IntersectionObserver' in window) || enlaces.size === 0) return;
+
+  const visibles = new Set();
+  const obs = new IntersectionObserver(entradas => {
+    entradas.forEach(e => e.isIntersecting ? visibles.add(e.target) : visibles.delete(e.target));
+    let primera = null;
+    enlaces.forEach((_, s) => { if (!primera && visibles.has(s)) primera = s; });
+    enlaces.forEach((a, s) => a.classList.toggle('activo', s === primera));
+  }, { rootMargin: '-130px 0px -60% 0px' });
+
+  enlaces.forEach((_, s) => obs.observe(s));
+})();
+</script>
+</body>
+</html>
