@@ -1,0 +1,11 @@
+
+ ###  ####  ##### #####  #### #     #####
+#   # #   #   #     #   #     #     #
+##### ####    #     #   #     #     ####
+#   # #  #    #     #   #     #     #
+#   # #   #   #   #####  #### ##### #####
+
+:: article-app :: dominio article :: puerto ${server.port} ::
+:: Spring Boot ${spring-boot.version} ::
+:: Sincronizacion de datos maestros de articulo hacia SAP S/4
+

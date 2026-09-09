@@ -1,0 +1,11 @@
+
+ #### #   #  #### #####  ###  #   # ##### ####
+#     #   # #       #   #   # ## ## #     #   #
+#     #   #  ###    #   #   # # # # ####  ####
+#     #   #     #   #   #   # #   # #     #  #
+ ####  ###  ####    #    ###  #   # ##### #   #
+
+:: customer-app :: dominio customer :: puerto ${server.port} ::
+:: Spring Boot ${spring-boot.version} ::
+:: Sincronizacion de datos maestros de cliente hacia SAP S/4
+

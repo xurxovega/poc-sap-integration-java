@@ -87,6 +87,34 @@ Si el trabajo arranca desde el código (bug, refactor, hallazgo), la secuencia e
 la misma al revés: reproducir con un test en rojo, arreglar y **actualizar el
 spec** en el mismo PR.
 
+## 1.3 bis Versionado y tags
+
+**Los tags se crean al publicar una versión, no en cada commit ni en cada PR.**
+Trabajar en la rama no genera tag: los cambios se van acumulando en la sección
+`[Sin publicar]` del [`CHANGELOG.md`](CHANGELOG.md) raíz.
+
+Formato `vX.Y.Z`, semver, coincidiendo con la versión del `pom.xml` sin
+`-SNAPSHOT`. Qué incrementar:
+
+| Cambio | Incremento |
+|---|---|
+| Rompe compatibilidad para quien consume las APIs o `common` | **MAJOR** |
+| Feature nueva compatible hacia atrás | **MINOR** |
+| Corrección sin cambio de contrato | **PATCH** |
+
+Al publicar una versión, en este orden:
+
+1. En `CHANGELOG.md`, `[Sin publicar]` pasa a `[X.Y.Z] - AAAA-MM-DD` y se abre
+   una sección `[Sin publicar]` vacía encima.
+2. Se quita `-SNAPSHOT` de la versión del `pom.xml` y se commitea.
+3. Se crea el tag `vX.Y.Z` sobre ese commit.
+4. Se publica la *release* en GitHub con las notas de esa sección del changelog.
+5. Se vuelve a poner `-SNAPSHOT` con la siguiente versión de trabajo.
+
+`common` se versiona con la misma regla, y su incremento decide si hay que
+re-desplegar los dominios: ver el criterio en
+[`docs/architecture/OVERVIEW.md`](docs/architecture/OVERVIEW.md) §6.
+
 ## 1.4 Definición de hecho
 
 - [ ] El spec existe y refleja el comportamiento final.
@@ -291,7 +319,8 @@ MinIO): `cd external-services && docker compose up -d`.
 - **Nuevo dominio**: spec → módulo en `<modules>` del parent → dependencia a
   `common` → tests de validación en rojo → aggregate, puertos, use case,
   adaptadores → `@SpringBootApplication` + `@KafkaListener(outbox.<DOM>)` + REST
-  → `application.yml` con `spring.config.import=application-common.yml`.
+  → `application.yml` con `spring.config.import=application-common.yml`
+  → **`banner.txt` con el nombre del dominio** (ver abajo).
   **Reutilizar** `SyncStateMachine` y `MongoSyncStateRepository`, no duplicarlos.
 - **Nuevo puerto**: interfaz en `<dominio>/domain/port/`, adaptador en
   `<dominio>/adapters/`.
@@ -308,6 +337,10 @@ MinIO): `cd external-services && docker compose up -d`.
   `WebClientSapClient` vía su `exchange()` interno.
 - **Cambio en `common`**: bump semver y ejecutar `it/` **antes**; un
   `minor`/`major` obliga a re-desplegar todos los dominios.
+- **Banner por dominio**: cada app lleva `src/main/resources/banner.txt` con el
+  nombre de su dominio en grande, para saber de un vistazo cuál se ha arrancado.
+  **Solo caracteres ASCII**: la consola de Windows no renderiza bloques Unicode y
+  el banner sale lleno de interrogantes.
 - **Secretos fuera del código**: variables de entorno / Vault, nunca en YAML
   commiteados.
 - **Al cerrar**: spec §9 y §10, e índice/changelog de `docs/sdd/README.md`.
