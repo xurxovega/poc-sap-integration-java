@@ -18,7 +18,7 @@
 ## Nivel 1 — Suite automática (sin Docker)
 
 ```bash
-mvn clean test          # 211 tests: unit + slice + resiliencia + smoke de contexto
+mvn clean test          # 240 tests: unit + slice + resiliencia + smoke de contexto
 ```
 
 Qué valida cada bloque y dónde mirar si falla:
@@ -72,7 +72,7 @@ curl -s -X POST http://localhost:8090/__admin/mappings -d '{
 cd <raiz-del-repo>
 SAP_BTP_BASE_URL=http://localhost:8090 \
 SAP_S4_BASE_URL=http://localhost:8090 \
-mvn -pl customer -am spring-boot:run
+mvn -pl customer spring-boot:run
 ```
 
 Verifica el arranque: `curl http://localhost:8081/actuator/health` → `{"status":"UP"...}`.
@@ -249,7 +249,7 @@ SAP_S4_AUTH_TYPE=basic \
 SAP_S4_USERNAME=<comm-user> SAP_S4_PASSWORD=<pass> \
 SAP_S4_CSRF_ENABLED=true \
 SAP_ODATA_ADDRESS_ENABLED=true ... \
-mvn -pl customer -am spring-boot:run
+mvn -pl customer spring-boot:run
 ```
 
 3. Empezar por **lecturas** (`GET /A_BusinessPartner?$top=1` vía
@@ -385,7 +385,7 @@ mvn -pl customer -am spring-boot:run
 ### CP-09 — Dominio article (Postgres → Kafka → SAP)
 
 **Precondición extra**: article-app corriendo
-(`SAP_S4_BASE_URL=http://localhost:8090 SAP_BTP_BASE_URL=http://localhost:8090 mvn -pl article -am spring-boot:run`, puerto 8082).
+(`SAP_S4_BASE_URL=http://localhost:8090 SAP_BTP_BASE_URL=http://localhost:8090 mvn -pl article spring-boot:run`, puerto 8082).
 
 1. ```bash
    docker exec postgres-source psql -U postgres -d poc -c \

@@ -28,10 +28,14 @@ Thumbs.db
 # Logs
 *.log
 logs/
+# Acta de ejecucion local, no se comparte
+log.md
 
 # Env / secrets
 .env
 .env.local
+scripts/env/*.env
+!scripts/env/local.env
 *.secret
 application-local.yml
 application-secrets.yml

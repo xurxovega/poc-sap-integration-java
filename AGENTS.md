@@ -15,11 +15,13 @@ desde sistemas legacy hacia **SAP S/4 Public Cloud**. Migración del POC Python
 
 Dos técnicas gobiernan todo el desarrollo. **No son negociables** y no se saltan
 "por ser un cambio pequeño". Detalle completo en
-[`docs/development/README.md`](docs/development/README.md).
+[`docs/architecture/DESARROLLO.md`](docs/architecture/DESARROLLO.md).
 
 ## 1.1 SDD anchor — el spec y el código no divergen
 
-Cada feature tiene su spec en `docs/sdd/<feature>/spec.md`. Spec y código son el
+Cada feature tiene su spec en `docs/sdd/<subproyecto>/<nombre-de-la-feature>.md`
+(una carpeta por módulo Maven, un fichero por feature: p. ej.
+`docs/sdd/customer/sincronizacion-direccion.md`). Spec y código son el
 mismo hecho contado dos veces, y el ancla es **bidireccional**:
 
 | Si cambia… | …entonces, en el **mismo PR** |
@@ -34,6 +36,22 @@ cambiado sin tests que lo respalden también.
 Los specs se van escribiendo **a medida que se toca cada feature**: el índice
 vivo con su estado está en [`docs/sdd/README.md`](docs/sdd/README.md) §5. No
 escribas specs en masa de features que nadie va a tocar.
+
+**Toda alta, modificación o baja de una feature se registra en tres sitios**, en
+el mismo PR: el §10 del spec, el `CHANGELOG.md` de la carpeta del subproyecto y
+un evento en la tabla `feature_evento` del registro MySQL `sdd_registry`
+([`docs/sdd/README.md`](docs/sdd/README.md) §8). Las bajas son lógicas: una
+feature descartada no se borra del registro.
+
+## 1.1 bis Glosario: automático, no opcional
+
+**Cuando aparezca un concepto nuevo, se añade a
+[`docs/GLOSSARY.md`](docs/GLOSSARY.md) en el momento**, sin que nadie lo pida.
+Cuenta como concepto nuevo cualquier término que un compañero que entre mañana
+no podría deducir del código: un estado, un patrón, una pieza de infraestructura,
+una sigla, una decisión con nombre propio. Va con una definición de una o dos
+frases y un enlace al documento donde se detalla. Si el término ya está pero la
+definición se ha quedado vieja, se actualiza.
 
 ## 1.2 TDD — ningún código de producción sin test rojo previo
 
@@ -51,13 +69,16 @@ Y siempre **de dentro afuera**, que es también la regla de dependencias:
 ## 1.3 Secuencia de una iteración
 
 ```
-1. Leer AGENTS.md (esto) y el spec de la feature en docs/sdd/<feature>/spec.md
-   └─ ¿no existe? se escribe ahora desde docs/sdd/_template/spec.md
+1. Leer AGENTS.md (esto) y el spec en docs/sdd/<subproyecto>/<feature>.md
+   └─ ¿no existe? se escribe ahora desde docs/sdd/_template/feature.md
 2. Traducir los criterios de aceptación (AC-n) del spec a tests → ROJO
 3. Implementar de dentro afuera hasta VERDE, refactorizar
 4. mvn verify
 5. Cerrar el ancla:
    ├─ spec §9 (trazabilidad spec↔código↔test) y §10 (cambios)
+   ├─ CHANGELOG.md de la carpeta del subproyecto (una línea)
+   ├─ registro MySQL: evento ALTA / MODIFICACION / BAJA en feature_evento
+   ├─ docs/GLOSSARY.md: todo concepto nuevo que haya aparecido
    └─ docs/sdd/README.md §5 (estado) y §6 (changelog, si abre/cierra brecha)
 ```
 
@@ -72,6 +93,8 @@ spec** en el mismo PR.
 - [ ] Los tests nuevos se escribieron **antes** que su código.
 - [ ] `mvn verify` en verde.
 - [ ] Estado e índice de `docs/sdd/README.md` al día.
+- [ ] `CHANGELOG.md` del subproyecto y evento en `feature_evento` registrados.
+- [ ] Conceptos nuevos añadidos a `docs/GLOSSARY.md`.
 - [ ] Ningún documento nuevo duplica algo que ya esté en `docs/architecture/` o `docs/sdd/`.
 
 ## 1.5 Convenciones de código y test
@@ -214,8 +237,11 @@ confundir con el Shared Kernel, que es `common`. Catálogo en
 
 > ⚠️ **Push es lo implementado.** El modo *pull* (SAP BTP orquestando el ciclo,
 > estado `PENDING_SAP`, endpoints `/btp/pending` y `/btp/result`) es una
-> **propuesta no implementada**: ni ese estado ni esos endpoints existen en el
-> código. Lo mismo aplica al batch D+1 y a los eventos de stock desde S/4. Ver
+> **propuesta no implementada**: ese estado no está en el enum `SyncState` y esos
+> endpoints no existen. La propiedad `sap.integration.mode` sí está declarada en
+> `application-common.yml`, pero **ningún código la lee**: es un hueco reservado,
+> no un conmutador funcional. Lo mismo aplica al batch D+1 y a los eventos de
+> stock desde S/4. Ver
 > [`docs/architecture/INTEGRATION-PATTERNS.md`](docs/architecture/INTEGRATION-PATTERNS.md),
 > que distingue implementado de propuesto.
 
@@ -235,6 +261,8 @@ confundir con el Shared Kernel, que es `common`. Catálogo en
 ## 2.8 Comandos
 
 ```bash
+./scripts/start-all.sh                # levantar todo (infra + mock SAP + apps)
+./scripts/stop-all.sh                 # parar todo
 mvn validate                          # validar reactor
 mvn test                              # unit + slice (sin Docker)
 mvn verify                            # + integración
@@ -292,19 +320,24 @@ si algo ya está escrito, enlázalo.
 | Necesitas… | Documento |
 |---|---|
 | **qué debe hacer** el sistema, estado por feature, brechas | [`docs/sdd/README.md`](docs/sdd/README.md) |
-| el spec de una feature concreta | `docs/sdd/<feature>/spec.md` (plantilla: [`docs/sdd/_template/spec.md`](docs/sdd/_template/spec.md)) |
+| el spec de una feature concreta | `docs/sdd/<subproyecto>/<feature>.md` — p. ej. [`docs/sdd/customer/sincronizacion-direccion.md`](docs/sdd/customer/sincronizacion-direccion.md) (plantilla: [`docs/sdd/_template/feature.md`](docs/sdd/_template/feature.md)) |
 | contratos SAP (APIs OpenAPI oficiales) | [`docs/sdd/sap-api-catalog.md`](docs/sdd/sap-api-catalog.md) |
-| **cómo se desarrolla**: ciclo SDD+TDD, capas, DoD | [`docs/development/README.md`](docs/development/README.md) |
+| **cómo se desarrolla**: ciclo SDD+TDD, capas, DoD | [`docs/architecture/DESARROLLO.md`](docs/architecture/DESARROLLO.md) |
 | **cómo está construido**: módulos, dominios, estados, deployment, NFR | [`docs/architecture/OVERVIEW.md`](docs/architecture/OVERVIEW.md) |
 | stack y decisiones técnicas | [`docs/architecture/TECH.md`](docs/architecture/TECH.md) |
 | flujos con nombres de clase para navegar el código | [`docs/architecture/FLOWS.md`](docs/architecture/FLOWS.md) |
 | patrones de integración SAP (implementado vs propuesto) | [`docs/architecture/INTEGRATION-PATTERNS.md`](docs/architecture/INTEGRATION-PATTERNS.md) |
 | mapa funcional navegable (HTML, doble clic) | [`docs/architecture/MAPA-FUNCIONAL.html`](docs/architecture/MAPA-FUNCIONAL.html) |
-| arrancar en local en ~15 min | [`docs/QUICK_START.md`](docs/QUICK_START.md) |
+| arrancar en local en ~15 min, o contra servidores de test | [`docs/QUICK_START.md`](docs/QUICK_START.md) |
+| levantar/parar todo con un comando | [`scripts/start-all.sh`](scripts/start-all.sh) · [`scripts/stop-all.sh`](scripts/stop-all.sh) |
+| probar la API a mano (colección Postman) | [`scripts/postman/`](scripts/postman/) |
 | catálogo de la suite de tests y convenciones | [`docs/testing/TESTING.md`](docs/testing/TESTING.md) |
 | probar a fondo (CDC, resiliencia, tenant real) | [`docs/testing/GUIA-PRUEBAS.md`](docs/testing/GUIA-PRUEBAS.md) |
-| SAP Cloud SDK (OData VDM, OpenAPI, destinations) | [`docs/integrations/SAP_CLOUD_SDK.md`](docs/integrations/SAP_CLOUD_SDK.md) |
-| propuesta de servidor MCP para agentes IA | [`docs/integrations/MCP.md`](docs/integrations/MCP.md) |
-| terminología del proyecto | [`docs/GLOSSARY.md`](docs/GLOSSARY.md) |
+| SAP Cloud SDK (OData VDM, OpenAPI, destinations) | [`docs/tools-integrations/SAP_CLOUD_SDK.md`](docs/tools-integrations/SAP_CLOUD_SDK.md) |
+| propuesta de servidor MCP para agentes IA | [`docs/tools-integrations/MCP.md`](docs/tools-integrations/MCP.md) |
+| mejoras e ideas pendientes (backlog, no defectos) | [`docs/MEJORAS-Y-PROPUESTAS.md`](docs/MEJORAS-Y-PROPUESTAS.md) |
+| cambios de las features de un subproyecto | `docs/sdd/<subproyecto>/CHANGELOG.md` |
+| quién pidió una feature, cuándo y en qué estado está | registro MySQL `sdd_registry` — [`docs/sdd/README.md`](docs/sdd/README.md) §8 |
+| terminología del proyecto (**se actualiza siempre**) | [`docs/GLOSSARY.md`](docs/GLOSSARY.md) |
 | levantar la infraestructura local | [`external-services/README.md`](external-services/README.md) |
 | proyecto Python de referencia | `../poc-sap-integration` |

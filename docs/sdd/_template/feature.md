@@ -1,9 +1,19 @@
-# <feature-id> — <nombre de la feature>
+# <nombre de la feature>
 
 <!--
-Plantilla SDD. Copiar a docs/sdd/<feature-id>/spec.md y rellenar.
-Reglas: describe COMPORTAMIENTO OBSERVABLE, no implementación.
-Nada de stack aquí: enlaza a ../../architecture/TECH.md.
+Plantilla SDD.
+
+  Copiar a:  docs/sdd/<subproyecto>/<nombre-descriptivo>.md
+  Ejemplo:   docs/sdd/customer/sincronizacion-direccion.md
+
+El NOMBRE DEL FICHERO es el de la feature, en kebab-case y orientado a negocio:
+'sincronizacion-direccion.md', 'baja-mandato-sepa.md'. Nunca 'spec.md', ni el
+nombre de la clase que la implementa.
+
+La carpeta es el subproyecto (modulo Maven): customer, article, supplier, common.
+
+Reglas: describe COMPORTAMIENTO OBSERVABLE, no implementacion.
+Nada de stack aqui: enlaza a ../../architecture/TECH.md.
 Todo AC-n debe tener al menos un test que lo cite.
 -->
 

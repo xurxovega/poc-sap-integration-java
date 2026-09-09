@@ -1206,7 +1206,7 @@ flowchart LR
   <h3 id="f4">F4 · Servidor MCP de consulta para agentes IA</h3>
   <figure class="diagrama">
     <figcaption>F4 <span class="badge prop">Propuesto</span>
-      <span class="desc">docs/integrations/MCP.md · bloqueado por dos prerrequisitos</span></figcaption>
+      <span class="desc">docs/tools-integrations/MCP.md · bloqueado por dos prerrequisitos</span></figcaption>
     <div class="lienzo"><pre class="mermaid">
 sequenceDiagram
     autonumber
@@ -1433,11 +1433,11 @@ sequenceDiagram
         <tr><td><code>docs/architecture/INTEGRATION-PATTERNS.md</code></td><td>los cinco patrones de integración con SAP y su estado</td></tr>
         <tr><td><code>docs/architecture/OVERVIEW.md</code> · <code>TECH.md</code></td><td>arquitectura del sistema y su stack tecnológico</td></tr>
         <tr><td><code>docs/sdd/README.md</code></td><td>specs por feature (SDD anchor), índice de features y changelog global</td></tr>
-        <tr><td><code>docs/development/README.md</code></td><td>ciclo de trabajo: SDD + TDD</td></tr>
+        <tr><td><code>docs/architecture/DESARROLLO.md</code></td><td>ciclo de trabajo: SDD + TDD</td></tr>
         <tr><td><code>docs/sdd/sap-api-catalog.md</code></td><td>catálogo de las specs OpenAPI oficiales de S/4HANA usadas o previstas</td></tr>
         
-        <tr><td><code>docs/integrations/MCP.md</code> · <code>SAP_CLOUD_SDK.md</code></td><td>propuesta del MCP y guía del SAP Cloud SDK</td></tr>
-        <tr><td><code>docs/testing/TESTING.md</code> · <code>GUIA-PRUEBAS.md</code></td><td>catálogo de la suite (211 tests) y guía práctica CP-01…CP-13</td></tr>
+        <tr><td><code>docs/tools-integrations/MCP.md</code> · <code>SAP_CLOUD_SDK.md</code></td><td>propuesta del MCP y guía del SAP Cloud SDK</td></tr>
+        <tr><td><code>docs/testing/TESTING.md</code> · <code>GUIA-PRUEBAS.md</code></td><td>catálogo de la suite (240 tests) y guía práctica CP-01…CP-13</td></tr>
         <tr><td><code>external-services/README.md</code> · <code>debezium/README.md</code></td><td>infraestructura local y detalle de los conectores</td></tr>
         <tr><td><code>docs/GLOSSARY.md</code></td><td>glosario de términos y siglas SAP</td></tr>
       </tbody>
@@ -1690,7 +1690,7 @@ const PIEZAS = {
   'mcp': {
     titulo: 'Servidor MCP', estado: 'prop',
     rol: 'Servicio aparte, envoltorio fino sobre las REST existentes. Fase 1: cinco tools de lectura (get_sync_state, get_history, get_diff, search_errors, get_metrics); fase 2: dos de mutación. Bloqueado por dos prerrequisitos: autenticación en las REST (con rol mcp-readonly y auditoría) y ofuscación de PII (IBAN, BIC, taxId, email, teléfono, dirección).',
-    ficheros: ['docs/integrations/MCP.md'], config: [],
+    ficheros: ['docs/tools-integrations/MCP.md'], config: [],
     conexiones: ['ctrl-hist','mongo-state'], diagramas: [['f4','F4']]
   }
 };

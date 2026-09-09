@@ -15,37 +15,38 @@ La documentación está organizada por **para qué sirve cada cosa**:
 ### Qué debe hacer el sistema — SDD
 
 - [`docs/sdd/README.md`](docs/sdd/README.md) — **punto de entrada del proyecto**: la regla del ancla spec↔código, índice de features con su estado, criterios de aceptación globales, changelog de brechas resueltas/pendientes y supuestos vigentes del PoC.
-- [`docs/sdd/<feature>/spec.md`](docs/sdd/) — un spec por feature o flow: entradas, reglas de negocio, mapeo a SAP, estados, criterios de aceptación y trazabilidad al código. Plantilla en [`docs/sdd/_template/spec.md`](docs/sdd/_template/spec.md).
+- [`docs/sdd/<subproyecto>/<feature>.md`](docs/sdd/) — una carpeta por módulo Maven (`customer/`, `article/`, `supplier/`, `common/`) y un fichero por feature, nombrado por lo que hace: entradas, reglas de negocio, mapeo a SAP, estados, criterios de aceptación y trazabilidad al código. Ejemplo: [`customer/sincronizacion-direccion.md`](docs/sdd/customer/sincronizacion-direccion.md); plantilla en [`docs/sdd/_template/feature.md`](docs/sdd/_template/feature.md).
 - [`docs/sdd/sap-api-catalog.md`](docs/sdd/sap-api-catalog.md) — contratos externos: catálogo de las specs OpenAPI oficiales de S/4HANA Cloud usadas o previstas (Business Partner, mandato SEPA, producto, stock, precios, características, números de serie, bancos, activos fijos) con enlaces al [SAP Business Accelerator Hub](https://api.sap.com/package/SAPS4HANACloud/odata); las copias canónicas viven en `sap-api-models/specs/<dominio>/`.
 
 ### Cómo se desarrolla — TDD
 
-- [`docs/development/README.md`](docs/development/README.md) — ciclo de trabajo: spec → test en rojo → código → refactor; orden de las capas, convenciones de test, definición de hecho y recetas para añadir un dominio o una feature.
+- [`docs/architecture/DESARROLLO.md`](docs/architecture/DESARROLLO.md) — ciclo de trabajo: spec → test en rojo → código → refactor; orden de las capas, convenciones de test, definición de hecho y recetas para añadir un dominio o una feature.
 
 ### Cómo está construido — arquitectura
 
 - [`docs/architecture/OVERVIEW.md`](docs/architecture/OVERVIEW.md) — objetivo y alcance, módulos, dominios y aggregate Customer, flujos CDC/REST/feature, puertos y adaptadores, máquina de estados, deployment y versionado, requisitos no funcionales, convención de paquetes.
 - [`docs/architecture/TECH.md`](docs/architecture/TECH.md) — stack tecnológico: Java 25 + Spring Boot 4.0 + Maven, capas hexagonales, entradas, persistencia, clientes SAP, observabilidad, testing.
-- [`docs/architecture/FLOWS.md`](docs/architecture/FLOWS.md) — flujos de integración SAP con nombres de clase para navegar el código: CDC completo, consulta BP, creación BP, callback BTP, mapa de rutas BTP vs directo, actualización BP.
+- [`docs/architecture/FLOWS.md`](docs/architecture/FLOWS.md) — flujos **implementados** con nombres de clase para navegar el código: CDC completo de punta a punta y mapa de rutas BTP vs OData directo.
 - [`docs/architecture/INTEGRATION-PATTERNS.md`](docs/architecture/INTEGRATION-PATTERNS.md) — esquemas visuales (Mermaid) de los patrones de integración con SAP: CDC→OData S/4 y CDC→BTP (implementados); pull desde BTP, batch disparado por topic Kafka y eventos S/4 (stock) como implementación futura.
 - [`docs/architecture/MAPA-FUNCIONAL.html`](docs/architecture/MAPA-FUNCIONAL.html) — mapa funcional navegable en un solo fichero HTML (ábrelo con doble clic): mapa clicable de todas las piezas y cómo se conectan, 16 diagramas de secuencia Mermaid por dominio con sus subentidades, tablas de referencia (puertos, topics, almacenes, endpoints, configuración) y la lista de brechas verificadas contra el código.
 
 ### Cómo se arranca y se prueba
 
-- [`docs/QUICK_START.md`](docs/QUICK_START.md) — **arranque rápido**: requisitos, compilación, infraestructura local en contenedores, SAP simulado, arranque de cada app, primer smoke test, CDC end-to-end, puertos y problemas frecuentes.
+- [`docs/QUICK_START.md`](docs/QUICK_START.md) — **arranque rápido**: requisitos, compilación, infraestructura local en contenedores, SAP simulado, arranque de cada app, primer smoke test, CDC end-to-end, herramientas de inspección (Postman, DBeaver, Kibana, Compass), modos **local vs test**, puertos y problemas frecuentes. Incluye [`scripts/start-all.sh`](scripts/start-all.sh) para levantarlo todo con un comando.
 - [`docs/testing/TESTING.md`](docs/testing/TESTING.md) — estrategia y catálogo de la suite de tests (211 tests, tipos, convenciones, contratos SAP, issues conocidos).
 - [`docs/testing/GUIA-PRUEBAS.md`](docs/testing/GUIA-PRUEBAS.md) — guía práctica de pruebas por niveles: suite automática, entorno local con mock de SAP, flujo REST, CDC end-to-end con Debezium, resiliencia (retry/DLT/CSRF), métricas y pruebas contra tenant real.
 
 ### Integraciones y referencia
 
-- [`docs/integrations/SAP_CLOUD_SDK.md`](docs/integrations/SAP_CLOUD_SDK.md) — guía de integración con SAP Cloud SDK: OData VDM (Business Partner), OpenAPI (APIs propias de SAP y callbacks), BTP destinations, arquitectura hexagonal, módulos Maven.
-- [`docs/integrations/MCP.md`](docs/integrations/MCP.md) — propuesta a futuro: servidor MCP de consulta para agentes IA (estado de sync, histórico, diff), con sus prerrequisitos de autenticación y ofuscación de datos sensibles.
+- [`docs/tools-integrations/SAP_CLOUD_SDK.md`](docs/tools-integrations/SAP_CLOUD_SDK.md) — guía de integración con SAP Cloud SDK: OData VDM (Business Partner), OpenAPI (APIs propias de SAP y callbacks), BTP destinations, arquitectura hexagonal, módulos Maven.
+- [`docs/tools-integrations/MCP.md`](docs/tools-integrations/MCP.md) — propuesta a futuro: servidor MCP de consulta para agentes IA (estado de sync, histórico, diff), con sus prerrequisitos de autenticación y ofuscación de datos sensibles.
+- [`docs/MEJORAS-Y-PROPUESTAS.md`](docs/MEJORAS-Y-PROPUESTAS.md) — **backlog vivo** de mejoras e ideas que aún no se han abordado: observabilidad, calidad, resiliencia, seguridad, utillaje, alcance y método. Incluye lo transversal a otros proyectos.
 - [`docs/GLOSSARY.md`](docs/GLOSSARY.md) — glosario de términos del proyecto con definiciones y enlaces.
 
 > **Cómo trabajamos**: SDD *anchor* + TDD. Si cambia el spec, cambia el código;
 > si cambia el código, se ajusta el spec — en el mismo PR. Y ningún código de
 > producción se escribe sin un test que falle antes. Detalle en
-> [`docs/development/README.md`](docs/development/README.md).
+> [`docs/architecture/DESARROLLO.md`](docs/architecture/DESARROLLO.md).
 
 ## Arquitectura
 
@@ -108,7 +109,7 @@ mvn compile -Dmaven.compiler.release=25     # forzar JDK 25 (requiere tenerlo)
 Customer (cliente):
 
 ```bash
-mvn -pl customer -am spring-boot:run
+mvn -pl customer spring-boot:run
 # API: http://localhost:8081/customers
 # Actuator: http://localhost:8081/actuator/health
 # Prometheus: http://localhost:8081/actuator/prometheus
@@ -117,7 +118,7 @@ mvn -pl customer -am spring-boot:run
 Article (artículo):
 
 ```bash
-mvn -pl article -am spring-boot:run
+mvn -pl article spring-boot:run
 # API: http://localhost:8082/articles
 ```
 
@@ -143,7 +144,7 @@ mvn -pl article -am spring-boot:run
 Inicia la app en modo suspendido y conéctate desde VS Code:
 
 ```bash
-mvn -pl customer -am spring-boot:run \
+mvn -pl customer spring-boot:run \
   -Dspring-boot.run.jvmArguments="-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5005"
 ```
 

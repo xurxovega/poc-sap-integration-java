@@ -33,7 +33,7 @@ Eventos de negocio que S/4HANA Public Cloud publica cuando algo ocurre dentro de
 
 ### Business Partner
 
-Entidad maestra de SAP S/git push -u origin feature/saneamiento-integracion-sap4HANA que agrupa datos de cliente, proveedor y socio. En el dominio `customer` se sincroniza mediante OData VDM. Ver [`SAP_CLOUD_SDK.md`](integrations/SAP_CLOUD_SDK.md#1-business-partner--odm-vdm).
+Entidad maestra de SAP S/git push -u origin feature/saneamiento-integracion-sap4HANA que agrupa datos de cliente, proveedor y socio. En el dominio `customer` se sincroniza mediante OData VDM. Ver [`SAP_CLOUD_SDK.md`](tools-integrations/SAP_CLOUD_SDK.md#1-business-partner--odata-vdm).
 
 ## C
 
@@ -56,6 +56,10 @@ Componente de SAP BTP que permite conectividad segura desde BTP hacia sistemas o
 ### Communication arrangement / communication user
 
 Configuración en S/4HANA Public Cloud que habilita un escenario de API (p. ej. `SAP_COM_0008` para Business Partner) y el usuario técnico con el que se autentican las llamadas entrantes.
+
+### Criterio de aceptación (AC-n)
+
+Regla verificable de un spec SDD, numerada `AC-1`, `AC-2`… Cada una debe tener **al menos un test que la cite** en su Javadoc: es la mitad del ancla vista desde el código. Ver [`DESARROLLO.md`](architecture/DESARROLLO.md).
 
 ## D
 
@@ -87,9 +91,17 @@ Broker de eventos de SAP BTP por el que se distribuyen los Business Events de S/
 
 ## F
 
+### Feature (spec SDD)
+
+Unidad de trabajo del proyecto y unidad de documentación: un fichero en `docs/sdd/<subproyecto>/<nombre>.md`. No confundir con **Feature (subconjunto)**, que es el enum `CustomerFeature` del dominio. Su ciclo de vida se registra en [`sdd_registry`](sdd/README.md#8-registro-de-features-mysql).
+
 ### Feature (subconjunto)
 
-En el dominio `customer`, cada parte del aggregate que puede sincronizarse de forma independiente: `ADDRESS`, `FISCAL`, `CONTACT`, `BANKING`. Ver [`OVERVIEW.md`](architecture/OVERVIEW.md#2-vista-del-dominio-customer-aggregate--features).
+En el dominio `customer`, cada parte del aggregate que puede sincronizarse de forma independiente: `ADDRESS`, `FISCAL`, `CONTACT`, `BANKING`. Ver [`OVERVIEW.md`](architecture/OVERVIEW.md#2-vista-de-dominios-aggregate--features).
+
+### `feature_evento` / `sdd_registry`
+
+Base de datos MySQL (contenedor `mysql-sdd`) donde se registra la información ampliada de cada feature solicitada — quién la pidió, cuándo, en qué estado — y su ciclo de vida: un evento `ALTA`, `MODIFICACION` o `BAJA` por cada cambio. **No es una base de datos de la aplicación**: ningún módulo del reactor se conecta a ella. Ver [`sdd/README.md`](sdd/README.md#8-registro-de-features-mysql).
 
 ## H
 
@@ -123,6 +135,12 @@ Librería Java para conectividad RFC/BAPI con sistemas SAP.
 
 Plataforma de eventos. Recibe mensajes CDC (`outbox.<DOMINIO>`) y eventos directos (`events.<DOMINIO>`).
 
+## L
+
+### Línea de estado por feature
+
+Historia de estados propia de cada feature de una entidad, con clave `<entityId>:<FEATURE>` (p. ej. `CUST-001:ADDRESS`), independiente de la del agregado. Entra por `VALIDATING` en vez de por `RECEIVED`, porque el pipeline por feature valida y envía sin indexar. Ver [`maquina-de-estados.md`](sdd/common/maquina-de-estados.md).
+
 ## M
 
 ### Maven Reactor
@@ -145,15 +163,15 @@ Capacidad de atender a múltiples tenants. El SDK gestiona tenant/principal medi
 
 ### OData
 
-Estándar construido **encima de REST** que fija por contrato lo que REST deja abierto: filtrado (`$filter`), selección (`$select`), paginación, navegación entre entidades, `$batch` y metadatos (`$metadata`). Es el protocolo de las APIs públicas de S/4HANA. Explicación completa (REST vs OData, con ejemplos) en [`SAP_CLOUD_SDK.md` § OData vs REST](integrations/SAP_CLOUD_SDK.md#odata-vs-rest-y-odata-v2-vs-v4).
+Estándar construido **encima de REST** que fija por contrato lo que REST deja abierto: filtrado (`$filter`), selección (`$select`), paginación, navegación entre entidades, `$batch` y metadatos (`$metadata`). Es el protocolo de las APIs públicas de S/4HANA. Explicación completa (REST vs OData, con ejemplos) en [`SAP_CLOUD_SDK.md` § OData vs REST](tools-integrations/SAP_CLOUD_SDK.md#odata-vs-rest-y-odata-v2-vs-v4).
 
 ### OData V2 vs V4
 
-Dos versiones del estándar con formato distinto: **V2** envuelve las respuestas en `{"d":...}` (y `d.results` en listas), pagina con `$skip` y exige fetch de token CSRF en escrituras; **V4** devuelve la entidad en la raíz, usa `value` + `@odata.nextLink` y no usa el CSRF clásico (OAuth2 puro). Las APIs `API_*` del proyecto son V2; las `CE_*` (bancos, activos fijos, números de serie) son V4. Detalle y ejemplos en [`SAP_CLOUD_SDK.md` § OData V2 vs V4](integrations/SAP_CLOUD_SDK.md#odata-v2-vs-v4); versión de cada API en el [catálogo](sdd/sap-api-catalog.md#catálogo).
+Dos versiones del estándar con formato distinto: **V2** envuelve las respuestas en `{"d":...}` (y `d.results` en listas), pagina con `$skip` y exige fetch de token CSRF en escrituras; **V4** devuelve la entidad en la raíz, usa `value` + `@odata.nextLink` y no usa el CSRF clásico (OAuth2 puro). Las APIs `API_*` del proyecto son V2; las `CE_*` (bancos, activos fijos, números de serie) son V4. Detalle y ejemplos en [`SAP_CLOUD_SDK.md` § OData V2 vs V4](tools-integrations/SAP_CLOUD_SDK.md#odata-v2-vs-v4); versión de cada API en el [catálogo](sdd/sap-api-catalog.md#catálogo).
 
 ### OpenAPI
 
-Especificación estándar para APIs REST. SAP publica especificaciones OpenAPI en API Business Hub. Se generan clientes Java con el plugin de Cloud SDK. Ver [`SAP_CLOUD_SDK.md`](integrations/SAP_CLOUD_SDK.md#2-apis-rest-propias-de-sap--callbacks--openapi).
+Especificación estándar para APIs REST. SAP publica especificaciones OpenAPI en API Business Hub. Se generan clientes Java con el plugin de Cloud SDK. Ver [`SAP_CLOUD_SDK.md`](tools-integrations/SAP_CLOUD_SDK.md#2-apis-rest-propias-de-sap--callbacks--openapi).
 
 ### OpenTelemetry (OTel)
 
@@ -169,6 +187,10 @@ Patrón que escribe eventos en una tabla outbox transaccionalmente con el cambio
 
 Hash del payload del evento de ingesta; clave del dedupe de idempotencia: si ya existe una transición `SENT_SAP` de la entidad con ese hash (`SyncStateRepositoryPort.alreadySent`), el mensaje se descarta sin reprocesar. Viaja también como cabecera `Idempotency-Key`.
 
+### Pipeline agregado vs pipeline por feature
+
+Dos recorridos sobre la misma máquina de estados. El **agregado** cubre la entidad entera: `RECEIVED → FETCHING → VALIDATING → VALID → INDEXING → INDEXED → SENDING_SAP → SENT_SAP`. El **por feature** solo valida y envía: `VALIDATING → VALID → SENDING_SAP → SENT_SAP`; no indexa, porque la imagen y el histórico son del agregado.
+
 ### Port
 
 Interfaz Java en el dominio que define una capacidad externa sin depender de infraestructura. Ver [`TECH.md`](architecture/TECH.md#5-puertos-y-adaptadores).
@@ -179,13 +201,21 @@ Sistema de métricas y alertas. Actuator lo expone en `/actuator/prometheus`.
 
 ### Pull (integración)
 
-**Propuesta, no implementada.** Modo de integración donde SAP BTP iniciaría el ciclo: preguntar pendientes (`GET /btp/pending`), procesar en S/4HANA, y notificar resultado (`POST /btp/result`). Ni los endpoints ni el estado asociado existen en el código actual. Ver [`FLOWS.md`](architecture/FLOWS.md#push-vs-pull--dos-modos-de-integración).
+**Propuesta, no implementada.** Modo de integración donde SAP BTP iniciaría el ciclo: preguntar pendientes (`GET /btp/pending`), procesar en S/4HANA, y notificar resultado (`POST /btp/result`). Ni los endpoints ni el estado asociado existen en el código actual, y la propiedad `sap.integration.mode` está declarada pero no la lee nadie. Ver [`MEJORAS-Y-PROPUESTAS.md`](MEJORAS-Y-PROPUESTAS.md) PRD-4.
 
 ### Push (integración)
 
-Modo de integración donde nuestra app empuja datos a SAP activamente vía `SapClient.send/patch()`. Puede ir por BTP o por API directa según el adaptador activo. Configurable con `sap.integration.mode=push`. Ver [`FLOWS.md`](architecture/FLOWS.md#push-vs-pull--dos-modos-de-integración).
+Modo de integración donde nuestra app empuja datos a SAP activamente vía `SapClient.send/patch()`. Puede ir por BTP o por API OData directa según el adaptador activo (`sap.odata.<feature>.enabled`). Es **el único modo implementado**. Ver [`FLOWS.md`](architecture/FLOWS.md).
 
 ## R
+
+### Re-entrada (re-sincronización)
+
+Capacidad de reabrir el ciclo de una entidad ya procesada cuando llega un evento nuevo. Cada pipeline vuelve por su estado de entrada: el agregado a `RECEIVED`, una línea de feature a `VALIDATING`. Los estados que la admiten son `SENT_SAP`, `INVALID` y `SAP_ERROR`. La idempotencia la garantiza el dedupe por `payloadHash`, no el bloqueo de la máquina.
+
+### Registro de features
+
+Ver **`feature_evento` / `sdd_registry`**.
 
 ### Resilience4j
 
@@ -207,11 +237,23 @@ Suite ERP de SAP. En este proyecto se sincronizan datos maestros con **SAP S/4HA
 
 ### SAP Cloud SDK for Java
 
-SDK oficial de SAP para conectividad, generación de clientes y operaciones en BTP/SAP. Ver [`SAP_CLOUD_SDK.md`](integrations/SAP_CLOUD_SDK.md).
+SDK oficial de SAP para conectividad, generación de clientes y operaciones en BTP/SAP. Ver [`SAP_CLOUD_SDK.md`](tools-integrations/SAP_CLOUD_SDK.md).
+
+### SDD (Spec-Driven Development)
+
+Método de trabajo del repositorio: cada feature tiene un spec que define su comportamiento esperado, y spec y código **no pueden divergir**. Si cambia uno, cambia el otro en el mismo PR. Ver [`sdd/README.md`](sdd/README.md) §1.
+
+### SDD anchor (ancla)
+
+La regla bidireccional que sostiene el SDD: un cambio de comportamiento sin spec actualizado está incompleto, y un spec cambiado sin tests que lo respalden también. Del lado del código el ancla son las citas `AC-n` en el Javadoc de los tests.
 
 ### Shared Kernel
 
 Módulo `common` con primitivas de dominio, máquina de estados, clientes SAP y soporte de test compartidos por todos los dominios. Ver [`OVERVIEW.md`](architecture/OVERVIEW.md#1-vista-de-módulos-reactor-maven).
+
+### «Sin cambios reales» (corta-circuito)
+
+Optimización del pipeline agregado: si el ciclo anterior terminó en `SENT_SAP` y el snapshot re-leído del legacy es idéntico a la imagen almacenada, no se reenvía a SAP y se transiciona `VALID → SENT_SAP` directamente. Evita tráfico y coste por eventos que no cambian datos sincronizados.
 
 ### Slice Test
 
@@ -225,6 +267,10 @@ Estados de error: `ERROR`, `SAP_ERROR` y `COMMUNICATION_ERROR`. Re-entrada: `SEN
 
 ## T
 
+### TDD (Test-Driven Development)
+
+Técnica obligatoria en el repositorio: ningún código de producción se escribe sin un test que **falle antes**, y el ciclo es rojo → verde → refactor, de dentro afuera (`domain` → `application` → `adapters` → `bootstrap`). Ver [`DESARROLLO.md`](architecture/DESARROLLO.md).
+
 ### Testcontainers
 
 Librería para levantar contenedores Docker en tests de integración. Ver [`TESTING.md`](testing/TESTING.md).
@@ -237,7 +283,7 @@ Contexto de ejecución del SDK que propaga tenant/principal. Requiere cuidado co
 
 ### VDM (Virtual Data Model)
 
-Modelo de datos tipado generado por SAP Cloud SDK a partir de metadatos OData de S/4HANA. Ver [`SAP_CLOUD_SDK.md`](integrations/SAP_CLOUD_SDK.md#1-business-partner--odm-vdm).
+Modelo de datos tipado generado por SAP Cloud SDK a partir de metadatos OData de S/4HANA. Ver [`SAP_CLOUD_SDK.md`](tools-integrations/SAP_CLOUD_SDK.md#1-business-partner--odata-vdm).
 
 ### Virtual Threads
 

@@ -33,10 +33,16 @@ class ErrorStateRecoveryTest {
         assertThat(machine.canTransition(SyncState.RECEIVED, SyncState.SENT_SAP)).isFalse();
     }
 
+    /**
+     * SENT_SAP cierra el ciclo pero admite re-entrada con un evento nuevo, y por
+     * el estado de entrada de cada pipeline: RECEIVED el agregado, VALIDATING una
+     * linea de feature (sdd/common/maquina-de-estados.md R-3, R-4).
+     */
     @Test
     void sentSapIsTerminalButAllowsResync() {
         assertThat(machine.isTerminal(SyncState.SENT_SAP)).isTrue();
-        assertThat(machine.nextStates(SyncState.SENT_SAP)).containsExactly(SyncState.RECEIVED);
+        assertThat(machine.nextStates(SyncState.SENT_SAP))
+                .containsExactlyInAnyOrder(SyncState.RECEIVED, SyncState.VALIDATING);
     }
 
     @Test

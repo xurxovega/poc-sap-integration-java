@@ -37,13 +37,20 @@ public final class SyncStateMachine {
         TRANSITIONS.put(VALIDATING, EnumSet.of(VALID, INVALID, ERROR));
         // VALID → SENT_SAP: atajo "sin cambios reales" — el snapshot re-leido del
         // legacy es identico a la imagen ya sincronizada; no hay nada que enviar.
-        TRANSITIONS.put(VALID, EnumSet.of(INDEXING, SENT_SAP, ERROR));
-        TRANSITIONS.put(INVALID, EnumSet.of(RECEIVED));
+        // SENDING_SAP: el pipeline por feature valida y envia sin indexar (la
+        // imagen y el historico son del cliente agregado, no de cada feature).
+        // INDEXING es el camino del pipeline agregado.
+        TRANSITIONS.put(VALID, EnumSet.of(INDEXING, SENDING_SAP, SENT_SAP, ERROR));
+        TRANSITIONS.put(INVALID, EnumSet.of(RECEIVED, VALIDATING));
         TRANSITIONS.put(INDEXING, EnumSet.of(INDEXED, ERROR));
         TRANSITIONS.put(INDEXED, EnumSet.of(SENDING_SAP, ERROR));
         TRANSITIONS.put(SENDING_SAP, EnumSet.of(SENT_SAP, SAP_ERROR, INVALID, COMMUNICATION_ERROR));
-        TRANSITIONS.put(SENT_SAP, EnumSet.of(RECEIVED));
-        TRANSITIONS.put(SAP_ERROR, EnumSet.of(SENDING_SAP, ERROR));
+        // Re-entrada con un evento nuevo: el agregado vuelve a RECEIVED y una
+        // linea de feature a VALIDATING, que es su estado de entrada. La
+        // idempotencia la garantiza el dedupe por payloadHash, no el bloqueo de
+        // la maquina (sdd/common/maquina-de-estados.md R-3, R-4).
+        TRANSITIONS.put(SENT_SAP, EnumSet.of(RECEIVED, VALIDATING));
+        TRANSITIONS.put(SAP_ERROR, EnumSet.of(SENDING_SAP, VALIDATING, ERROR));
         TRANSITIONS.put(ERROR, EnumSet.of(RECEIVED));
         TRANSITIONS.put(COMMUNICATION_ERROR, EnumSet.of(FETCHING, SENDING_SAP, ERROR));
     }

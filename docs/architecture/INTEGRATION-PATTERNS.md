@@ -145,7 +145,7 @@ sequenceDiagram
 
 **Punto de partida en el código**: `sap.integration.mode: push|pull|both`
 existe como property (hoy sin efecto); los flujos 2 y 4 de
-[`FLOWS.md`](FLOWS.md) describen los controllers propuestos;
+[`../MEJORAS-Y-PROPUESTAS.md`](../MEJORAS-Y-PROPUESTAS.md) describe los controllers propuestos;
 `BusinessPartnerReadAdapter`/`BusinessPartnerReadPort` (lectura de SAP,
 sin consumidores aún) cubrirían la variante inversa.
 **Faltaría**: endpoint(s) GET con contrato versionado y paginación,

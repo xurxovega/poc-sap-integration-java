@@ -17,9 +17,10 @@ spring:
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
-  data:
-    mongodb:
-      uri: ${MONGO_URL:mongodb://localhost:27017/article}
+  # Boot 4 movio las propiedades de conexion a spring.mongodb.*; las de Spring
+  # Data (auto-index-creation) siguen en spring.data.mongodb.* (application-common.yml).
+  mongodb:
+    uri: ${MONGO_URL_ARTICLE:${MONGO_URL:mongodb://localhost:27017/article}}
   elasticsearch:
     uris: ${ES_URL:http://localhost:9200}
   kafka:

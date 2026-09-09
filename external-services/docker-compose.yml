@@ -192,9 +192,14 @@ services:
 
   # ---------------------------------------------------------------------------
   # ELK — Elasticsearch + Kibana (Logstash omitido por simplicidad local)
+  #
+  # La version DEBE ir alineada con el cliente que trae Spring Boot 4.0
+  # (elasticsearch-java 9.x via spring-data-elasticsearch 6.x): el cliente 9
+  # manda 'application/vnd.elasticsearch+json;compatible-with=9' y un servidor 8
+  # lo rechaza con media_type_header_exception, rompiendo indexacion y health.
   # ---------------------------------------------------------------------------
   elasticsearch:
-    image: docker.elastic.co/elasticsearch/elasticsearch:8.11.0
+    image: docker.elastic.co/elasticsearch/elasticsearch:9.2.1
     container_name: elasticsearch
     environment:
       - discovery.type=single-node
@@ -215,7 +220,7 @@ services:
       start_period: 60s
 
   kibana:
-    image: docker.elastic.co/kibana/kibana:8.11.0
+    image: docker.elastic.co/kibana/kibana:9.2.1
     container_name: kibana
     depends_on:
       - elasticsearch
@@ -230,6 +235,33 @@ services:
       interval: 30s
       timeout: 10s
       retries: 5
+      start_period: 60s
+
+  # ---------------------------------------------------------------------------
+  # MySQL — registro de features SDD (NO es una BD de la aplicacion)
+  # Informacion ampliada de cada feature solicitada y su ciclo de vida.
+  # Ningun modulo del reactor se conecta aqui: es el registro del trabajo.
+  # ---------------------------------------------------------------------------
+  mysql-sdd:
+    image: mysql:8.4
+    container_name: mysql-sdd
+    environment:
+      MYSQL_ROOT_PASSWORD: sdd_root
+      MYSQL_DATABASE: sdd_registry
+      MYSQL_USER: sdd
+      MYSQL_PASSWORD: sdd
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_sdd_data:/var/lib/mysql
+      - ./mysql/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    networks:
+      - poc_sap
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -u root -p$$MYSQL_ROOT_PASSWORD || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
       start_period: 60s
 
   # ---------------------------------------------------------------------------
@@ -278,6 +310,7 @@ services:
 
 volumes:
   postgres_data:
+  mysql_sdd_data:
   sqlserver_data:
   mongo_data:
   elastic_data:

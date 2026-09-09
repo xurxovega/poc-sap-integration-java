@@ -41,6 +41,13 @@ public class SyncAddressUseCase {
         String featureEntityId = featureEntityId(customer.id());
 
         ValidationResult v = AddressValidator.validate(address);
+        // La linea de estado de la feature (<id>:FEATURE) es independiente de la
+        // del cliente agregado y no existe antes del primer sync: hay que
+        // registrar la entrada en VALIDATING, que es su estado inicial
+        // permitido (OVERVIEW.md §5). El repositorio calcula el 'from' del
+        // estado almacenado, no del declarado aqui.
+        transition(featureEntityId, payloadHash, null, SyncState.VALIDATING);
+
         transition(featureEntityId, payloadHash, SyncState.VALIDATING,
                 v.valid() ? SyncState.VALID : SyncState.INVALID);
         if (!v.valid()) {

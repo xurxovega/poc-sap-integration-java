@@ -3,19 +3,19 @@
 > estrategia y catálogo de la suite de tests del reactor Maven `poc-sap-integration-java`.
 >
 > **Cómo se escriben** los tests (ciclo TDD, orden de capas, qué test toca a
-> cada AC del spec) está en [`../development/README.md`](../development/README.md).
+> cada AC del spec) está en [`DESARROLLO.md`](../architecture/DESARROLLO.md).
 > Este documento es el catálogo de lo que **ya existe**.
 
 ## 1. Resumen ejecutivo
 
-Total: **211 tests** en verde (validado el 25-07-2026 con JDK 25, `mvn clean test`).
+Total: **240 tests** en verde (medido el 10-09-2026 con JDK 25, `mvn clean test`).
 El módulo `it` sigue ejecutando los contract dos veces — ver §8 issue 3.
 
 | Módulo     | Tests aprox. | Contenido principal |
 |------------|--------------|---------------------|
-| common     | 61           | dominio (máquina de estados con estado inicial/re-sync, ValidationResult acumulativo), Mongo repo (dedupe `alreadySent`), auth providers, **`WebClientSapClientTest`** (retry 5xx, no-retry 4xx, cabeceras, CSRF completo contra WireMock) |
-| customer   | ~105         | unit + slice + **`CustomerApplicationContextTest`** (smoke de contexto Spring completo) |
-| article    | ~33          | unit + slice + **`ArticleApplicationContextTest`** (smoke de contexto) |
+| common     | 69           | dominio (máquina de estados con estado inicial/re-sync, ValidationResult acumulativo), Mongo repo (dedupe `alreadySent`), auth providers, **`WebClientSapClientTest`** (retry 5xx, no-retry 4xx, cabeceras, CSRF completo contra WireMock) |
+| customer   | 120          | unit + slice + **`CustomerApplicationContextTest`** (smoke de contexto Spring completo) |
+| article    | 40           | unit + slice + **`ArticleApplicationContextTest`** (smoke de contexto) |
 | it         | 11+1         | contract (WireMock) + `InfrastructureSmokeIT` (skip sin `-Ddocker.available=true`) |
 | supplier   | 0            | placeholder |
 

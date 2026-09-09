@@ -31,6 +31,41 @@ class SyncStateMachineTest {
     void initialTransitionAllowsReceivedAndValidating() {
         assertThat(machine.canTransition(null, SyncState.RECEIVED)).isTrue();
         assertThat(machine.canTransition(null, SyncState.VALIDATING)).isTrue();
+    }
+
+    /**
+     * AC-4/AC-5 (sdd/common/maquina-de-estados.md): una linea de feature que ya
+     * cerro ciclo debe poder re-entrar por VALIDATING cuando llega un evento
+     * nuevo, igual que el agregado re-entra por RECEIVED. Sin esto, el segundo
+     * sync con cambios reales revienta y el mensaje acaba en la DLT.
+     */
+    @Test
+    void featureLineReentersThroughValidating() {
+        assertThat(machine.canTransition(SyncState.SENT_SAP, SyncState.VALIDATING)).isTrue();
+        assertThat(machine.canTransition(SyncState.INVALID, SyncState.VALIDATING)).isTrue();
+        assertThat(machine.canTransition(SyncState.SAP_ERROR, SyncState.VALIDATING)).isTrue();
+    }
+
+    /**
+     * AC-6: el agregado sigue re-entrando por RECEIVED, no por VALIDATING.
+     */
+    @Test
+    void reSyncFromTerminalStates() {
+        assertThat(machine.canTransition(SyncState.SENT_SAP, SyncState.RECEIVED)).isTrue();
+        assertThat(machine.canTransition(SyncState.INVALID, SyncState.RECEIVED)).isTrue();
+    }
+
+    /**
+     * El pipeline por feature (<id>:FEATURE) valida y envia, pero no indexa: la
+     * imagen y el historico son del cliente agregado, no de cada feature. Por
+     * eso VALID debe poder ir directo a SENDING_SAP, ademas de a INDEXING, que
+     * es el camino del pipeline agregado (OVERVIEW.md §5).
+     */
+    @Test
+    void validGoesToSendingSapInTheFeaturePipeline() {
+        assertThat(machine.transition(SyncState.VALID, SyncState.SENDING_SAP))
+                .isEqualTo(SyncState.SENDING_SAP);
+        assertThat(machine.canTransition(SyncState.VALID, SyncState.INDEXING)).isTrue();
         assertThat(machine.transition(null, SyncState.RECEIVED)).isEqualTo(SyncState.RECEIVED);
     }
 

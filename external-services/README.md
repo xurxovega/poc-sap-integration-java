@@ -6,6 +6,10 @@ Equivalente al `docker-compose.yml` del proyecto Python de referencia, pero adap
 
 > Arranque de punta a punta (infra + apps + primer smoke test):
 > [`../docs/QUICK_START.md`](../docs/QUICK_START.md).
+>
+> Para levantar todo esto **esperando a cada healthcheck**, usa
+> [`../scripts/start-all.sh`](../scripts/start-all.sh): `docker compose up -d`
+> vuelve al instante y los contenedores siguen arrancando por detrás.
 
 ## Servicios incluidos
 
@@ -20,6 +24,7 @@ Equivalente al `docker-compose.yml` del proyecto Python de referencia, pero adap
 | Elasticsearch | `9200` | Histórico / búsqueda | sin auth |
 | Kibana | `5601` | UI de Elasticsearch | sin auth |
 | MinIO (S3) | `9000` (API), `9001` (console) | Almacenamiento de objetos | `minioadmin` / `minioadmin123` |
+| MySQL | `3306` | Registro de features SDD (`sdd_registry`) — **no** es una BD de la aplicación | `sdd` / `sdd` |
 
 ## Arrancar
 

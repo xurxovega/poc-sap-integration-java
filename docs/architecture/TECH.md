@@ -138,7 +138,7 @@ destino y con qué mapeo; los mapeos son parte del dominio, no del shared kernel
   100% en unit sobre validaciones.
 - **TDD obligatorio**: el test se escribe antes que el código de producción. El
   ciclo, el orden de las capas y la definición de hecho están en
-  [`../development/README.md`](../development/README.md).
+  [`DESARROLLO.md`](DESARROLLO.md).
 
 ## 11. Empaquetado y despliegue
 

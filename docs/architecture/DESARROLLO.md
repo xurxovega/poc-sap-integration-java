@@ -14,7 +14,7 @@ Dos reglas gobiernan todo el desarrollo:
 
 ```
   ┌─ 0. spec ────────────────────────────────────────────────────────┐
-  │  docs/sdd/<feature>/spec.md desde _template/spec.md              │
+  │  docs/sdd/<subproyecto>/<feature>.md desde _template/feature.md  │
   │  Criterios de aceptación numerados (AC-1, AC-2, …)               │
   └────────────────────────┬─────────────────────────────────────────┘
                            ▼
@@ -100,7 +100,7 @@ completa se ejecuta antes de abrir el PR.
 
   ```java
   /**
-   * AC-3 (sdd/customer-address/spec.md): una direccion sin pais no se envia a
+   * AC-3 (sdd/customer/sincronizacion-direccion.md): una direccion sin pais no se envia a
    * SAP y el registro termina en INVALID.
    */
   @Test
@@ -145,7 +145,7 @@ Para un dominio real (p. ej. `supplier`):
 
 ## 8. Añadir una feature a Customer
 
-1. Spec en `docs/sdd/customer-<feature>/spec.md`.
+1. Spec en `docs/sdd/customer/<nombre-descriptivo>.md` (p. ej. `sincronizacion-datos-fiscales.md`).
 2. **Rojo**: test del validador con los casos del spec §4.
 3. Value object (`record`) + validador en `customer/domain/feature/<feature>/`.
 4. Alta del valor en el enum `CustomerFeature`.

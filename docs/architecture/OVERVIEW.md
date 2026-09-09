@@ -35,7 +35,7 @@ de estado por registro, idempotencia y observabilidad, permitiendo el
                                   (depends on)
 
 +-----------------+
-|    supplier     |   (placeholder, futuro, sin códigoStill)
+|    supplier     |   (placeholder, futuro, sin código)
 +-----------------+
 ```
 
@@ -281,7 +281,7 @@ que el estado de cualquier registro es consultable (imagen actual + histórico).
 | RECEIVED        | FETCHING, ERROR            |
 | FETCHING        | VALIDATING, ERROR, COMMUNICATION_ERROR |
 | VALIDATING      | VALID, INVALID, ERROR       |
-| VALID           | INDEXING, ERROR             |
+| VALID           | INDEXING (pipeline agregado), SENDING_SAP (pipeline por feature: valida y envía, no indexa), SENT_SAP (dedupe), ERROR |
 | INVALID         | RECEIVED (re-sincronización tras corregir datos) |
 | INDEXING        | INDEXED, ERROR              |
 | INDEXED         | SENDING_SAP, ERROR          |
@@ -434,9 +434,9 @@ com.poc.sap.<dominio>/
 
 - [`TECH.md`](TECH.md) — stack tecnológico detallado.
 - [`../sdd/README.md`](../sdd/README.md) — specs por feature (SDD anchor) y estado del proyecto.
-- [`../development/README.md`](../development/README.md) — ciclo de trabajo SDD + TDD.
+- [`DESARROLLO.md`](DESARROLLO.md) — ciclo de trabajo SDD + TDD.
 - [`../sdd/sap-api-catalog.md`](../sdd/sap-api-catalog.md) — catálogo de las specs OpenAPI oficiales de SAP.
-- [`FLOWS.md`](FLOWS.md) — flujos de integración con nombres de clase: CDC, consulta BP, creación BP, pull vía BTP, push vs pull, mapa de rutas.
-- [`../integrations/SAP_CLOUD_SDK.md`](../integrations/SAP_CLOUD_SDK.md) — guía de integración con SAP Cloud SDK (fases de implementación).
+- [`FLOWS.md`](FLOWS.md) — flujos implementados con nombres de clase: CDC completo y mapa de rutas BTP vs OData directo.
+- [`../tools-integrations/SAP_CLOUD_SDK.md`](../tools-integrations/SAP_CLOUD_SDK.md) — guía de integración con SAP Cloud SDK (fases de implementación).
 - [`../testing/TESTING.md`](../testing/TESTING.md) — estrategia y catálogo de tests.
 - `README.md` — intro, requisitos, comandos, debug VS Code.

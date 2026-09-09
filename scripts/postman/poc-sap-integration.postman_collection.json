@@ -1,0 +1,210 @@
+{
+  "info": {
+    "name": "PoC SAP Integration (Java)",
+    "description": "Colección de trabajo del PoC: ingesta REST, histórico, inspección del SAP simulado (WireMock), Kafka Connect y Elasticsearch.\n\nVariables por defecto = entorno local (docs/QUICK_START.md). Para apuntar a los servidores de test, duplica el entorno y cambia las variables.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "customerUrl", "value": "http://localhost:8081" },
+    { "key": "articleUrl",  "value": "http://localhost:8082" },
+    { "key": "mockSapUrl",  "value": "http://localhost:8090" },
+    { "key": "connectUrl",  "value": "http://localhost:8083" },
+    { "key": "esUrl",       "value": "http://localhost:9200" },
+    { "key": "customerId",  "value": "CUST-001" },
+    { "key": "articleId",   "value": "ART-001" }
+  ],
+  "item": [
+    {
+      "name": "1 · Customer",
+      "item": [
+        {
+          "name": "Sync customer (ingesta REST)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Hash único por ejecución: repetir el mismo hash activa el dedupe",
+                  "// de idempotencia y devuelve SENT_SAP sin volver a llamar a SAP.",
+                  "pm.variables.set('runHash', 'postman-' + Date.now());"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('llega a SENT_SAP', () =>",
+                  "  pm.expect(pm.response.json().state).to.eql('SENT_SAP'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{customerUrl}}/customers/sync", "host": ["{{customerUrl}}"], "path": ["customers", "sync"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"entityId\": \"{{customerId}}\",\n  \"operation\": \"UPDATE\",\n  \"payloadHash\": \"{{runHash}}\",\n  \"payload\": \"{}\"\n}"
+            },
+            "description": "Dispara el pipeline completo: fetch del legacy → validación → Mongo → Elasticsearch → SAP.\n\nEl use case re-lee la entidad del legacy por entityId, así que el id debe existir en el seed (CUST-001, CUST-002).\n\noperation: CREATE | UPDATE | DELETE."
+          }
+        },
+        {
+          "name": "Validate customer (sin enviar a SAP)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{customerUrl}}/customers/validate", "host": ["{{customerUrl}}"], "path": ["customers", "validate"] },
+            "body": { "mode": "raw", "raw": "{\n  \"entityId\": \"{{customerId}}\",\n  \"payloadHash\": \"postman-validate-1\"\n}" },
+            "description": "Solo valida y devuelve el estado resultante (VALID / INVALID). No indexa ni envía a SAP."
+          }
+        },
+        {
+          "name": "Histórico de versiones",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{customerUrl}}/customers/{{customerId}}/history?full=false",
+              "host": ["{{customerUrl}}"], "path": ["customers", "{{customerId}}", "history"],
+              "query": [{ "key": "full", "value": "false", "description": "true incluye el snapshot completo de cada versión" }]
+            },
+            "description": "Versiones enviadas a SAP, leídas del índice de Elasticsearch."
+          }
+        },
+        {
+          "name": "Diff entre versiones",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{customerUrl}}/customers/{{customerId}}/history/diff",
+              "host": ["{{customerUrl}}"], "path": ["customers", "{{customerId}}", "history", "diff"],
+              "query": [
+                { "key": "from", "value": "", "disabled": true, "description": "payloadHash origen; sin params compara las dos últimas" },
+                { "key": "to", "value": "", "disabled": true, "description": "payloadHash destino" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Health",
+          "request": { "method": "GET", "url": { "raw": "{{customerUrl}}/actuator/health", "host": ["{{customerUrl}}"], "path": ["actuator", "health"] } }
+        },
+        {
+          "name": "Métricas Prometheus",
+          "request": { "method": "GET", "url": { "raw": "{{customerUrl}}/actuator/prometheus", "host": ["{{customerUrl}}"], "path": ["actuator", "prometheus"] } }
+        }
+      ]
+    },
+    {
+      "name": "2 · Article",
+      "item": [
+        {
+          "name": "Sync article",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": { "type": "text/javascript", "exec": ["pm.variables.set('runHash', 'postman-art-' + Date.now());"] }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{articleUrl}}/articles/sync", "host": ["{{articleUrl}}"], "path": ["articles", "sync"] },
+            "body": { "mode": "raw", "raw": "{\n  \"entityId\": \"{{articleId}}\",\n  \"operation\": \"UPDATE\",\n  \"payloadHash\": \"{{runHash}}\",\n  \"payload\": \"{}\"\n}" },
+            "description": "Ids del seed de PostgreSQL: ART-001, ART-002, ART-003."
+          }
+        },
+        {
+          "name": "Histórico de versiones",
+          "request": { "method": "GET", "url": { "raw": "{{articleUrl}}/articles/{{articleId}}/history", "host": ["{{articleUrl}}"], "path": ["articles", "{{articleId}}", "history"] } }
+        },
+        {
+          "name": "Diff entre versiones",
+          "request": { "method": "GET", "url": { "raw": "{{articleUrl}}/articles/{{articleId}}/history/diff", "host": ["{{articleUrl}}"], "path": ["articles", "{{articleId}}", "history", "diff"] } }
+        },
+        {
+          "name": "Health",
+          "request": { "method": "GET", "url": { "raw": "{{articleUrl}}/actuator/health", "host": ["{{articleUrl}}"], "path": ["actuator", "health"] } }
+        }
+      ]
+    },
+    {
+      "name": "3 · SAP simulado (WireMock)",
+      "item": [
+        {
+          "name": "Peticiones recibidas",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{mockSapUrl}}/__admin/requests", "host": ["{{mockSapUrl}}"], "path": ["__admin", "requests"] },
+            "description": "Qué le ha llegado al 'SAP': url, método, cabeceras (incluida Idempotency-Key) y body."
+          }
+        },
+        {
+          "name": "Borrar el registro de peticiones",
+          "request": { "method": "DELETE", "url": { "raw": "{{mockSapUrl}}/__admin/requests", "host": ["{{mockSapUrl}}"], "path": ["__admin", "requests"] } }
+        },
+        {
+          "name": "Stub catch-all (201)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{mockSapUrl}}/__admin/mappings", "host": ["{{mockSapUrl}}"], "path": ["__admin", "mappings"] },
+            "body": { "mode": "raw", "raw": "{\n  \"priority\": 10,\n  \"request\": { \"method\": \"ANY\", \"urlPattern\": \".*\" },\n  \"response\": { \"status\": 201, \"jsonBody\": { \"ok\": true } }\n}" },
+            "description": "Stub por defecto que registra start-all.sh. Prioridad baja: puedes añadir encima stubs más específicos."
+          }
+        },
+        {
+          "name": "Stub de error 500 (probar retry / circuit breaker)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{mockSapUrl}}/__admin/mappings", "host": ["{{mockSapUrl}}"], "path": ["__admin", "mappings"] },
+            "body": { "mode": "raw", "raw": "{\n  \"priority\": 1,\n  \"request\": { \"method\": \"ANY\", \"urlPattern\": \".*\" },\n  \"response\": { \"status\": 500 }\n}" },
+            "description": "Prioridad 1 (gana al catch-all): fuerza 5xx para ver el retry con backoff y el paso a SAP_ERROR. Para revertir, resetea los mappings."
+          }
+        },
+        {
+          "name": "Resetear mappings",
+          "request": { "method": "POST", "url": { "raw": "{{mockSapUrl}}/__admin/reset", "host": ["{{mockSapUrl}}"], "path": ["__admin", "reset"] } }
+        }
+      ]
+    },
+    {
+      "name": "4 · Infraestructura",
+      "item": [
+        {
+          "name": "Kafka Connect — estado de los conectores",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{connectUrl}}/connectors?expand=status",
+              "host": ["{{connectUrl}}"], "path": ["connectors"],
+              "query": [{ "key": "expand", "value": "status" }]
+            },
+            "description": "Ambos conectores Debezium deben estar RUNNING."
+          }
+        },
+        {
+          "name": "Elasticsearch — salud del cluster",
+          "request": { "method": "GET", "url": { "raw": "{{esUrl}}/_cluster/health", "host": ["{{esUrl}}"], "path": ["_cluster", "health"] } }
+        },
+        {
+          "name": "Elasticsearch — histórico de un customer",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{esUrl}}/customers_history/_search?q=customerId:{{customerId}}",
+              "host": ["{{esUrl}}"], "path": ["customers_history", "_search"],
+              "query": [{ "key": "q", "value": "customerId:{{customerId}}" }]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
