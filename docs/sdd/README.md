@@ -156,8 +156,9 @@ Estado de las brechas detectadas sobre el código real.
 | APIs REST sin autenticación | controllers de `customer`/`article` | bloqueante para exponer las APIs a terceros o a un MCP ([`../tools-integrations/MCP.md`](../tools-integrations/MCP.md) §4) |
 | Servidor MCP para agentes IA (propuesta) | servicio `mcp-server` futuro | requiere autenticación + ofuscación de PII — ver [`../tools-integrations/MCP.md`](../tools-integrations/MCP.md) |
 
-> Esto son **defectos**. Las mejoras e ideas que aún no se han abordado viven en
-> [`../MEJORAS-Y-PROPUESTAS.md`](../MEJORAS-Y-PROPUESTAS.md).
+> Esto son **defectos**, con su detalle técnico. Lo mismo contado en lenguaje de
+> negocio está en el [`CHANGELOG.md`](../../CHANGELOG.md) raíz; las mejoras aún
+> no abordadas, en [`../MEJORAS-Y-PROPUESTAS.md`](../MEJORAS-Y-PROPUESTAS.md).
 
 ## 7. Supuestos vigentes del PoC
 

@@ -4,6 +4,8 @@ Integración de datos maestros (customer, article, supplier) desde sistemas
 legacy hacia **SAP S/4 Public Cloud**. Migración del POC Python a
 **Java 25 + Spring Boot 4.0 + Maven**.
 
+> **Qué ha cambiado en cada revisión**, en lenguaje de negocio: [`CHANGELOG.md`](CHANGELOG.md).
+
 > **¿Vas a trabajar en este repo (persona o agente IA)?** Empieza por
 > [`AGENTS.md`](AGENTS.md): operativa obligatoria (SDD anchor + TDD), cómo está
 > montada la aplicación y reglas al modificar código.

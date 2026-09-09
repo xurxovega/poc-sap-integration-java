@@ -77,6 +77,7 @@ Y siempre **de dentro afuera**, que es también la regla de dependencias:
 5. Cerrar el ancla:
    ├─ spec §9 (trazabilidad spec↔código↔test) y §10 (cambios)
    ├─ CHANGELOG.md de la carpeta del subproyecto (una línea)
+   ├─ CHANGELOG.md raíz si el cambio se nota en negocio (sin detalle técnico)
    ├─ registro MySQL: evento ALTA / MODIFICACION / BAJA en feature_evento
    ├─ docs/GLOSSARY.md: todo concepto nuevo que haya aparecido
    └─ docs/sdd/README.md §5 (estado) y §6 (changelog, si abre/cierra brecha)
@@ -94,6 +95,7 @@ spec** en el mismo PR.
 - [ ] `mvn verify` en verde.
 - [ ] Estado e índice de `docs/sdd/README.md` al día.
 - [ ] `CHANGELOG.md` del subproyecto y evento en `feature_evento` registrados.
+- [ ] `CHANGELOG.md` raíz actualizado si el cambio se percibe en negocio.
 - [ ] Conceptos nuevos añadidos a `docs/GLOSSARY.md`.
 - [ ] Ningún documento nuevo duplica algo que ya esté en `docs/architecture/` o `docs/sdd/`.
 
@@ -336,6 +338,7 @@ si algo ya está escrito, enlázalo.
 | SAP Cloud SDK (OData VDM, OpenAPI, destinations) | [`docs/tools-integrations/SAP_CLOUD_SDK.md`](docs/tools-integrations/SAP_CLOUD_SDK.md) |
 | propuesta de servidor MCP para agentes IA | [`docs/tools-integrations/MCP.md`](docs/tools-integrations/MCP.md) |
 | mejoras e ideas pendientes (backlog, no defectos) | [`docs/MEJORAS-Y-PROPUESTAS.md`](docs/MEJORAS-Y-PROPUESTAS.md) |
+| **qué cambia para negocio** en cada revisión | [`CHANGELOG.md`](CHANGELOG.md) (raíz) |
 | cambios de las features de un subproyecto | `docs/sdd/<subproyecto>/CHANGELOG.md` |
 | quién pidió una feature, cuándo y en qué estado está | registro MySQL `sdd_registry` — [`docs/sdd/README.md`](docs/sdd/README.md) §8 |
 | terminología del proyecto (**se actualiza siempre**) | [`docs/GLOSSARY.md`](docs/GLOSSARY.md) |
