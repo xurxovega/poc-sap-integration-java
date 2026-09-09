@@ -14,7 +14,7 @@ import static com.github.tomakehurst.wiremock.core.WireMockConfiguration.wireMoc
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Test de contrato SAP BTP (SPEC.md §5, §9; TECH.md §10).
+ * Test de contrato SAP BTP (TECH.md §8, §10).
  * Fija el contrato del endpoint BTP Customer: realiza un POST real contra el
  * WireMock y verifica que devuelve 201 con Location.
  */

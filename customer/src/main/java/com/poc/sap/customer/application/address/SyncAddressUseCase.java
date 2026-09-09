@@ -16,7 +16,7 @@ import java.time.Instant;
 
 /**
  * Use case de la feature ADDRESS: valida y envia a SAP los datos de direccion
- * del Customer (SPEC.md §3, §5, §8). Idempotente por payloadHash.
+ * del Customer (OVERVIEW.md §2, §5; TECH.md §8). Idempotente por payloadHash.
  */
 @Service
 public class SyncAddressUseCase {

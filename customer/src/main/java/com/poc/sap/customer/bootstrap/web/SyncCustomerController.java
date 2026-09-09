@@ -12,7 +12,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.Map;
 
 /**
- * REST controller del dominio Customer (SPEC.md §4, TECH.md §6).
+ * REST controller del dominio Customer (TECH.md §6).
  * Entrada alternativa (ingesta por API). Reusa el mismo use case que CDC/Kafka.
  */
 @RestController

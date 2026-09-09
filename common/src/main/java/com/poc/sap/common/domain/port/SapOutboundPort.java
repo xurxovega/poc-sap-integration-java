@@ -1,7 +1,7 @@
 package com.poc.sap.common.domain.port;
 
 /**
- * Puerto de envio a SAP (SPEC.md §5).
+ * Puerto de envio a SAP (TECH.md §8).
  * Dos familias de adaptadores: APIs BTP (xsuaa + Destination Service) y
  * APIs nativas S/4 Public Cloud (OData/REST propio).
  *

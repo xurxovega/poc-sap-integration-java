@@ -9,7 +9,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Test de contrato SAP S/4 nativo para la feature BANKING / mandates
- * (SPEC.md §5; TECH.md §10). Reemplaza al antiguo S4MandateAdapter.
+ * (TECH.md §8, §10). Reemplaza al antiguo S4MandateAdapter.
  */
 class S4BankingContractTest extends AbstractSapContractTest {
 

@@ -1,7 +1,7 @@
 package com.poc.sap.common.domain.port;
 
 /**
- * Puerto de indexacion del historico (SPEC.md).
+ * Puerto de indexacion del historico (OVERVIEW.md §4).
  * Elasticsearch en la implementacion de referencia.
  *
  * @param <E> tipo de la entidad del dominio

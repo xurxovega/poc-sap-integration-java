@@ -1,7 +1,7 @@
 package com.poc.sap.customer.domain.feature.contact;
 
 /**
- * Datos de contacto del Customer (feature CONTACT, SPEC.md §3).
+ * Datos de contacto del Customer (feature CONTACT, OVERVIEW.md §2).
  *
  * @param email   email principal (opcional)
  * @param phone   telefono (opcional)

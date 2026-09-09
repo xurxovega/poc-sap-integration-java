@@ -8,7 +8,7 @@ import static com.github.tomakehurst.wiremock.client.WireMock.*;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Test de contrato SAP S/4 nativo para Article / API_PRODUCT (SPEC.md §5;
+ * Test de contrato SAP S/4 nativo para Article / API_PRODUCT (TECH.md §8;
  * TECH.md §10). Patron paralelo a {@link S4BankingContractTest} pero para el
  * dominio Article.
  */

@@ -7,7 +7,7 @@ import org.junit.jupiter.api.Test;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Test unit del {@link SyncMetrics} (SPEC.md §7; TECH.md §9). Usa
+ * Test unit del {@link SyncMetrics} (OVERVIEW.md §9; TECH.md §9). Usa
  * {@link SimpleMeterRegistry} de Micrometer para no levantar Prometheus.
  */
 class SyncMetricsTest {

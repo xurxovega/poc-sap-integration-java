@@ -6,7 +6,7 @@ import com.poc.sap.common.domain.SyncStateTransition;
 import java.util.Optional;
 
 /**
- * Puerto de persistencia del estado de sincronizacion (SPEC.md §8).
+ * Puerto de persistencia del estado de sincronizacion (OVERVIEW.md §5).
  * Permite consultar y avanzar la maquina de estados por entidad.
  */
 public interface SyncStateRepositoryPort {

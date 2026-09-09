@@ -3,7 +3,7 @@ package com.poc.sap.common.domain;
 import java.time.Instant;
 
 /**
- * Transicion de estado persistida para trazabilidad (SPEC.md §8).
+ * Transicion de estado persistida para trazabilidad (OVERVIEW.md §5).
  * Value object inmutable.
  *
  * @param entityId   identificador de la entidad del dominio

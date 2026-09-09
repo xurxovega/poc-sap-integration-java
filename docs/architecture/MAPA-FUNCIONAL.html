@@ -644,7 +644,7 @@ sequenceDiagram
     <code>BANKING</code> falla, el aggregate queda en <code>SAP_ERROR</code> pero las dos primeras
     features <em>ya están en SAP</em> y no se compensan. Además, <code>SAP_ERROR → SENDING_SAP</code>
     está permitido por la máquina de estados pero <strong>ningún job lo dispara</strong>: el reproceso
-    hoy es manual. Está listado como pendiente en <code>docs/integration-guide/README.md</code>.</p>
+    hoy es manual. Está listado como pendiente en <code>docs/sdd/README.md</code>.</p>
   </div>
 
   <h3 id="c4">C4 · Qué adaptador se activa: BTP o OData directo</h3>
@@ -1431,9 +1431,11 @@ sequenceDiagram
         <tr><td><code>docs/architecture/OVERVIEW.md</code></td><td>módulos del reactor, aggregate Customer, deployment, convención de paquetes</td></tr>
         <tr><td><code>docs/architecture/FLOWS.md</code></td><td>flujos con nombres de clase; marca explícitamente lo propuesto</td></tr>
         <tr><td><code>docs/architecture/INTEGRATION-PATTERNS.md</code></td><td>los cinco patrones de integración con SAP y su estado</td></tr>
-        <tr><td><code>docs/specs/SPEC.md</code> · <code>TECH.md</code></td><td>especificación funcional agnóstica y su contraparte técnica</td></tr>
-        <tr><td><code>docs/specs/sap/README.md</code></td><td>catálogo de las specs OpenAPI oficiales de S/4HANA usadas o previstas</td></tr>
-        <tr><td><code>docs/integration-guide/README.md</code></td><td>brechas resueltas y pendientes, punto de fallo por sistema</td></tr>
+        <tr><td><code>docs/architecture/OVERVIEW.md</code> · <code>TECH.md</code></td><td>arquitectura del sistema y su stack tecnológico</td></tr>
+        <tr><td><code>docs/sdd/README.md</code></td><td>specs por feature (SDD anchor), índice de features y changelog global</td></tr>
+        <tr><td><code>docs/development/README.md</code></td><td>ciclo de trabajo: SDD + TDD</td></tr>
+        <tr><td><code>docs/sdd/sap-api-catalog.md</code></td><td>catálogo de las specs OpenAPI oficiales de S/4HANA usadas o previstas</td></tr>
+        
         <tr><td><code>docs/integrations/MCP.md</code> · <code>SAP_CLOUD_SDK.md</code></td><td>propuesta del MCP y guía del SAP Cloud SDK</td></tr>
         <tr><td><code>docs/testing/TESTING.md</code> · <code>GUIA-PRUEBAS.md</code></td><td>catálogo de la suite (211 tests) y guía práctica CP-01…CP-13</td></tr>
         <tr><td><code>external-services/README.md</code> · <code>debezium/README.md</code></td><td>infraestructura local y detalle de los conectores</td></tr>
@@ -1681,7 +1683,7 @@ const PIEZAS = {
   },
   'sdk-client': {
     titulo: 'sap-sdk-client', estado: 'parcial',
-    rol: 'Repositorio git ANIDADO E INDEPENDIENTE (por eso aparece como untracked): no está en el reactor Maven, usa Spring Boot 3.5 y Java 17. App demo con un proxy CRUD sobre la API Business Partner, 66 APIs y 564 modelos generados comiteados. Declarado spike OpenAPI desechable en docs/integration-guide/README.md. ATENCIÓN: su application.properties tiene URL de tenant real, usuario y contraseña en claro — rotar la credencial.',
+    rol: 'Repositorio git ANIDADO E INDEPENDIENTE (por eso aparece como untracked): no está en el reactor Maven, usa Spring Boot 3.5 y Java 17. App demo con un proxy CRUD sobre la API Business Partner, 66 APIs y 564 modelos generados comiteados. Declarado spike OpenAPI desechable en docs/sdd/README.md §7. ATENCIÓN: su application.properties tiene URL de tenant real, usuario y contraseña en claro — rotar la credencial.',
     ficheros: ['sap-sdk-client/README.md', 'sap-sdk-client/src/main/resources/application.properties'],
     config: [], conexiones: [], diagramas: []
   },

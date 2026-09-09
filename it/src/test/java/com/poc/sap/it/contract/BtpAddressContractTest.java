@@ -8,7 +8,7 @@ import static com.github.tomakehurst.wiremock.client.WireMock.*;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Test de contrato SAP BTP para la feature ADDRESS (SPEC.md §5; TECH.md §10).
+ * Test de contrato SAP BTP para la feature ADDRESS (TECH.md §8, §10).
  */
 class BtpAddressContractTest extends AbstractSapContractTest {
 

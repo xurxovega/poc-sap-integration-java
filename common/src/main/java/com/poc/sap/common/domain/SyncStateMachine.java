@@ -8,7 +8,7 @@ import java.util.Set;
 import static com.poc.sap.common.domain.SyncState.*;
 
 /**
- * Maquina de estados de sincronizacion (SPEC.md §8).
+ * Maquina de estados de sincronizacion (OVERVIEW.md §5).
  * Dominio-agnostica, reside en el shared kernel.
  *
  * <pre>

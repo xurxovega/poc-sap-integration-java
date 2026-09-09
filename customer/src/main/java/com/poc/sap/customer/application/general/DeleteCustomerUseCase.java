@@ -11,7 +11,7 @@ import org.springframework.stereotype.Service;
 import java.time.Instant;
 
 /**
- * Use case de borrado del aggregate Customer (SPEC.md §3): elimina imagen
+ * Use case de borrado del aggregate Customer (OVERVIEW.md §2): elimina imagen
  * actual y notifica a SAP (delete OData via el port general del Customer).
  */
 @Service

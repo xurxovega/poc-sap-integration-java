@@ -5,7 +5,7 @@ import com.poc.sap.common.domain.ValidationResult;
 import java.util.regex.Pattern;
 
 /**
- * Validaciones de negocio para la feature ADDRESS (SPEC.md §3, §9).
+ * Validaciones de negocio para la feature ADDRESS (OVERVIEW.md §2).
  * Puro: sin Spring, sin IO.
  */
 public final class AddressValidator {

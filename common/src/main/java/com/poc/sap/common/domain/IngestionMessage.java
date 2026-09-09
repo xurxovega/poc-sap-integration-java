@@ -1,7 +1,7 @@
 package com.poc.sap.common.domain;
 
 /**
- * Mensaje de entrada comun a todas las fuentes de ingestion (SPEC.md §4).
+ * Mensaje de entrada comun a todas las fuentes de ingestion (TECH.md §6).
  * Contrato dominio-agnostico: cada dominio lo especializa con su payload tipado.
  *
  * @param entityId    identificador de la entidad

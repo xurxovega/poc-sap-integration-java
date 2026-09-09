@@ -3,7 +3,7 @@ package com.poc.sap.common.sap;
 import com.poc.sap.common.domain.port.SapOutboundPort.SapResponse;
 
 /**
- * Cliente HTTP SAP de bajo nivel (SPEC.md §5, TECH.md §8).
+ * Cliente HTTP SAP de bajo nivel (TECH.md §8).
  * Abstrae transporte, autenticacion, reintentos y circuit breaker.
  * Cada adaptador {@code SapOutboundPort} de dominio delega aqui.
  *

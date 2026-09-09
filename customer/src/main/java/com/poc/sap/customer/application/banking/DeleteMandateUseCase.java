@@ -12,7 +12,7 @@ import java.time.Instant;
 import java.util.List;
 
 /**
- * Use case de borrado de Mandate (SPEC.md §3, §5).
+ * Use case de borrado de Mandate (OVERVIEW.md §2; TECH.md §8).
  * Forma parte de la feature BANKING: notifica a SAP la revocacion del mandato
  * bancario.
  */

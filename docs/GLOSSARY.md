@@ -7,7 +7,7 @@
 
 ### Adapter (Adaptador)
 
-Implementación de un **port** en la capa de infraestructura. Traduce entre el dominio y tecnologías externas (Kafka, MongoDB, SAP, Elasticsearch). Ver [`TECH.md`](specs/TECH.md#5-puertos-y-adaptadores).
+Implementación de un **port** en la capa de infraestructura. Traduce entre el dominio y tecnologías externas (Kafka, MongoDB, SAP, Elasticsearch). Ver [`TECH.md`](architecture/TECH.md#5-puertos-y-adaptadores).
 
 ### API Business Hub
 
@@ -39,15 +39,15 @@ Entidad maestra de SAP S/git push -u origin feature/saneamiento-integracion-sap4
 
 ### Callback
 
-Endpoint REST propio que recibe notificaciones de SAP. Se modela como entrada alternativa en el puerto `IngestionPort`. Ver [`SPEC.md`](specs/SPEC.md#4-fuentes-de-entrada-ingesta).
+Endpoint REST propio que recibe notificaciones de SAP. Se modela como entrada alternativa en el puerto `IngestionPort`. Ver [`TECH.md`](architecture/TECH.md#6-entradas).
 
 ### CDC (Change Data Capture)
 
-Captura de cambios en bases de datos legacy. En este proyecto: triggers → tabla outbox → Debezium → Kafka. Ver [`SPEC.md`](specs/SPEC.md#4-fuentes-de-entrada-ingesta).
+Captura de cambios en bases de datos legacy. En este proyecto: triggers → tabla outbox → Debezium → Kafka. Ver [`TECH.md`](architecture/TECH.md#6-entradas).
 
 ### Circuit Breaker
 
-Patrón de resiliencia que abre el circuito tras fallos consecutivos para evitar sobrecargar el sistema downstream. Implementado con **Resilience4j**. Ver [`TECH.md`](specs/TECH.md#8-clientes-sap).
+Patrón de resiliencia que abre el circuito tras fallos consecutivos para evitar sobrecargar el sistema downstream. Implementado con **Resilience4j**. Ver [`TECH.md`](architecture/TECH.md#8-clientes-sap).
 
 ### Cloud Connector
 
@@ -73,7 +73,7 @@ Enfoque de diseño centrado en el dominio. En este proyecto se aplica mediante b
 
 ### DLT (Dead Letter Topic)
 
-Topic `<original>.DLT` al que el `DefaultErrorHandler` publica un mensaje que sigue fallando tras agotar los reintentos con backoff, para inspección o reproceso manual. Ver [`TECH.md`](specs/TECH.md#6-entradas).
+Topic `<original>.DLT` al que el `DefaultErrorHandler` publica un mensaje que sigue fallando tras agotar los reintentos con backoff, para inspección o reproceso manual. Ver [`TECH.md`](architecture/TECH.md#6-entradas).
 
 ## E
 
@@ -95,13 +95,13 @@ En el dominio `customer`, cada parte del aggregate que puede sincronizarse de fo
 
 ### Hexagonal Architecture
 
-Arquitectura de puertos y adaptadores. El dominio está en el centro; los adaptadores conectan con el exterior. Ver [`TECH.md`](specs/TECH.md#4-arquitectura-por-dominio-capas-por-paquete).
+Arquitectura de puertos y adaptadores. El dominio está en el centro; los adaptadores conectan con el exterior. Ver [`TECH.md`](architecture/TECH.md#4-arquitectura-por-dominio-capas-por-paquete).
 
 ## I
 
 ### Idempotencia
 
-Propiedad que garantiza que reintentar una operación no produce efectos duplicados. En este proyecto se logra con hash de payload + identificador de entidad. Ver [`SPEC.md`](specs/SPEC.md#7-requisitos-no-funcionales).
+Propiedad que garantiza que reintentar una operación no produce efectos duplicados. En este proyecto se logra con hash de payload + identificador de entidad. Ver [`OVERVIEW.md`](architecture/OVERVIEW.md#9-requisitos-no-funcionales).
 
 ### IAS (Identity Authentication Service)
 
@@ -127,7 +127,7 @@ Plataforma de eventos. Recibe mensajes CDC (`outbox.<DOMINIO>`) y eventos direct
 
 ### Maven Reactor
 
-Build multi-módulo de Maven que compila `common`, `customer`, `article`, `supplier` e `it` en orden de dependencias. Ver [`TECH.md`](specs/TECH.md#2-build).
+Build multi-módulo de Maven que compila `common`, `customer`, `article`, `supplier` e `it` en orden de dependencias. Ver [`TECH.md`](architecture/TECH.md#2-build).
 
 ### Micrometer
 
@@ -149,7 +149,7 @@ Estándar construido **encima de REST** que fija por contrato lo que REST deja a
 
 ### OData V2 vs V4
 
-Dos versiones del estándar con formato distinto: **V2** envuelve las respuestas en `{"d":...}` (y `d.results` en listas), pagina con `$skip` y exige fetch de token CSRF en escrituras; **V4** devuelve la entidad en la raíz, usa `value` + `@odata.nextLink` y no usa el CSRF clásico (OAuth2 puro). Las APIs `API_*` del proyecto son V2; las `CE_*` (bancos, activos fijos, números de serie) son V4. Detalle y ejemplos en [`SAP_CLOUD_SDK.md` § OData V2 vs V4](integrations/SAP_CLOUD_SDK.md#odata-v2-vs-v4); versión de cada API en el [catálogo](specs/sap/README.md#catálogo).
+Dos versiones del estándar con formato distinto: **V2** envuelve las respuestas en `{"d":...}` (y `d.results` en listas), pagina con `$skip` y exige fetch de token CSRF en escrituras; **V4** devuelve la entidad en la raíz, usa `value` + `@odata.nextLink` y no usa el CSRF clásico (OAuth2 puro). Las APIs `API_*` del proyecto son V2; las `CE_*` (bancos, activos fijos, números de serie) son V4. Detalle y ejemplos en [`SAP_CLOUD_SDK.md` § OData V2 vs V4](integrations/SAP_CLOUD_SDK.md#odata-v2-vs-v4); versión de cada API en el [catálogo](sdd/sap-api-catalog.md#catálogo).
 
 ### OpenAPI
 
@@ -157,7 +157,7 @@ Especificación estándar para APIs REST. SAP publica especificaciones OpenAPI e
 
 ### OpenTelemetry (OTel)
 
-Estándar de observabilidad para trazas distribuidas. Se integra con el **javaagent** en el arranque de la JVM (el starter Spring de OTel 2.x no soporta Boot 4). Ver [`TECH.md`](specs/TECH.md#9-observabilidad).
+Estándar de observabilidad para trazas distribuidas. Se integra con el **javaagent** en el arranque de la JVM (el starter Spring de OTel 2.x no soporta Boot 4). Ver [`TECH.md`](architecture/TECH.md#9-observabilidad).
 
 ### Outbox Pattern
 
@@ -171,7 +171,7 @@ Hash del payload del evento de ingesta; clave del dedupe de idempotencia: si ya 
 
 ### Port
 
-Interfaz Java en el dominio que define una capacidad externa sin depender de infraestructura. Ver [`TECH.md`](specs/TECH.md#5-puertos-y-adaptadores).
+Interfaz Java en el dominio que define una capacidad externa sin depender de infraestructura. Ver [`TECH.md`](architecture/TECH.md#5-puertos-y-adaptadores).
 
 ### Prometheus
 
@@ -189,11 +189,11 @@ Modo de integración donde nuestra app empuja datos a SAP activamente vía `SapC
 
 ### Resilience4j
 
-Librería de resiliencia (circuit breaker, retry, rate limiter) usada en los clientes SAP actuales. Ver [`TECH.md`](specs/TECH.md#8-clientes-sap).
+Librería de resiliencia (circuit breaker, retry, rate limiter) usada en los clientes SAP actuales. Ver [`TECH.md`](architecture/TECH.md#8-clientes-sap).
 
 ### Retry
 
-Reintentos con backoff exponencial ante fallos transitorios. Ver [`SPEC.md`](specs/SPEC.md#7-requisitos-no-funcionales).
+Reintentos con backoff exponencial ante fallos transitorios. Ver [`OVERVIEW.md`](architecture/OVERVIEW.md#9-requisitos-no-funcionales).
 
 ### RFC (Remote Function Call)
 
@@ -221,7 +221,7 @@ Test de una capa aislada (p. ej. REST controller) sin levantar todo el contexto 
 
 Máquina de estados de sincronización (`common/domain/SyncStateMachine.java`):
 `RECEIVED → FETCHING → VALIDATING → VALID | INVALID`; `VALID → INDEXING → INDEXED → SENDING_SAP → SENT_SAP | SAP_ERROR`.
-Estados de error: `ERROR`, `SAP_ERROR` y `COMMUNICATION_ERROR`. Re-entrada: `SENT_SAP → RECEIVED` e `INVALID → RECEIVED` cuando llega un nuevo evento de la entidad. Ver [`SPEC.md`](specs/SPEC.md#8-máquina-de-estados).
+Estados de error: `ERROR`, `SAP_ERROR` y `COMMUNICATION_ERROR`. Re-entrada: `SENT_SAP → RECEIVED` e `INVALID → RECEIVED` cuando llega un nuevo evento de la entidad. Ver [`OVERVIEW.md`](architecture/OVERVIEW.md#5-máquina-de-estados-de-sincronización).
 
 ## T
 
@@ -241,7 +241,7 @@ Modelo de datos tipado generado por SAP Cloud SDK a partir de metadatos OData de
 
 ### Virtual Threads
 
-Hilos ligeros de Java 21+. El proyecto los usa para concurrencia de Kafka/REST. Ver [`TECH.md`](specs/TECH.md#1-plataforma).
+Hilos ligeros de Java 21+. El proyecto los usa para concurrencia de Kafka/REST. Ver [`TECH.md`](architecture/TECH.md#1-plataforma).
 
 ## W
 

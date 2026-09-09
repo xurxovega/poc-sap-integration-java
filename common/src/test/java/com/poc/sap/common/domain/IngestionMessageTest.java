@@ -6,7 +6,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
- * Tests de invariantes de {@link IngestionMessage} (SPEC.md §4).
+ * Tests de invariantes de {@link IngestionMessage} (TECH.md §6).
  */
 class IngestionMessageTest {
 

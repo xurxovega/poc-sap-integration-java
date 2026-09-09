@@ -3,7 +3,7 @@ package com.poc.sap.common.domain.port;
 import com.poc.sap.common.domain.IngestionMessage;
 
 /**
- * Puerto de ingestion de cambios (SPEC.md §4).
+ * Puerto de ingestion de cambios (TECH.md §6).
  * Tres adaptadores equivalentes: CDC (Debezium Kafka), eventos Kafka directos,
  * REST. Todos alimentan el mismo caso de uso del dominio.
  *

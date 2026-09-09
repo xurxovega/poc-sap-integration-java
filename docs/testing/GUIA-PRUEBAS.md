@@ -232,7 +232,7 @@ curl -s http://localhost:8081/actuator/prometheus | grep sap_sync_state_total
 
 Kibana (`http://localhost:5601`) sobre el índice `customers_history` para ver
 el histórico; trazas distribuidas: arrancar la JVM con el javaagent de
-OpenTelemetry (ver [`TECH.md` §9](../specs/TECH.md#9-observabilidad)).
+OpenTelemetry (ver [`TECH.md` §9](../architecture/TECH.md#9-observabilidad)).
 
 ---
 

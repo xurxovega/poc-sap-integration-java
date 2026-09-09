@@ -244,7 +244,7 @@ la futura API intermedia de BTP (contrato nuestro); los
 ### OData V2 vs V4
 
 Dos versiones del estándar con diferencias de formato que nos afectan
-directamente (el catálogo de [`docs/specs/sap/README.md`](../specs/sap/README.md)
+directamente (el catálogo de [`docs/sdd/sap-api-catalog.md`](../sdd/sap-api-catalog.md)
 indica la versión de cada API):
 
 **1. La envoltura `d`.** En V2 toda **respuesta** JSON viene envuelta en un objeto

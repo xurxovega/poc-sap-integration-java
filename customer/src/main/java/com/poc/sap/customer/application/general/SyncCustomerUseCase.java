@@ -27,7 +27,7 @@ import java.util.Set;
 import java.util.function.BiFunction;
 
 /**
- * Orchestrador general del dominio Customer (SPEC.md §3, §4, §8).
+ * Orchestrador general del dominio Customer (OVERVIEW.md §2, §5; TECH.md §6).
  *
  * <p>Ejecuta el pipeline completo (fetch → validar aggregate → indexar →
  * ejecutar features SAP) y puede invocar **todas o solo varias features** del

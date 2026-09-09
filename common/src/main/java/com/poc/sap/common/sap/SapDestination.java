@@ -1,7 +1,7 @@
 package com.poc.sap.common.sap;
 
 /**
- * Destino SAP al que se envia un payload (SPEC.md §5).
+ * Destino SAP al que se envia un payload (TECH.md §8).
  */
 public enum SapDestination {
     /** APIs BTP via Destination Service / xsuaa. */

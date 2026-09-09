@@ -1,6 +1,7 @@
 # SAP Integration — Stack tecnológico
 
-> Implementación de [`SPEC.md`](./SPEC.md). Java 25 LTS + Spring Boot 4.0 + Maven.
+> Stack e implementación concreta de la arquitectura descrita en
+> [`OVERVIEW.md`](OVERVIEW.md). Java 25 LTS + Spring Boot 4.0 + Maven.
 
 ## 1. Plataforma
 
@@ -69,6 +70,12 @@ no depende de nada. `application` solo de `domain`. `adapters` de `application`
 
 ## 6. Entradas
 
+Tres fuentes equivalentes alimentan el **mismo caso de uso** del dominio,
+intercambiables a través del puerto `IngestionPort`. Contrato común del mensaje
+(`common/domain/IngestionMessage.java`): identificador de entidad · tipo de
+operación (`create`/`update`/`delete`) · payload · origen (`cdc`/`kafka`/`rest`)
+· hash de idempotencia sobre payload + identificador.
+
 - **CDC**: consumer Kafka (`spring-boot-starter-kafka`; en Boot 4 el
   `spring-kafka` suelto no autoconfigura) sobre topics `outbox.<DOMINIO>`
   (Debezium). Errores: `DefaultErrorHandler` con backoff exponencial y
@@ -84,6 +91,11 @@ no depende de nada. `application` solo de `domain`. `adapters` de `application`
 - Spring Data Elasticsearch → histórico y búsqueda.
 
 ## 8. Clientes SAP
+
+Salida mediante el puerto `SapOutboundPort`, con dos familias de destino: **APIs
+BTP** (vía Destination Service / xsuaa) y **APIs nativas S/4 Public Cloud**
+(OData/REST con autenticación propia). Cada dominio declara qué entidad va a qué
+destino y con qué mapeo; los mapeos son parte del dominio, no del shared kernel.
 
 - `BtpApiAdapter`: WebClient + OAuth2 cliente xsuaa + Destination Service.
 - `S4NativeApiAdapter`: cliente OData/REST con autenticación propia (basic/OAuth2).
@@ -115,12 +127,18 @@ no depende de nada. `application` solo de `domain`. `adapters` de `application`
 ## 10. Testing
 
 - **Unit**: JUnit 5 + Mockito sobre `domain` y `application` (sin Spring).
-- **Slice**: `@WebMvcTest` (REST), `@KafkaListenerTest` / Spring Kafka test utils.
+- **Slice**: REST con `MockMvcBuilders.standaloneSetup(...)` (Spring Boot 4
+  eliminó `@WebMvcTest`); listeners Kafka probados directamente con el use case
+  stubbeado.
 - **Integración**: Testcontainers (Kafka, PostgreSQL, SQL Server, MongoDB,
   Elasticsearch) + WireMock para SAP. Por dominio y en módulo `it/`.
 - **Contrato SAP**: Spring Cloud Contract o Pact en `it/` para fijar contratos
   BTP/S4 y detectar breaking changes.
-- Cobertura: JaCoCo; umbral mínimo en `domain` y `common`.
+- Cobertura: JaCoCo; umbral mínimo en `domain` y `common`. `domain` se cubre al
+  100% en unit sobre validaciones.
+- **TDD obligatorio**: el test se escribe antes que el código de producción. El
+  ciclo, el orden de las capas y la definición de hecho están en
+  [`../development/README.md`](../development/README.md).
 
 ## 11. Empaquetado y despliegue
 

@@ -1,6 +1,10 @@
 # Testing — SAP Integration (Java)
 
 > estrategia y catálogo de la suite de tests del reactor Maven `poc-sap-integration-java`.
+>
+> **Cómo se escriben** los tests (ciclo TDD, orden de capas, qué test toca a
+> cada AC del spec) está en [`../development/README.md`](../development/README.md).
+> Este documento es el catálogo de lo que **ya existe**.
 
 ## 1. Resumen ejecutivo
 

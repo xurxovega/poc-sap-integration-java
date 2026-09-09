@@ -6,8 +6,7 @@
 >
 > Relación con otros docs: [`FLOWS.md`](FLOWS.md) detalla los flujos con
 > nombres de clase; [`OVERVIEW.md`](OVERVIEW.md) la arquitectura general;
-> [`../integration-guide/README.md`](../integration-guide/README.md) el estado
-> por brecha.
+> [`../sdd/README.md`](../sdd/README.md) el estado por feature y por brecha.
 
 ## Resumen de estado
 

@@ -1,157 +1,310 @@
-# Agent Guidelines — SAP Integration (Java)
+# AGENTS.md — SAP Integration (Java)
 
-Migración del POC Python (`poc-sap-integration`) a Java 25 + Spring Boot 4.0 + Maven.
+> **Léeme primero, en cualquier iteración.** Este fichero es el contrato de
+> trabajo del repositorio: cómo está montada la aplicación, cómo se opera sobre
+> ella y qué reglas son innegociables. Todo lo demás son documentos de detalle
+> enlazados desde aquí.
 
-## Stack
+PoC de sincronización de datos maestros (`customer`, `article`, `supplier`)
+desde sistemas legacy hacia **SAP S/4 Public Cloud**. Migración del POC Python
+(`../poc-sap-integration`) a **Java 25 + Spring Boot 4.0 + Maven**.
 
-- **Lenguaje**: Java 23 LTS mínimo (objetivo Java 25 LTS). Records, sealed, virtual threads.
-- **Framework**: Spring Boot 4.0.
-- **Build**: Maven 3.9+ multi-módulo reactor. Profile `jdk25` auto-activado con JDK 25.
-- **SAP Cloud SDK**: v5.32.0 (`sdk-modules-bom` en parent, `sdk-core` en common).
-- **Observabilidad**: Micrometer + Prometheus + OpenTelemetry.
-- **Testing**: JUnit 5, Mockito, Testcontainers, WireMock, Spring Cloud Contract.
+---
 
-## Arquitectura
+# Parte 1 — Operativa (cómo se trabaja aquí)
 
-- **Hexagonal / puertos y adaptadores** por dominio.
-- **Capas por paquete**: `domain` (puro, sin Spring) → `application` (use cases)
-  → `adapters` (infra) → `bootstrap` (Spring wiring).
-- **Dominios**: `customer`, `article`, `supplier`. Cada uno = app Spring Boot
-  desplegable de forma independiente.
-- **Shared kernel** `common/`: StateMachine, clientes SAP (BTP + S/4),
-  observabilidad, soporte test. Versionado semántico.
-- Regla dependencias: `bootstrap → adapters → application → domain`.
-  `domain` no depende de nada. `application` solo de `domain`.
+Dos técnicas gobiernan todo el desarrollo. **No son negociables** y no se saltan
+"por ser un cambio pequeño". Detalle completo en
+[`docs/development/README.md`](docs/development/README.md).
 
-## Puertos clave
+## 1.1 SDD anchor — el spec y el código no divergen
 
-- `IngestionPort`: CDC (Debezium Kafka) / eventos Kafka directos / REST.
-- `SapOutboundPort<P>`: APIs BTP (xsuaa + Destination Service) / APIs nativas S/4.
-  Por feature: `AddressSapPort`, `FiscalSapPort`, `ContactSapPort`, `BankingSapPort`, `CustomerSapOutboundPort`.
-- `BusinessPartnerReadPort`: lectura de Business Partners desde SAP S/4HANA OData (GET/search).
-- `LegacyRepositoryPort`, `ImageStorePort` (Mongo), `HistoryIndexerPort` (ES),
-  `SyncStateRepositoryPort`.
+Cada feature tiene su spec en `docs/sdd/<feature>/spec.md`. Spec y código son el
+mismo hecho contado dos veces, y el ancla es **bidireccional**:
 
-## Comandos críticos
+| Si cambia… | …entonces, en el **mismo PR** |
+|---|---|
+| **el spec** | cambian los tests y el código; el `AC-n` nuevo empieza en rojo |
+| **el código** (comportamiento observable) | se actualiza el spec de la feature + su tabla de cambios |
+| **un contrato SAP** ([`docs/sdd/sap-api-catalog.md`](docs/sdd/sap-api-catalog.md)) | se revisan los specs de las features que lo consumen **antes** de tocar adaptadores |
 
-- `mvn validate` — validar reactor.
-- `mvn -pl common install -DskipTests` — publicar shared kernel local.
-- `mvn -pl customer package` — empaquetar solo customer.
-- `mvn verify` — unit + slice + integración.
-- `mvn -pl it verify` — pruebas cross-dominio + contrato SAP.
+Un cambio de comportamiento sin spec actualizado está **incompleto**, y un spec
+cambiado sin tests que lo respalden también.
 
-## Integraciones SAP
+Los specs se van escribiendo **a medida que se toca cada feature**: el índice
+vivo con su estado está en [`docs/sdd/README.md`](docs/sdd/README.md) §5. No
+escribas specs en masa de features que nadie va a tocar.
 
-### Cliente HTTP low-level
+## 1.2 TDD — ningún código de producción sin test rojo previo
 
-`SapClient` en `common/sap/` abstrae transporte, auth, retry y circuit breaker.
-Soporta GET, POST (send), PATCH, DELETE. Implementado por `WebClientSapClient`
-(WebClient reactivo + Resilience4j).
+Ciclo **red → green → refactor**:
 
-### Serialización JSON (DTOs)
+- 🔴 **Red**: escribe el test, ejecútalo y **lee el fallo**. Debe fallar por la
+  razón correcta (no por un `NullPointerException` accidental).
+- 🟢 **Green**: el mínimo código que lo pone en verde. Nada de generalidad que
+  ningún test pida.
+- 🔧 **Refactor**: con la suite en verde, re-ejecutando tras cada paso.
 
-Los adaptadores serializan via `SapJsonMapper.write(dto)` en `common/sap/json/`.
-DTOs tipados con `@JsonProperty` en `<dominio>/adapters/sap/dto/`.
-Nunca usar `String.format` para JSON.
+Y siempre **de dentro afuera**, que es también la regla de dependencias:
+`domain` → `application` → `adapters` → `bootstrap`.
 
-### Vía BTP (adaptadores por defecto)
+## 1.3 Secuencia de una iteración
 
-`customer/adapters/sap/Btp*Adapter.java`. Delegan en `SapClient.send()` con
-destino `SapDestination.BTP`. Activos siempre (sin `@ConditionalOnProperty`).
+```
+1. Leer AGENTS.md (esto) y el spec de la feature en docs/sdd/<feature>/spec.md
+   └─ ¿no existe? se escribe ahora desde docs/sdd/_template/spec.md
+2. Traducir los criterios de aceptación (AC-n) del spec a tests → ROJO
+3. Implementar de dentro afuera hasta VERDE, refactorizar
+4. mvn verify
+5. Cerrar el ancla:
+   ├─ spec §9 (trazabilidad spec↔código↔test) y §10 (cambios)
+   └─ docs/sdd/README.md §5 (estado) y §6 (changelog, si abre/cierra brecha)
+```
 
-### Vía OData S/4HANA (adaptadores condicionales)
+Si el trabajo arranca desde el código (bug, refactor, hallazgo), la secuencia es
+la misma al revés: reproducir con un test en rojo, arreglar y **actualizar el
+spec** en el mismo PR.
 
-`customer/adapters/sap/odata/BusinessPartner*ODataAdapter.java`. Mismos puertos,
-pero envuelven el payload en `ODataPayload` (wrapper `{"d": {...}}` OData v2).
-Se activan individualmente con `sap.odata.<feature>.enabled=true` en
-`application-common.yml`. Coexisten con los BTP. Usan modelos generados desde
-`sap-integration-api` (paquete `com.poc.sap.integration.api.customer.model`).
+## 1.4 Definición de hecho
 
-### Modelos SAP generados (`sap-api-models`)
+- [ ] El spec existe y refleja el comportamiento final.
+- [ ] Cada `AC-n` tiene al menos un test que lo cita en su Javadoc.
+- [ ] Los tests nuevos se escribieron **antes** que su código.
+- [ ] `mvn verify` en verde.
+- [ ] Estado e índice de `docs/sdd/README.md` al día.
+- [ ] Ningún documento nuevo duplica algo que ya esté en `docs/architecture/` o `docs/sdd/`.
 
-Módulo reactor `sap-api-models` que contiene specs OpenAPI oficiales de SAP
-en `specs/<dominio>/` y genera clases Java tipadas via
-`openapi-generator-maven-plugin` en `target/generated-sources/` (no commiteado).
+## 1.5 Convenciones de código y test
 
-- `specs/customer/API_BUSINESS_PARTNER.yaml` — Business Partner (A2X, SAP_COM_0008)
-- Modelos generados: `APIBUSINESSPARTNERABusinessPartnerTypeCreate`, `ABusinessPartnerType`, etc.
-- Futuro: `specs/article/API_PRODUCT.yaml`, `specs/supplier/API_SUPPLIER.yaml`.
-- Es un **Published Language** (DDD): lenguaje definido por SAP, consumido por todos los bounded contexts. No es Shared Kernel (que es `common`).
+- **Tests**: clase `<Clase>Test` (unit/slice) o `<Escenario>IT` (integración);
+  método en **camelCase que describe la regla** (`missingCityFails`,
+  `retriesOn5xxUntilSuccess`), nunca `testX`.
+- **El Javadoc del test cita el `AC-n`** del spec; el Javadoc de la clase de
+  producción cita la sección de arquitectura (`(OVERVIEW.md §5)`, `(TECH.md §8)`).
+  Esa doble cita es el ancla vista desde el código.
+- **Sin Spring en `domain` ni `application`**: dominio puro, sin beans ni contexto.
+- **Mocks sobre puertos** (interfaces de `domain/port/`), nunca sobre
+  implementaciones concretas.
+- Resto de convenciones vigentes (fixtures, strict stubs, AssertJ, slice web) en
+  [`docs/testing/TESTING.md`](docs/testing/TESTING.md) §4.
 
-### Lectura OData (GET/search)
+---
 
-`BusinessPartnerReadPort` en `customer/domain/port/` implementado por
-`BusinessPartnerReadAdapter`. Usa `SapClient.get()` con query params OData
-(`$top`, `$filter`). Activado con `sap.odata.read.enabled=true`.
+# Parte 2 — Cómo está montada la aplicación
 
-### Soporte CSRF (S/4 on-premise/private cloud)
+## 2.1 Reactor Maven
 
-`CsrfTokenProvider` en `common/sap/odata/` con implementación
-`S4CsrfTokenProvider` (java.net.http.HttpClient, flujo `x-csrf-token: Fetch`).
-No se cablea automáticamente en `WebClientSapClient` — evolución futura.
+Un artefacto desplegable **por dominio**, más un shared kernel:
 
-### Modos de integración (Push / Pull)
+| Módulo | Qué es | Artefacto |
+|---|---|---|
+| `sap-api-models` | specs OpenAPI oficiales de SAP + modelos Java generados | jar de modelos |
+| `common` | **shared kernel**: máquina de estados, `SapClient`, auth, observabilidad, soporte de test | jar librería (semver) |
+| `customer` | app Spring Boot — puerto **8081** | jar ejecutable |
+| `article` | app Spring Boot — puerto **8082** | jar ejecutable |
+| `supplier` | placeholder (futuro) | — |
+| `it` | integración cross-dominio + contratos SAP (WireMock) | tests |
 
-La integración con SAP no es solo push desde nuestra app. Conviven dos modos,
-activables por `sap.integration.mode=push|pull|both` en `application-common.yml`:
+`sap-sdk-client/` **no es del reactor**: es un repositorio anidado
+independiente, spike OpenAPI desechable (Boot 3.5 / Java 17). No tocarlo como si
+fuera parte de la app.
 
-| Modo | Quién inicia | Canal | Quién paga upserts |
-|---|---|---|---|
-| **Push** | Nuestra app (CDC o REST) | `SapClient.send/patch()` → BTP o API directa SAP | Nosotros |
-| **Pull** | SAP BTP (polling) | `GET /btp/pending` + `POST /btp/result` | SAP |
+## 2.2 Arquitectura hexagonal por dominio
 
-- **Push**: CDC Kafka → `SyncCustomerUseCase` → adaptador → `SapClient` → SAP.
-- **Pull**: CDC Kafka → estado `PENDING_SAP` → SAP BTP pregunta pendientes → SAP procesa → SAP notifica resultado.
-- **Both**: se hace push inmediato y además queda pendiente para pull.
+Capas por paquete y regla de dependencias:
 
-Ver [`docs/architecture/FLOWS.md`](docs/architecture/FLOWS.md) para el detalle de cada flujo con nombres de clase.
+```
+bootstrap  →  adapters  →  application  →  domain
+(Spring)      (infra)      (use cases)     (puro, sin Spring)
+```
 
-### Contrato SAP Business Partner
+`domain` no depende de nada. `application` solo de `domain`. `adapters` de
+`application` (puertos) y de `common`. **Nada de lógica de negocio en
+`bootstrap` ni en `adapters`.**
 
-La especificación oficial de la API está en [`sap-api-models/specs/customer/API_BUSINESS_PARTNER.yaml`](sap-api-models/specs/customer/API_BUSINESS_PARTNER.yaml)
-(43156 líneas, SAP_COM_0008). El README acompañante en
-[`docs/specs/sap/README.md`](docs/specs/sap/README.md) lista los endpoints
-relevantes para nuestro dominio y el mapping features↔API.
+## 2.3 El pipeline, de punta a punta
 
-## Documentación
+```
+Kafka outbox.CUSTOMER / outbox.ARTICLE   (CDC: triggers legacy → outbox → Debezium)
+  │            REST POST /customers/sync · /articles/sync   (entrada alternativa)
+  ▼
+<Dominio>KafkaListener / Sync<Dominio>Controller     →  IngestionMessage
+  ▼
+Sync<Dominio>UseCase        dedupe por payloadHash (idempotencia)
+  ├─ LegacyRepositoryPort   → SQL Server (customer) / PostgreSQL (article)
+  ├─ <Dominio>Validations   → reglas de negocio (domain puro)
+  ├─ ImageStorePort         → MongoDB (imagen actual)
+  ├─ HistoryIndexerPort     → Elasticsearch (histórico)
+  └─ SapOutboundPort        → SapClient → SAP BTP / S/4 nativo
+  ▼
+SyncStateMachine (common) — cada transición persistida en Mongo con timestamp, origen y hash
+```
 
-Fuentes de verdad del proyecto (consultar antes de cambiar arquitectura o stack):
+Estados: `RECEIVED → FETCHING → VALIDATING → {VALID|INVALID} → INDEXING →
+INDEXED → SENDING_SAP → {SENT_SAP|SAP_ERROR}`, más `ERROR` y
+`COMMUNICATION_ERROR` recuperables. `SENT_SAP` e `INVALID` cierran el ciclo pero
+admiten re-entrada a `RECEIVED` con un evento nuevo.
 
-- `docs/specs/SPEC.md` — especificación funcional (agnóstica a tecnología): objetivo, dominios, ingestas, destinos SAP, máquina de estados, criterios de aceptación.
-- `docs/specs/TECH.md` — stack tecnológico: Java 25 + Spring Boot 4.0 + Maven, capas hexagonales, puertos/adaptadores, persistencia, observabilidad, testing.
-- `sap-api-models/specs/customer/API_BUSINESS_PARTNER.yaml` — especificación OpenAPI oficial de SAP S/4HANA (Business Partner A2X, SAP_COM_0008, 43156 líneas).
-- `docs/specs/sap/README.md` — catálogo de endpoints SAP relevantes para nuestro dominio y mapping features↔API.
-- `docs/architecture/OVERVIEW.md` — mapas y esquemas: módulos, aggregate Customer, flujos CDC/REST/feature, deployment, convención de paquetes.
-- `docs/architecture/FLOWS.md` — flujos de integración SAP con nombres de clase: CDC completo, consulta BP, creación BP, callback BTP, mapa de rutas BTP vs OData, actualización BP.
-- `docs/testing/TESTING.md` — estrategia y catálogo de tests (191 tests, tipos, contratos SAP, issues conocidos).
-- `docs/integrations/SAP_CLOUD_SDK.md` — guía de integración con SAP Cloud SDK: OData VDM, OpenAPI, BTP destinations, arquitectura hexagonal, módulos Maven.
-- `docs/GLOSSARY.md` — términos del proyecto con definiciones y enlaces internos/externos.
-- `external-services/README.md` — cómo levantar la infraestructura local (Kafka, PostgreSQL, SQL Server, MongoDB, Elasticsearch/Kibana, MinIO).
-- Proyecto Python de referencia: `../poc-sap-integration`.
+Detalle con nombres de clase en [`docs/architecture/FLOWS.md`](docs/architecture/FLOWS.md);
+esquema completo en [`docs/architecture/OVERVIEW.md`](docs/architecture/OVERVIEW.md) §5.
 
-## Al modificar código
+## 2.4 Puertos clave
 
-- **Nuevo dominio**: añadir módulo al reactor + entrada en `<modules>` del parent.
-- **Nueva feature**: use case en `<dominio>/application/`.
-- **Nuevo puerto**: interfaz en `<dominio>/domain/port/`; adaptador en
+| Puerto | Implementaciones |
+|---|---|
+| `IngestionPort` | `CustomerKafkaListener`/`ArticleKafkaListener` (CDC), `Sync*Controller` (REST) |
+| `LegacyRepositoryPort<T>` | `SqlServerCustomerRepository`, `PostgresArticleRepository` |
+| `ImageStorePort<T>` | `MongoCustomerImageStore`, `MongoArticleImageStore` |
+| `HistoryIndexerPort<T>` | `ElasticsearchCustomerIndexer`, `ElasticsearchArticleIndexer` |
+| `SyncStateRepositoryPort` | `MongoSyncStateRepository` (en `common`, compartido — no duplicar) |
+| `SapOutboundPort<P>` | por feature: `AddressSapPort`, `FiscalSapPort`, `ContactSapPort`, `BankingSapPort`, `CustomerSapOutboundPort`, `MandateSapOutboundPort` |
+| `BusinessPartnerReadPort` | `BusinessPartnerReadAdapter` (GET/search OData, `sap.odata.read.enabled=true`) |
+
+## 2.5 Endpoints REST
+
+| Método | Ruta | Qué hace |
+|---|---|---|
+| `POST` | `/customers/sync` · `/articles/sync` | ingesta síncrona (mismo pipeline que CDC) |
+| `POST` | `/customers/validate` | valida sin enviar |
+| `GET` | `/customers/{id}/history` · `/articles/{id}/history` | histórico indexado |
+| `GET` | `/customers/{id}/history/diff` · `/articles/{id}/history/diff` | diff entre versiones |
+
+> Sin autenticación todavía — brecha abierta, ver [`docs/sdd/README.md`](docs/sdd/README.md) §6.
+
+## 2.6 Integración con SAP
+
+**Cliente HTTP low-level.** `SapClient` (`common/sap/`) abstrae transporte,
+auth, retry y circuit breaker; soporta GET, `send` (POST), PATCH y DELETE.
+Implementado por `WebClientSapClient` (WebClient + Resilience4j):
+
+- 5xx y errores de transporte → retry con backoff y cuentan para el circuit
+  breaker; **4xx no se reintenta**.
+- Timeouts vía `sap.client.connect-timeout-ms` / `sap.client.response-timeout-ms`.
+- `Idempotency-Key` = `payloadHash` en cada envío.
+- **CSRF OData V2 cableado**: `CsrfTokenProvider`/`S4CsrfTokenProvider` hacen el
+  fetch de `x-csrf-token` en escrituras a S/4, con refresh y reintento único
+  ante 403 (`sap.s4.csrf.enabled`).
+- **OAuth2 client-credentials real** con caché por expiración (`OAuth2TokenClient`;
+  xsuaa para BTP, token endpoint o basic para S/4). Cae a token **stub** solo si
+  falta configuración — dev local contra mocks.
+
+**Dos familias de adaptadores de salida, sobre los mismos puertos:**
+
+| Familia | Dónde | Activación |
+|---|---|---|
+| **BTP** | `customer/adapters/sap/Btp*Adapter.java` | siempre activos (sin `@ConditionalOnProperty`) |
+| **OData S/4 nativo** | `customer/adapters/sap/odata/BusinessPartner*ODataAdapter.java` | por feature: `sap.odata.<feature>.enabled=true` |
+
+Ambas coexisten; qué adaptador atiende un mensaje depende de la configuración.
+
+**Serialización.** Siempre `SapJsonMapper.write(dto)` (`common/sap/json/`), nunca
+`String.format`. El payload va **sin envolver**: el wrapper `{"d":...}` de OData
+V2 aparece solo en las *respuestas*, jamás en el body de la petición. DTOs con
+`@JsonProperty` en `<dominio>/adapters/sap/dto/`; los adaptadores OData usan los
+modelos generados de `sap-api-models`
+(`com.poc.sap.integration.api.customer.model`), no DTOs manuales.
+
+**Modelos generados (`sap-api-models`).** Las specs OpenAPI oficiales viven en
+`sap-api-models/specs/<dominio>/` (fuera de `src/main/resources`) y el
+`openapi-generator-maven-plugin` produce las clases en
+`target/generated-sources/` (no commiteadas). Es un **Published Language** (DDD):
+lenguaje definido por SAP y consumido por todos los bounded contexts — no
+confundir con el Shared Kernel, que es `common`. Catálogo en
+[`docs/sdd/sap-api-catalog.md`](docs/sdd/sap-api-catalog.md).
+
+> ⚠️ **Push es lo implementado.** El modo *pull* (SAP BTP orquestando el ciclo,
+> estado `PENDING_SAP`, endpoints `/btp/pending` y `/btp/result`) es una
+> **propuesta no implementada**: ni ese estado ni esos endpoints existen en el
+> código. Lo mismo aplica al batch D+1 y a los eventos de stock desde S/4. Ver
+> [`docs/architecture/INTEGRATION-PATTERNS.md`](docs/architecture/INTEGRATION-PATTERNS.md),
+> que distingue implementado de propuesto.
+
+## 2.7 Stack
+
+- **Java** 23 mínimo, objetivo **25 LTS** (records, sealed, pattern matching,
+  virtual threads). Profile Maven `jdk25` auto-activado con JDK 25+.
+- **Spring Boot 4.0**. Cuidado con sus rupturas ya resueltas: usar
+  `spring-boot-starter-kafka` (el `spring-kafka` suelto no autoconfigura),
+  Jackson 3 por defecto, **sin** starter OTel (incompatible — se usa el
+  javaagent), y `@WebMvcTest` eliminado (slice web con
+  `MockMvcBuilders.standaloneSetup`).
+- **SAP Cloud SDK** 5.32.0 · **Resilience4j** · **Micrometer + Prometheus** ·
+  trazas por **OTel javaagent**.
+- **Testing**: JUnit 5, Mockito, AssertJ, WireMock, Testcontainers.
+
+## 2.8 Comandos
+
+```bash
+mvn validate                          # validar reactor
+mvn test                              # unit + slice (sin Docker)
+mvn verify                            # + integración
+mvn -pl common install -DskipTests    # publicar shared kernel local
+mvn -pl customer test                 # un dominio
+mvn -pl customer test -Dtest=AddressValidatorTest#missingCityFails
+mvn -pl it verify                     # cross-dominio + contratos SAP
+mvn generate-sources -pl sap-api-models   # regenerar modelos SAP
+```
+
+Infraestructura local (Kafka, SQL Server, PostgreSQL, Mongo, Elasticsearch,
+MinIO): `cd external-services && docker compose up -d`.
+
+---
+
+# Parte 3 — Reglas al modificar código
+
+- **Antes de tocar nada**: localizar (o escribir) el spec de la feature y el test
+  que falla. Sin eso no se empieza.
+- **Nueva feature**: spec → tests en rojo → value object + validador en
+  `domain/feature/<feature>/` → alta en el enum `CustomerFeature` →
+  `<Feat>SapPort` + adaptador → `Sync<Feat>UseCase` → dispatch en
+  `SyncCustomerUseCase`.
+- **Nuevo dominio**: spec → módulo en `<modules>` del parent → dependencia a
+  `common` → tests de validación en rojo → aggregate, puertos, use case,
+  adaptadores → `@SpringBootApplication` + `@KafkaListener(outbox.<DOM>)` + REST
+  → `application.yml` con `spring.config.import=application-common.yml`.
+  **Reutilizar** `SyncStateMachine` y `MongoSyncStateRepository`, no duplicarlos.
+- **Nuevo puerto**: interfaz en `<dominio>/domain/port/`, adaptador en
   `<dominio>/adapters/`.
-- **Nuevo DTO SAP**: record/POJO con `@JsonProperty` en `<dominio>/adapters/sap/dto/`.
-  Usar `SapJsonMapper.write(dto)` en el adaptador, nunca `String.format`.
+- **Nuevo DTO SAP**: record/POJO con `@JsonProperty` en
+  `<dominio>/adapters/sap/dto/`, serializado con `SapJsonMapper.write(dto)`.
 - **Nuevo adaptador OData**: en `<dominio>/adapters/sap/odata/`, implementa el
-  puerto existente, serializa la entidad **sin envolver** con
-  `SapJsonMapper.write(modelo)` (el wrapper `{"d":...}` solo aparece en las
-  respuestas OData v2, nunca en el body de las peticiones), activación
-  condicional con `@ConditionalOnProperty("sap.odata.<feature>.enabled")`.
-  Usa modelos generados de `sap-api-models` (paquete
-  `com.poc.sap.integration.api.customer.model`), no DTOs manuales.
-- **Nueva spec SAP**: colocar el YAML en `sap-api-models/specs/<dominio>/`
-  (fuera de `src/main/resources` para no empaquetarlo en el JAR) y añadir una
-  `<execution>` en el `openapi-generator-maven-plugin`. Tras regenerar
-  (`mvn generate-sources -pl sap-api-models`), los modelos aparecen en
-  `target/generated-sources/openapi/`.
-- **Cambio en `SapClient`**: si se añade un nuevo método HTTP, implementar en
-  `WebClientSapClient` via el método `exchange()` interno.
-- **Cambio en `common`**: bump de versión según semver; ejecutar `it/` antes.
-- **Nada de lógica de negocio en `bootstrap` ni `adapters`**.
-- **Secretos fuera del código**: vía variables de entorno / Vault, nunca en YAML
+  puerto existente, serializa **sin envolver**, activación condicional con
+  `@ConditionalOnProperty("sap.odata.<feature>.enabled")`, modelos generados de
+  `sap-api-models`.
+- **Nueva spec SAP**: YAML en `sap-api-models/specs/<dominio>/` + `<execution>` en
+  el `openapi-generator-maven-plugin`, y alta en
+  [`docs/sdd/sap-api-catalog.md`](docs/sdd/sap-api-catalog.md).
+- **Cambio en `SapClient`**: nuevo método HTTP → implementar en
+  `WebClientSapClient` vía su `exchange()` interno.
+- **Cambio en `common`**: bump semver y ejecutar `it/` **antes**; un
+  `minor`/`major` obliga a re-desplegar todos los dominios.
+- **Secretos fuera del código**: variables de entorno / Vault, nunca en YAML
   commiteados.
+- **Al cerrar**: spec §9 y §10, e índice/changelog de `docs/sdd/README.md`.
+
+---
+
+# Parte 4 — Mapa de documentación
+
+Qué leer según lo que necesites. **No dupliques contenido entre estos ficheros**:
+si algo ya está escrito, enlázalo.
+
+| Necesitas… | Documento |
+|---|---|
+| **qué debe hacer** el sistema, estado por feature, brechas | [`docs/sdd/README.md`](docs/sdd/README.md) |
+| el spec de una feature concreta | `docs/sdd/<feature>/spec.md` (plantilla: [`docs/sdd/_template/spec.md`](docs/sdd/_template/spec.md)) |
+| contratos SAP (APIs OpenAPI oficiales) | [`docs/sdd/sap-api-catalog.md`](docs/sdd/sap-api-catalog.md) |
+| **cómo se desarrolla**: ciclo SDD+TDD, capas, DoD | [`docs/development/README.md`](docs/development/README.md) |
+| **cómo está construido**: módulos, dominios, estados, deployment, NFR | [`docs/architecture/OVERVIEW.md`](docs/architecture/OVERVIEW.md) |
+| stack y decisiones técnicas | [`docs/architecture/TECH.md`](docs/architecture/TECH.md) |
+| flujos con nombres de clase para navegar el código | [`docs/architecture/FLOWS.md`](docs/architecture/FLOWS.md) |
+| patrones de integración SAP (implementado vs propuesto) | [`docs/architecture/INTEGRATION-PATTERNS.md`](docs/architecture/INTEGRATION-PATTERNS.md) |
+| mapa funcional navegable (HTML, doble clic) | [`docs/architecture/MAPA-FUNCIONAL.html`](docs/architecture/MAPA-FUNCIONAL.html) |
+| arrancar en local en ~15 min | [`docs/QUICK_START.md`](docs/QUICK_START.md) |
+| catálogo de la suite de tests y convenciones | [`docs/testing/TESTING.md`](docs/testing/TESTING.md) |
+| probar a fondo (CDC, resiliencia, tenant real) | [`docs/testing/GUIA-PRUEBAS.md`](docs/testing/GUIA-PRUEBAS.md) |
+| SAP Cloud SDK (OData VDM, OpenAPI, destinations) | [`docs/integrations/SAP_CLOUD_SDK.md`](docs/integrations/SAP_CLOUD_SDK.md) |
+| propuesta de servidor MCP para agentes IA | [`docs/integrations/MCP.md`](docs/integrations/MCP.md) |
+| terminología del proyecto | [`docs/GLOSSARY.md`](docs/GLOSSARY.md) |
+| levantar la infraestructura local | [`external-services/README.md`](external-services/README.md) |
+| proyecto Python de referencia | `../poc-sap-integration` |

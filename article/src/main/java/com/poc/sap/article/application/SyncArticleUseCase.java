@@ -21,7 +21,7 @@ import java.util.Optional;
 
 /**
  * Use case principal de Article: fetch → validate → index → send to SAP
- * (SPEC.md §3, §4, §8). Idempotente por payloadHash.
+ * (OVERVIEW.md §2, §5; TECH.md §6). Idempotente por payloadHash.
  */
 @Service
 public class SyncArticleUseCase {

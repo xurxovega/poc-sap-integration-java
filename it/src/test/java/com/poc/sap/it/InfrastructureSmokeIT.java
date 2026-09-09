@@ -10,7 +10,7 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Smoke test de la infraestructura de integracion (SPEC.md §9; TECH.md §10).
+ * Smoke test de la infraestructura de integracion (TECH.md §10).
  * Verifica que las dependencias externas (Kafka, Mongo) arrancan via
  * Testcontainers. Se deshabilita si no hay Docker disponible.
  *

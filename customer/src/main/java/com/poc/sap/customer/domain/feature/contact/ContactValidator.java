@@ -5,7 +5,7 @@ import com.poc.sap.common.domain.ValidationResult;
 import java.util.regex.Pattern;
 
 /**
- * Validaciones de negocio para la feature CONTACT (SPEC.md §3, §9).
+ * Validaciones de negocio para la feature CONTACT (OVERVIEW.md §2).
  */
 public final class ContactValidator {
 

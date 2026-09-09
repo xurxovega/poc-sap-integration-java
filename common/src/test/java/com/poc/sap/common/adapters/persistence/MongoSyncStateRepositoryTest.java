@@ -18,7 +18,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.*;
 
 /**
- * Test unit del {@link MongoSyncStateRepository} (SPEC.md §8; TECH.md §7).
+ * Test unit del {@link MongoSyncStateRepository} (OVERVIEW.md §5; TECH.md §7).
  * Mockea el Spring Data Mongo repo para no levantar Testcontainers.
  */
 @ExtendWith(MockitoExtension.class)

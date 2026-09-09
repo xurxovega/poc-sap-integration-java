@@ -1,7 +1,7 @@
 package com.poc.sap.common.domain.port;
 
 /**
- * Puerto de almacenamiento de la imagen actual de la entidad (SPEC.md).
+ * Puerto de almacenamiento de la imagen actual de la entidad (OVERVIEW.md §4).
  * MongoDB en la implementacion de referencia.
  *
  * @param <E> tipo de la entidad del dominio

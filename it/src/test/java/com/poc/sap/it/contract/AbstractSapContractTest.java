@@ -11,7 +11,7 @@ import java.net.http.HttpResponse;
 import static com.github.tomakehurst.wiremock.core.WireMockConfiguration.wireMockConfig;
 
 /**
- * Base para tests de contrato SAP (SPEC.md §5; TECH.md §10).
+ * Base para tests de contrato SAP (TECH.md §8, §10).
  * Provee un WireMock por test y un helper POST HTTP.
  */
 abstract class AbstractSapContractTest {

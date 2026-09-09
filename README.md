@@ -4,22 +4,48 @@ Integración de datos maestros (customer, article, supplier) desde sistemas
 legacy hacia **SAP S/4 Public Cloud**. Migración del POC Python a
 **Java 25 + Spring Boot 4.0 + Maven**.
 
+> **¿Vas a trabajar en este repo (persona o agente IA)?** Empieza por
+> [`AGENTS.md`](AGENTS.md): operativa obligatoria (SDD anchor + TDD), cómo está
+> montada la aplicación y reglas al modificar código.
+
 ## Documentación
 
-- [`docs/specs/SPEC.md`](docs/specs/SPEC.md) — especificación funcional agnóstica a tecnología: objetivo, dominios, fuentes de entrada, destinos SAP, máquina de estados, criterios de aceptación.
-- [`docs/specs/TECH.md`](docs/specs/TECH.md) — stack tecnológico: Java 25 + Spring Boot 4.0 + Maven, puertos y adaptadores, persistencia, observabilidad, testing.
-- [`docs/specs/sap/`](docs/specs/sap/) — [README.md](docs/specs/sap/README.md): catálogo de las specs OpenAPI oficiales de S/4HANA Cloud usadas o previstas (Business Partner, mandato SEPA, producto, stock, precios, características, números de serie, bancos, activos fijos) con enlaces al [SAP Business Accelerator Hub](https://api.sap.com/package/SAPS4HANACloud/odata); las copias canónicas viven en `sap-api-models/specs/<dominio>/`.
-- [`docs/architecture/OVERVIEW.md`](docs/architecture/OVERVIEW.md) — mapas y esquemas del aplicativo: módulos, aggregate Customer, flujos CDC/REST/feature, puertos y adaptadores, máquina de estados, deployment, convención de paquetes.
-- [`docs/QUICK_START.md`](docs/QUICK_START.md) — **arranque rápido**: requisitos, compilación, infraestructura local en contenedores, SAP simulado, arranque de cada app, primer smoke test, CDC end-to-end, puertos y problemas frecuentes.
+La documentación está organizada por **para qué sirve cada cosa**:
+
+### Qué debe hacer el sistema — SDD
+
+- [`docs/sdd/README.md`](docs/sdd/README.md) — **punto de entrada del proyecto**: la regla del ancla spec↔código, índice de features con su estado, criterios de aceptación globales, changelog de brechas resueltas/pendientes y supuestos vigentes del PoC.
+- [`docs/sdd/<feature>/spec.md`](docs/sdd/) — un spec por feature o flow: entradas, reglas de negocio, mapeo a SAP, estados, criterios de aceptación y trazabilidad al código. Plantilla en [`docs/sdd/_template/spec.md`](docs/sdd/_template/spec.md).
+- [`docs/sdd/sap-api-catalog.md`](docs/sdd/sap-api-catalog.md) — contratos externos: catálogo de las specs OpenAPI oficiales de S/4HANA Cloud usadas o previstas (Business Partner, mandato SEPA, producto, stock, precios, características, números de serie, bancos, activos fijos) con enlaces al [SAP Business Accelerator Hub](https://api.sap.com/package/SAPS4HANACloud/odata); las copias canónicas viven en `sap-api-models/specs/<dominio>/`.
+
+### Cómo se desarrolla — TDD
+
+- [`docs/development/README.md`](docs/development/README.md) — ciclo de trabajo: spec → test en rojo → código → refactor; orden de las capas, convenciones de test, definición de hecho y recetas para añadir un dominio o una feature.
+
+### Cómo está construido — arquitectura
+
+- [`docs/architecture/OVERVIEW.md`](docs/architecture/OVERVIEW.md) — objetivo y alcance, módulos, dominios y aggregate Customer, flujos CDC/REST/feature, puertos y adaptadores, máquina de estados, deployment y versionado, requisitos no funcionales, convención de paquetes.
+- [`docs/architecture/TECH.md`](docs/architecture/TECH.md) — stack tecnológico: Java 25 + Spring Boot 4.0 + Maven, capas hexagonales, entradas, persistencia, clientes SAP, observabilidad, testing.
 - [`docs/architecture/FLOWS.md`](docs/architecture/FLOWS.md) — flujos de integración SAP con nombres de clase para navegar el código: CDC completo, consulta BP, creación BP, callback BTP, mapa de rutas BTP vs directo, actualización BP.
 - [`docs/architecture/INTEGRATION-PATTERNS.md`](docs/architecture/INTEGRATION-PATTERNS.md) — esquemas visuales (Mermaid) de los patrones de integración con SAP: CDC→OData S/4 y CDC→BTP (implementados); pull desde BTP, batch disparado por topic Kafka y eventos S/4 (stock) como implementación futura.
-- [`docs/architecture/MAPA-FUNCIONAL.html`](docs/architecture/MAPA-FUNCIONAL.html) — mapa funcional navegable en un solo fichero HTML (ábrelo con doble clic): mapa clicable de todas las piezas y cómo se conectan, 16 diagramas de secuencia Mermaid por dominio con sus subentidades, tablas de referencia (puertos, topics, almacenes, endpoints, configuración) y la lista de brechas verificadas contra el código. Distingue lo implementado de lo propuesto y permite filtrar por estado.
-- [`docs/integrations/SAP_CLOUD_SDK.md`](docs/integrations/SAP_CLOUD_SDK.md) — guía de integración con SAP Cloud SDK: OData VDM (Business Partner), OpenAPI (APIs propias de SAP y callbacks), BTP destinations, arquitectura hexagonal, módulos Maven.
-- [`docs/integrations/MCP.md`](docs/integrations/MCP.md) — propuesta a futuro: servidor MCP de consulta para agentes IA (estado de sync, histórico, diff), con sus prerrequisitos de autenticación y ofuscación de datos sensibles.
+- [`docs/architecture/MAPA-FUNCIONAL.html`](docs/architecture/MAPA-FUNCIONAL.html) — mapa funcional navegable en un solo fichero HTML (ábrelo con doble clic): mapa clicable de todas las piezas y cómo se conectan, 16 diagramas de secuencia Mermaid por dominio con sus subentidades, tablas de referencia (puertos, topics, almacenes, endpoints, configuración) y la lista de brechas verificadas contra el código.
+
+### Cómo se arranca y se prueba
+
+- [`docs/QUICK_START.md`](docs/QUICK_START.md) — **arranque rápido**: requisitos, compilación, infraestructura local en contenedores, SAP simulado, arranque de cada app, primer smoke test, CDC end-to-end, puertos y problemas frecuentes.
 - [`docs/testing/TESTING.md`](docs/testing/TESTING.md) — estrategia y catálogo de la suite de tests (211 tests, tipos, convenciones, contratos SAP, issues conocidos).
 - [`docs/testing/GUIA-PRUEBAS.md`](docs/testing/GUIA-PRUEBAS.md) — guía práctica de pruebas por niveles: suite automática, entorno local con mock de SAP, flujo REST, CDC end-to-end con Debezium, resiliencia (retry/DLT/CSRF), métricas y pruebas contra tenant real.
-- [`docs/integration-guide/README.md`](docs/integration-guide/README.md) — estado de la integración SAP: brechas resueltas (resiliencia, OAuth2, CSRF, idempotencia, DLT, CDC) y pendientes (saga por feature, contactos, mandatos).
+
+### Integraciones y referencia
+
+- [`docs/integrations/SAP_CLOUD_SDK.md`](docs/integrations/SAP_CLOUD_SDK.md) — guía de integración con SAP Cloud SDK: OData VDM (Business Partner), OpenAPI (APIs propias de SAP y callbacks), BTP destinations, arquitectura hexagonal, módulos Maven.
+- [`docs/integrations/MCP.md`](docs/integrations/MCP.md) — propuesta a futuro: servidor MCP de consulta para agentes IA (estado de sync, histórico, diff), con sus prerrequisitos de autenticación y ofuscación de datos sensibles.
 - [`docs/GLOSSARY.md`](docs/GLOSSARY.md) — glosario de términos del proyecto con definiciones y enlaces.
+
+> **Cómo trabajamos**: SDD *anchor* + TDD. Si cambia el spec, cambia el código;
+> si cambia el código, se ajusta el spec — en el mismo PR. Y ningún código de
+> producción se escribe sin un test que falle antes. Detalle en
+> [`docs/development/README.md`](docs/development/README.md).
 
 ## Arquitectura
 
@@ -220,7 +246,7 @@ Catálogo completo, convenciones, gaps y issues en
 ## Saneamiento 2026-07 (rama `feature/saneamiento-integracion-sap`)
 
 Cambios estructurales aplicados sobre `develop` — detalle y estado por brecha
-en [`docs/integration-guide/README.md`](docs/integration-guide/README.md):
+en [`docs/sdd/README.md`](docs/sdd/README.md) §6:
 
 - **Arranque**: config `sap.s4` duplicada fusionada; `SapIntegrationConfig`
   (common) aporta `SapClient`, auth providers y registries Resilience4j;

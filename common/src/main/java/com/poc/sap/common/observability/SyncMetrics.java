@@ -9,7 +9,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
 /**
- * Facade de metricas por dominio y estado de la maquina de estados (SPEC.md §7,
+ * Facade de metricas por dominio y estado de la maquina de estados (OVERVIEW.md §9,
  * TECH.md §9). Centraliza contadores y timers para que los dominios no dependan
  * directamente de Micrometer.
  */

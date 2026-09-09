@@ -5,8 +5,8 @@
 > esperar a que arranque SQL Server).
 >
 > Para entender *qué* hace el proyecto antes de arrancarlo, empieza por
-> [`docs/specs/SPEC.md`](specs/SPEC.md) y
-> [`docs/architecture/OVERVIEW.md`](architecture/OVERVIEW.md).
+> [`docs/architecture/OVERVIEW.md`](architecture/OVERVIEW.md) y los specs por
+> feature en [`docs/sdd/`](sdd/README.md).
 > Para probarlo a fondo (resiliencia, DLT, CSRF, tenant real), sigue después con
 > [`docs/testing/GUIA-PRUEBAS.md`](testing/GUIA-PRUEBAS.md).
 
@@ -357,8 +357,9 @@ docker compose down -v     # ...y borra volúmenes (reset total de datos y seeds
 
 ## 10. Siguientes pasos
 
-1. **Entender el dominio** — [`docs/specs/SPEC.md`](specs/SPEC.md) y [`docs/GLOSSARY.md`](GLOSSARY.md).
+1. **Entender el dominio** — [`docs/architecture/OVERVIEW.md`](architecture/OVERVIEW.md) y [`docs/GLOSSARY.md`](GLOSSARY.md).
 2. **Entender el código** — [`docs/architecture/OVERVIEW.md`](architecture/OVERVIEW.md) (módulos y capas) y [`docs/architecture/FLOWS.md`](architecture/FLOWS.md) (flujos con nombres de clase).
 3. **Patrones de integración** — [`docs/architecture/INTEGRATION-PATTERNS.md`](architecture/INTEGRATION-PATTERNS.md).
 4. **Probar a fondo** — [`docs/testing/GUIA-PRUEBAS.md`](testing/GUIA-PRUEBAS.md): resiliencia, DLT, CSRF, métricas, tenant real.
-5. **Estado de la integración** — [`docs/integration-guide/README.md`](integration-guide/README.md): brechas resueltas y pendientes.
+5. **Estado de la integración** — [`docs/sdd/README.md`](sdd/README.md): índice de features, brechas resueltas y pendientes.
+6. **Cómo desarrollar aquí** — [`docs/development/README.md`](development/README.md): ciclo SDD + TDD.

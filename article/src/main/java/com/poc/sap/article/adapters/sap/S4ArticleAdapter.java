@@ -9,7 +9,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 /**
- * Adaptador SAP S/4 nativo para Article (SPEC.md §5, TECH.md §8).
+ * Adaptador SAP S/4 nativo para Article (TECH.md §8).
  */
 @Component
 public class S4ArticleAdapter implements ArticleSapOutboundPort {

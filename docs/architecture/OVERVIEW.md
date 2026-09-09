@@ -2,6 +2,18 @@
 
 > Mapa y esquemas del aplicativo `poc-sap-integration-java` (Java 25 + Spring Boot 4.0 + Maven).
 
+## Objetivo y alcance
+
+Sincronizar datos maestros (`customer`, `article`, `supplier`) desde sistemas
+legacy hacia **SAP S/4 Public Cloud**, con validación de negocio, trazabilidad
+de estado por registro, idempotencia y observabilidad, permitiendo el
+**despliegue independiente de cada dominio**.
+
+| | |
+|---|---|
+| **En alcance** | CDC desde legacy (outbox + Debezium) · validación de negocio · indexación (imagen actual + histórico) · envío a APIs SAP BTP y nativas S/4 · API REST síncrona como entrada alternativa · consumo de eventos Kafka directos · trazabilidad por registro vía máquina de estados |
+| **Fuera de alcance (futuro)** | orquestación tipo *saga* entre dominios · GraphQL y notificaciones WebSocket · event sourcing completo (sí historización en índice) |
+
 ## 1. Vista de módulos (reactor Maven)
 
 ```
@@ -38,7 +50,18 @@
 - `article-app`  :8082
 - `supplier-app` :8083 (futuro)
 
-## 2. Vista del dominio Customer (aggregate + features)
+## 2. Vista de dominios (aggregate + features)
+
+Un dominio = un *bounded context* = un artefacto desplegable. Cada uno declara
+sus entidades y sus features:
+
+| Dominio   | Entidades         | Features                                               | Estado |
+|-----------|-------------------|--------------------------------------------------------|--------|
+| customer  | Customer, Mandate | sync, validate, index, delete_customer, delete_mandate | activo |
+| article   | Article           | sync, validate, index                                  | activo |
+| supplier  | Supplier          | sync, validate, index                                  | placeholder (futuro) |
+
+### Aggregate Customer
 
 ```
 +=========================================================================+
@@ -247,6 +270,9 @@ Reside en `common/domain/SyncStateMachine.java` (dominio-agnóstico).
                                             (terminal)
 ```
 
+Cada transición se persiste con `timestamp`, `origen` y `payloadHash`, de modo
+que el estado de cualquier registro es consultable (imagen actual + histórico).
+
 **Transiciones permitidas** (resumen):
 
 | from            | to                         |
@@ -328,22 +354,22 @@ Reside en `common/domain/SyncStateMachine.java` (dominio-agnóstico).
 - Modificar `article` → redeploy `article-app`.
 - Modificar `common` (minor/major) → redeploy todos los dominios (por eso `common` requiere pruebas de integración estrictas y versionado semántico).
 
+**Versionado del shared kernel**: `common` se versiona semánticamente y evoluciona
+*backward-compatible* por defecto. Criterio de re-despliegue de los dominios:
+
+| Cambio en `common` | Re-despliegue de dominios |
+|--------------------|---------------------------|
+| `patch`            | Opcional                  |
+| `minor`            | Recomendado               |
+| `major`            | Obligatorio               |
+
 ## 7. Stack tecnológico
 
-| Capa              | Tecnología                                     |
-|-------------------|------------------------------------------------|
-| Lenguaje           | Java 25 LTS (records, sealed, virtual threads) |
-| Framework          | Spring Boot 4.0                                 |
-| Build              | Maven 3.9+ multi-module reactor                 |
-| Mensajería         | spring-boot-starter-kafka (CDC por Debezium) + DLT `<topic>.DLT` |
-| Persistencia       | Spring Data JPA (SQL Server/Postgres)           |
-|                    | Spring Data MongoDB (imagen + estado)          |
-|                    | Spring Data Elasticsearch (histórico)         |
-| Clientes SAP       | WebClient + OAuth2 (xsuaa/S4)                  |
-| Resilencia         | Resilience4j (retry + circuit breaker)         |
-| Observabilidad     | Micrometer + Prometheus; trazas via OTel javaagent (el starter OTel no soporta Boot 4) |
-| Testing            | JUnit 5, Mockito, AssertJ, WireMock, Testcontainers |
-| Empaquetado        | Spring Boot Maven Plugin (jar executable)      |
+Detalle completo (plataforma, build, persistencia, clientes SAP, observabilidad,
+testing, empaquetado) en [`TECH.md`](TECH.md). Resumen: Java 25 LTS +
+Spring Boot 4.0 + Maven 3.9 multi-módulo, Kafka (CDC Debezium) con DLT,
+JPA (SQL Server/Postgres) + MongoDB + Elasticsearch, WebClient + OAuth2 hacia
+SAP con Resilience4j, Micrometer/Prometheus + OTel javaagent.
 
 ## 8. Convenciones de paquetes
 
@@ -393,12 +419,24 @@ com.poc.sap.<dominio>/
     └── kafka/                    @KafkaListener
 ```
 
-## 9. Referencias
+## 9. Requisitos no funcionales
 
-- `docs/specs/SPEC.md` — especificación funcional agnóstica a tecnología.
-- `docs/specs/TECH.md` — stack tecnológico detallado.
-- `sap-api-models/specs/customer/API_BUSINESS_PARTNER.yaml` — especificación OpenAPI oficial SAP (SAP_COM_0008).
-- `docs/architecture/FLOWS.md` — flujos de integración con nombres de clase: CDC, consulta BP, creación BP, pull vía BTP, push vs pull, mapa de rutas.
-- `docs/integrations/SAP_CLOUD_SDK.md` — guía de integración con SAP Cloud SDK (fases de implementación).
-- `docs/testing/TESTING.md` — estrategia y catálogo de tests.
+| Requisito | Cómo se cumple |
+|---|---|
+| **Idempotencia** | hash de payload + identificador de entidad; los reintentos no duplican envíos a SAP (`SyncStateRepositoryPort.alreadySent`, cabecera `Idempotency-Key`) |
+| **Resiliencia** | retry con backoff exponencial y circuit breaker hacia SAP (Resilience4j); DLT `<topic>.DLT` en la ingesta Kafka |
+| **Trazabilidad** | cada registro pasa por la máquina de estados (§5) y se persiste cada transición |
+| **Observabilidad** | métricas por dominio y estado, logs estructurados y trazas distribuidas ([`TECH.md`](TECH.md) §9) |
+| **Rendimiento** | procesamiento concurrente por dominio (virtual threads); throughput configurable por dominio |
+| **Seguridad** | secretos fuera del código (variables de entorno), credenciales SAP rotativas, sin logs de secretos |
+
+## 10. Referencias
+
+- [`TECH.md`](TECH.md) — stack tecnológico detallado.
+- [`../sdd/README.md`](../sdd/README.md) — specs por feature (SDD anchor) y estado del proyecto.
+- [`../development/README.md`](../development/README.md) — ciclo de trabajo SDD + TDD.
+- [`../sdd/sap-api-catalog.md`](../sdd/sap-api-catalog.md) — catálogo de las specs OpenAPI oficiales de SAP.
+- [`FLOWS.md`](FLOWS.md) — flujos de integración con nombres de clase: CDC, consulta BP, creación BP, pull vía BTP, push vs pull, mapa de rutas.
+- [`../integrations/SAP_CLOUD_SDK.md`](../integrations/SAP_CLOUD_SDK.md) — guía de integración con SAP Cloud SDK (fases de implementación).
+- [`../testing/TESTING.md`](../testing/TESTING.md) — estrategia y catálogo de tests.
 - `README.md` — intro, requisitos, comandos, debug VS Code.

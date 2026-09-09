@@ -12,7 +12,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
 /**
- * Adaptador SAP BTP para la feature ADDRESS (SPEC.md §5, TECH.md §8).
+ * Adaptador SAP BTP para la feature ADDRESS (TECH.md §8).
  * Mapea AddressData al contrato BTP via {@link BtpAddressDto} y delega en
  * {@link SapClient} de common.
  * Excluyente con el adaptador OData equivalente (sap.odata.address.enabled).

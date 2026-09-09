@@ -3,7 +3,7 @@ package com.poc.sap.common.sap.auth;
 import com.poc.sap.common.sap.SapDestination;
 
 /**
- * Proveedor de tokens de acceso SAP (SPEC.md §5, TECH.md §8).
+ * Proveedor de tokens de acceso SAP (TECH.md §8).
  * Una implementacion para BTP (xsuaa OAuth2 cliente) y otra para S/4 nativo
  * (basic u OAuth2 propio).
  */
