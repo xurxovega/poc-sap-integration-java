@@ -424,7 +424,7 @@ com.poc.sap.<dominio>/
 | Requisito | Cómo se cumple |
 |---|---|
 | **Idempotencia** | hash de payload + identificador de entidad; los reintentos no duplican envíos a SAP (`SyncStateRepositoryPort.alreadySent`, cabecera `Idempotency-Key`) |
-| **Resiliencia** | retry con backoff exponencial y circuit breaker hacia SAP (Resilience4j); DLT `<topic>.DLT` en la ingesta Kafka |
+| **Resiliencia** | retry con backoff exponencial y circuit breaker hacia SAP (Resilience4j); DLT `<topic>-dlt` en la ingesta Kafka |
 | **Trazabilidad** | cada registro pasa por la máquina de estados (§5) y se persiste cada transición |
 | **Observabilidad** | métricas por dominio y estado, logs estructurados y trazas distribuidas ([`TECH.md`](TECH.md) §9) |
 | **Rendimiento** | procesamiento concurrente por dominio (virtual threads); throughput configurable por dominio |

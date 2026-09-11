@@ -14,7 +14,7 @@ Casi todo el valor consultable de la plataforma ya existe y está estructurado:
 | Histórico ELK + diff (`GET /{dominio}/{id}/history[/diff]`) | "¿qué cambió en el último envío a SAP?" |
 | Imagen staging (Mongo `*_current`) | "¿qué dato vigente tenemos de X?" |
 | Métricas (`/actuator/prometheus`) | contadores y latencias por estado y dominio |
-| DLT Kafka (`outbox.*.DLT`) | mensajes descartados y su motivo |
+| DLT Kafka (`outbox.*-dlt`) | mensajes descartados y su motivo |
 
 Hoy responder "¿por qué este cliente no está en SAP?" exige mirar Mongo,
 Kibana y logs. Un servidor **MCP (Model Context Protocol)** delante de las

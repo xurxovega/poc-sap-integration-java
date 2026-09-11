@@ -1,7 +1,7 @@
 # Mejoras y propuestas
 
 > **Backlog vivo.** Aquí se apunta todo lo que merece la pena hacer pero **no**
-> se está haciendo ahora: mejoras del PoC, ideas transversales a otros proyectos
+> se está haciendo ahora: mejoras del producto, ideas transversales a otros proyectos
 > y funcionalidad extra. Sobrevive a cada feature: nada se borra por no haberse
 > abordado, solo cambia de estado.
 >
@@ -11,7 +11,7 @@
 
 ## Cómo usar este fichero
 
-- **Ámbito** — `proyecto`: solo este PoC · `transversal`: aplicable a otros
+- **Ámbito** — `proyecto`: solo esta aplicación · `transversal`: aplicable a otros
   proyectos del equipo · `extra`: funcionalidad nueva no comprometida.
 - **Estado** — 💡 idea · 📋 acordada (se hará, sin fecha) · 🚧 en curso ·
   ✅ hecha (se deja con la fecha, para tener memoria) · ❌ descartada (con el porqué).
@@ -46,9 +46,9 @@
 |---|---|---|---|---|
 | OPS-1 | **Recuperación de entidades atascadas** en estados intermedios | proyecto | 📋 | Si el proceso muere entre `FETCHING`/`INDEXING`/`SENDING_SAP`, la entidad queda bloqueada: esos estados no tienen transición de salida hacia `RECEIVED`. Verificado en vivo el 2026-09-09 con `CUST-001`. Hace falta una política de estado obsoleto (por antigüedad) o una transición de recuperación explícita. Es lo que invocaría UI-4 |
 | OPS-2 | Endpoint o comando de **reproceso desde la DLT** | proyecto | 💡 | Hoy los mensajes de `outbox.<DOM>-dlt` se inspeccionan a mano y no hay forma de reinyectarlos. Lo consumiría UI-4 |
-| OPS-3 | Decidir el **sufijo del topic DLT** | proyecto | 📋 | El real es `outbox.CUSTOMER-dlt` (default de Spring Kafka) y toda la documentación dice `<topic>.DLT`. O se configura el recoverer o se corrige la documentación — pero hay que elegir |
+| OPS-3 | Decidir el **sufijo del topic DLT** | proyecto | ✅ 2026-09-11 | Decidido: se mantiene el sufijo por defecto de Spring Kafka, **`<topic>-dlt`**, y se corrige la documentación (23 ocurrencias en 13 ficheros). Motivo: fabricar un sufijo propio obliga a configurar el recoverer en cada dominio para no ganar nada; el topic real ya existía con ese nombre y tenía mensajes |
 | OPS-4 | Mapeo fino de errores SAP (código, mensaje, campo) en vez de propagar el HTTP crudo | proyecto | 📋 | Ya listado como brecha; diagnóstico muy pobre cuando SAP rechaza algo |
-| OPS-5 | Saga / compensación entre features | proyecto | 📋 | Un fallo parcial deja SAP a medias. Es la brecha estructural más grande del PoC |
+| OPS-5 | Saga / compensación entre features | proyecto | 📋 | Un fallo parcial deja SAP a medias. Es la brecha estructural más grande del sistema |
 
 ## Seguridad
 

@@ -5,8 +5,10 @@
 > ella y qué reglas son innegociables. Todo lo demás son documentos de detalle
 > enlazados desde aquí.
 
-PoC de sincronización de datos maestros (`customer`, `article`, `supplier`)
-desde sistemas legacy hacia **SAP S/4 Public Cloud**. Migración del POC Python
+Sincronización de datos maestros (`customer`, `article`, `supplier`) desde
+sistemas legacy hacia **SAP S/4 Public Cloud**. Nació como prueba de concepto y
+**es la aplicación final**: seguridad, retención de datos, alta disponibilidad
+y despliegue se deciden con ese criterio. Migración del POC Python
 (`../poc-sap-integration`) a **Java 25 + Spring Boot 4.0 + Maven**.
 
 ---
@@ -196,7 +198,10 @@ SyncStateMachine (common) — cada transición persistida en Mongo con timestamp
 Estados: `RECEIVED → FETCHING → VALIDATING → {VALID|INVALID} → INDEXING →
 INDEXED → SENDING_SAP → {SENT_SAP|SAP_ERROR}`, más `ERROR` y
 `COMMUNICATION_ERROR` recuperables. `SENT_SAP` e `INVALID` cierran el ciclo pero
-admiten re-entrada a `RECEIVED` con un evento nuevo.
+admiten re-entrada con un evento nuevo: el **agregado** por `RECEIVED`, una
+**línea de feature** (`<id>:ADDRESS`…) por `VALIDATING`. `SAP_ERROR` hoy solo
+re-entra por `VALIDATING`: un agregado en `SAP_ERROR` **no se re-sincroniza**
+(defecto B1 de la auditoría, Fase 1 del plan).
 
 Detalle con nombres de clase en [`docs/architecture/FLOWS.md`](docs/architecture/FLOWS.md);
 esquema completo en [`docs/architecture/OVERVIEW.md`](docs/architecture/OVERVIEW.md) §5.
@@ -205,7 +210,7 @@ esquema completo en [`docs/architecture/OVERVIEW.md`](docs/architecture/OVERVIEW
 
 | Puerto | Implementaciones |
 |---|---|
-| `IngestionPort` | `CustomerKafkaListener`/`ArticleKafkaListener` (CDC), `Sync*Controller` (REST) |
+| `IngestionPort` | **nadie lo implementa**: `CustomerKafkaListener`/`ArticleKafkaListener` (CDC) y `Sync*Controller` (REST) llaman al use case directamente. Código muerto pendiente de retirar (auditoría A18) |
 | `LegacyRepositoryPort<T>` | `SqlServerCustomerRepository`, `PostgresArticleRepository` |
 | `ImageStorePort<T>` | `MongoCustomerImageStore`, `MongoArticleImageStore` |
 | `HistoryIndexerPort<T>` | `ElasticsearchCustomerIndexer`, `ElasticsearchArticleIndexer` |
@@ -245,7 +250,7 @@ Implementado por `WebClientSapClient` (WebClient + Resilience4j):
 
 | Familia | Dónde | Activación |
 |---|---|---|
-| **BTP** | `customer/adapters/sap/Btp*Adapter.java` | siempre activos (sin `@ConditionalOnProperty`) |
+| **BTP** | `customer/adapters/sap/Btp*Adapter.java` | activos **salvo** que `sap.odata.<feature>.enabled=true` (`@ConditionalOnProperty(havingValue="false", matchIfMissing=true)`). Excluyentes con los OData por la **misma** propiedad: nunca conviven dos beans para el mismo puerto |
 | **OData S/4 nativo** | `customer/adapters/sap/odata/BusinessPartner*ODataAdapter.java` | por feature: `sap.odata.<feature>.enabled=true` |
 
 Ambas coexisten; qué adaptador atiende un mensaje depende de la configuración.

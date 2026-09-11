@@ -18,8 +18,10 @@
 
 - **Maven 3.9+**, reactor multi-módulo con parent `sap-integration-parent`.
 - `spring-boot-dependencies` BOM importado en `dependencyManagement`.
-- Perfiles: `dev`, `it` (Testcontainers), `native` (opcional, futuro), `jdk25`
-  (auto-activado con JDK 25+).
+- Perfiles Maven: **solo `jdk25`** (auto-activado con JDK 25+). No existen
+  perfiles `dev`/`it`/`native`; la configuración por entorno va por variables de
+  entorno (`scripts/env/`). El perfil `jdk25` desaparece al fijar JDK 25 como
+  mínimo (plan, Fase 2).
 - Versionado semántico de `common` como librería consumida por cada app.
 
 ## 3. Estructura de módulos
@@ -59,14 +61,18 @@ no depende de nada. `application` solo de `domain`. `adapters` de `application`
 
 ## 5. Puertos y adaptadores
 
-| Puerto                  | Adaptadores                                              |
-|-------------------------|----------------------------------------------------------|
-| `IngestionPort`         | `DebeziumKafkaAdapter`, `DirectKafkaAdapter`, `RestAdapter` |
-| `LegacyRepositoryPort`  | `SqlServerCustomerRepository`, `PostgresArticleRepository` |
-| `ImageStorePort`        | `MongoImageStore`                                        |
-| `HistoryIndexerPort`    | `ElasticsearchIndexer`                                   |
-| `SyncStateRepositoryPort` | `MongoStateRepository` / `JpaStateRepository`          |
-| `SapOutboundPort`       | `BtpApiAdapter`, `S4NativeApiAdapter`                    |
+Clases **reales** del repositorio (la auditoría del 2026-09-10 encontró aquí
+nueve nombres que no existían):
+
+| Puerto | Adaptadores |
+|---|---|
+| `IngestionPort` | **sin implementaciones**: listeners y controllers llaman al use case directamente (código muerto, A18) |
+| `LegacyRepositoryPort<T>` | `SqlServerCustomerRepository`, `PostgresArticleRepository` |
+| `ImageStorePort<T>` | `MongoCustomerImageStore`, `MongoArticleImageStore` |
+| `HistoryIndexerPort<T>` | `ElasticsearchCustomerIndexer`, `ElasticsearchArticleIndexer` |
+| `SyncStateRepositoryPort` | `MongoSyncStateRepository` (en `common`, único) |
+| `SapOutboundPort<P>` | BTP: `BtpAddressAdapter`, `BtpFiscalAdapter`, `BtpContactAdapter`, `BtpCustomerAdapter`, `S4BankingAdapter` · OData S/4: `BusinessPartnerODataAdapter`, `BusinessPartnerAddressODataAdapter`, `BusinessPartnerTaxODataAdapter`, `BusinessPartnerContactODataAdapter`, `BusinessPartnerBankODataAdapter` · article: `S4ArticleAdapter` |
+| `BusinessPartnerReadPort` | `BusinessPartnerReadAdapter` (GET/search, `sap.odata.read.enabled=true`) |
 
 ## 6. Entradas
 
@@ -79,9 +85,10 @@ operación (`create`/`update`/`delete`) · payload · origen (`cdc`/`kafka`/`res
 - **CDC**: consumer Kafka (`spring-boot-starter-kafka`; en Boot 4 el
   `spring-kafka` suelto no autoconfigura) sobre topics `outbox.<DOMINIO>`
   (Debezium). Errores: `DefaultErrorHandler` con backoff exponencial y
-  dead-letter topic `<topic>.DLT`; `DELETE` enruta al use case de borrado.
+  dead-letter topic `<topic>-dlt`; `DELETE` enruta al use case de borrado.
 - **Eventos directos**: Spring Kafka sobre `events.<DOMINIO>` (futuro).
-- **REST**: Spring Web `POST /{domain}/sync`, OpenAPI en `/swagger-ui.html`.
+- **REST**: Spring Web `POST /{domain}/sync` y `/validate`, `GET /{domain}/{id}/history[/diff]`.
+  *Sin OpenAPI ni swagger-ui publicados: visión, no implementado.*
 - Opcional: Confluent Schema Registry (Avro/Protobuf) cuando maduren contratos.
 
 ## 7. Persistencia
@@ -97,8 +104,8 @@ BTP** (vía Destination Service / xsuaa) y **APIs nativas S/4 Public Cloud**
 (OData/REST con autenticación propia). Cada dominio declara qué entidad va a qué
 destino y con qué mapeo; los mapeos son parte del dominio, no del shared kernel.
 
-- `BtpApiAdapter`: WebClient + OAuth2 cliente xsuaa + Destination Service.
-- `S4NativeApiAdapter`: cliente OData/REST con autenticación propia (basic/OAuth2).
+- Adaptadores **BTP** (`Btp*Adapter`) y **OData S/4** (`BusinessPartner*ODataAdapter`),
+  excluyentes por `sap.odata.<feature>.enabled`; todos delegan en `SapClient`.
 - Contrato de cliente centralizado en `common/sap` para reutilizar auth,
   reintentos y circuit breaker (Resilience4j).
 - Semántica de errores del cliente (`WebClientSapClient`): 5xx y errores de
@@ -121,7 +128,8 @@ destino y con qué mapeo; los mapeos son parte del dominio, no del shared kernel
   (`-javaagent:opentelemetry-javaagent.jar` + `OTEL_EXPORTER_OTLP_ENDPOINT`).
   El starter Spring de OTel (2.x) solo soporta Boot 3 y rompe el arranque con
   Boot 4, por eso no se usa como dependencia.
-- Logs estructurados (JSON) + correlación por `traceId`.
+- Logs estructurados (JSON) + correlación por `traceId` — **visión, no
+  implementado**: hoy formato de consola por defecto (auditoría A9; plan Fase 5).
 - Métricas por dominio y por estado de la máquina de estados.
 
 ## 10. Testing
@@ -132,8 +140,9 @@ destino y con qué mapeo; los mapeos son parte del dominio, no del shared kernel
   stubbeado.
 - **Integración**: Testcontainers (Kafka, PostgreSQL, SQL Server, MongoDB,
   Elasticsearch) + WireMock para SAP. Por dominio y en módulo `it/`.
-- **Contrato SAP**: Spring Cloud Contract o Pact en `it/` para fijar contratos
-  BTP/S4 y detectar breaking changes.
+- **Contrato SAP**: WireMock en `it/` (`*ContractTest`). Hoy esos tests **no
+  ejercitan los adaptadores reales** (auditoría B6; plan Fase 2). Spring Cloud
+  Contract/Pact: visión, no usados.
 - Cobertura: JaCoCo; umbral mínimo en `domain` y `common`. `domain` se cubre al
   100% en unit sobre validaciones.
 - **TDD obligatorio**: el test se escribe antes que el código de producción. El

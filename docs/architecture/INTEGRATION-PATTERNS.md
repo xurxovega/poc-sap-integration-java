@@ -54,7 +54,7 @@ sequenceDiagram
     S4-->>CL: 201/200 · {"d":{...}}
     CL-->>UC: SapResponse
     UC->>ST: SENT_SAP (o SAP_ERROR / INVALID)
-    Note over K,L: si el procesamiento falla:<br/>retry con backoff → DLT outbox.CUSTOMER.DLT
+    Note over K,L: si el procesamiento falla:<br/>retry con backoff → DLT outbox.CUSTOMER-dlt
 ```
 
 **Estado**: implementado. Clases: `CustomerKafkaListener` →

@@ -43,3 +43,7 @@ application-secrets.yml
 # Coverage
 coverage/
 *.exec
+
+# Repo git anidado e independiente (spike OpenAPI desechable). Contiene una
+# credencial real de tenant S/4 en su historial: nunca debe entrar en este repo.
+sap-sdk-client/

@@ -464,7 +464,7 @@ docker exec kafka-broker kafka-topics --bootstrap-server localhost:9092 --list
 docker exec kafka-broker kafka-console-consumer --bootstrap-server localhost:9092 \
   --topic outbox.CUSTOMER --from-beginning --max-messages 5
 docker exec kafka-broker kafka-console-consumer --bootstrap-server localhost:9092 \
-  --topic outbox.CUSTOMER.DLT --from-beginning     # mensajes que agotaron los reintentos
+  --topic outbox.CUSTOMER-dlt --from-beginning     # mensajes que agotaron los reintentos
 ```
 
 Si prefieres UI, cualquier cliente externo apuntando a `localhost:9092`

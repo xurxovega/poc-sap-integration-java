@@ -77,7 +77,7 @@ Enfoque de diseño centrado en el dominio. En este proyecto se aplica mediante b
 
 ### DLT (Dead Letter Topic)
 
-Topic `<original>.DLT` al que el `DefaultErrorHandler` publica un mensaje que sigue fallando tras agotar los reintentos con backoff, para inspección o reproceso manual. Ver [`TECH.md`](architecture/TECH.md#6-entradas).
+Topic `<original>-dlt` al que el `DefaultErrorHandler` publica un mensaje que sigue fallando tras agotar los reintentos con backoff, para inspección o reproceso manual. Ver [`TECH.md`](architecture/TECH.md#6-entradas).
 
 ## E
 

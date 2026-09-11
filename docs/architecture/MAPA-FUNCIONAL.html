@@ -348,7 +348,7 @@ tr.nomatch { display: none; }
       <button class="pieza" data-id="topic-art" data-estado="impl">
         <span class="n">Topic outbox.ARTICLE</span><span class="s">key = entityId</span></button>
       <button class="pieza" data-id="dlt" data-estado="parcial">
-        <span class="n">Dead letter topics</span><span class="s">*.DLT, sin consumidor</span></button>
+        <span class="n">Dead letter topics</span><span class="s">*-dlt, sin consumidor</span></button>
     </div>
 
     <div class="carril">
@@ -556,7 +556,7 @@ sequenceDiagram
             end
         end
     end
-    Note over K,L: si el listener lanza excepcion: 3 intentos con backoff&lt;br/&gt;y el registro acaba en outbox.CUSTOMER.DLT
+    Note over K,L: si el listener lanza excepcion: 3 intentos con backoff&lt;br/&gt;y el registro acaba en outbox.CUSTOMER-dlt
 </pre></div>
   </figure>
 
@@ -698,7 +698,7 @@ sequenceDiagram
     participant ST as MongoSyncStateRepository&lt;br/&gt;+ SyncStateMachine
     participant IMG as Mongo customers_current
     participant SAP as CustomerSapOutboundPort
-    participant DLT as outbox.CUSTOMER.DLT
+    participant DLT as outbox.CUSTOMER-dlt
 
     K-&gt;&gt;L: operation = DELETE
     L-&gt;&gt;DC: execute entityId, payloadHash
@@ -865,7 +865,7 @@ sequenceDiagram
             end
         end
     end
-    Note over K,L: excepciones en el listener → outbox.ARTICLE.DLT
+    Note over K,L: excepciones en el listener → outbox.ARTICLE-dlt
 </pre></div>
   </figure>
   <div class="nota ojo">
@@ -1071,7 +1071,7 @@ sequenceDiagram
     participant L as CustomerKafkaListener
     participant UC as SyncCustomerUseCase
     participant EH as DefaultErrorHandler&lt;br/&gt;DeadLetterPublishingRecoverer
-    participant DLT as outbox.CUSTOMER.DLT
+    participant DLT as outbox.CUSTOMER-dlt
     participant ST as Mongo sync_state
 
     K-&gt;&gt;L: registro
@@ -1263,7 +1263,7 @@ sequenceDiagram
         <tr><td><code>outbox-customer-sqlserver</code></td><td>SQL Server <code>poc</code>, <code>sp_cdc_enable_table</code>, requiere SQL Server Agent</td><td><code>dbo.outbox_customer</code> + <code>trg_customers_outbox</code></td><td><code>outbox.CUSTOMER</code></td><td><code>CustomerKafkaListener</code>, grupo <code>customer-consumer</code></td></tr>
         <tr><td><code>outbox-article-postgres</code></td><td>PostgreSQL <code>poc</code>, plugin <code>pgoutput</code>, slot <code>debezium_outbox_article</code></td><td><code>outbox_article</code> + <code>articles_outbox_fn()</code></td><td><code>outbox.ARTICLE</code></td><td><code>ArticleKafkaListener</code>, grupo <code>article-consumer</code></td></tr>
         <tr><td>—</td><td>—</td><td>—</td><td><code>outbox.SUPPLIER</code> <span class="badge prop">reservado</span></td><td><span class="badge gap">no hay listener</span></td></tr>
-        <tr><td>—</td><td>—</td><td>—</td><td><code>outbox.CUSTOMER.DLT</code> · <code>outbox.ARTICLE.DLT</code></td><td><span class="badge gap">sin consumidor, reproceso manual</span></td></tr>
+        <tr><td>—</td><td>—</td><td>—</td><td><code>outbox.CUSTOMER-dlt</code> · <code>outbox.ARTICLE-dlt</code></td><td><span class="badge gap">sin consumidor, reproceso manual</span></td></tr>
       </tbody>
     </table>
   </div>
@@ -1515,7 +1515,7 @@ const PIEZAS = {
   },
   'dlt': {
     titulo: 'Dead letter topics', estado: 'parcial',
-    rol: 'DefaultErrorHandler + DeadLetterPublishingRecoverer, 3 intentos con backoff exponencial desde 1000 ms ×2, y publicación en outbox.<DOMINIO>.DLT. No hay consumidor: el reproceso es manual. Ojo: un SAP_ERROR NO llega aquí, porque no se propaga como excepción.',
+    rol: 'DefaultErrorHandler + DeadLetterPublishingRecoverer, 3 intentos con backoff exponencial desde 1000 ms ×2, y publicación en outbox.<DOMINIO>-dlt. No hay consumidor: el reproceso es manual. Ojo: un SAP_ERROR NO llega aquí, porque no se propaga como excepción.',
     ficheros: ['customer/…/bootstrap/kafka/KafkaErrorHandlingConfig.java', 'article/…/bootstrap/kafka/KafkaErrorHandlingConfig.java'],
     config: [], conexiones: ['listener-cust','listener-art','uc-delete'], diagramas: [['k3','K3'],['c5','C5']]
   },
@@ -1768,7 +1768,7 @@ const ETIQUETA_ESTADO = { impl: '✅ Implementado', parcial: '🟡 Parcial', pro
 
   function cerrar() { panel.hidden = true; limpiar(); }
 
-  /* El texto de PIEZAS lleva literales tipo Set<CustomerFeature> u outbox.<DOMINIO>.DLT:
+  /* El texto de PIEZAS lleva literales tipo Set<CustomerFeature> u outbox.<DOMINIO>-dlt:
      sin escapar, el navegador se los comería como etiquetas. */
   function esc(s) {
     return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');

@@ -209,7 +209,7 @@ echo 'esto-no-es-json' | docker exec -i kafka-broker kafka-console-producer \
 
 # Tras 3 reintentos con backoff, acaba en el dead-letter topic:
 docker exec kafka-broker kafka-console-consumer \
-  --bootstrap-server localhost:9092 --topic outbox.CUSTOMER.DLT \
+  --bootstrap-server localhost:9092 --topic outbox.CUSTOMER-dlt \
   --from-beginning --max-messages 1
 ```
 
@@ -282,7 +282,7 @@ mvn -pl customer spring-boot:run
 | CP-08 | CDC — borrado (DELETE) | Delete a SAP + imagen Mongo eliminada |
 | CP-09 | Dominio article (Postgres) | Cadena article hasta el mock |
 | CP-10 | SAP caído (503) | 3 reintentos + `SAP_ERROR` |
-| CP-11 | Mensaje envenenado | Acaba en `outbox.CUSTOMER.DLT` |
+| CP-11 | Mensaje envenenado | Acaba en `outbox.CUSTOMER-dlt` |
 | CP-12 | Ruta OData nativa | URLs `/sap/opu/odata/...` en el mock |
 | CP-13 | Métricas | Contadores por estado incrementados |
 
@@ -409,7 +409,7 @@ mvn -pl customer spring-boot:run
 
 1. Publica basura en el topic (§5.2).
 2. **Verificar en** el log: 3 intentos de parseo fallidos con backoff.
-3. **Verificar en** Kafka: el mensaje aparece en `outbox.CUSTOMER.DLT`.
+3. **Verificar en** Kafka: el mensaje aparece en `outbox.CUSTOMER-dlt`.
 4. **Verificar**: el listener sigue vivo (repite CP-02 y funciona).
 
 ### CP-12 — Ruta OData nativa (patrón 1) en lugar de BTP

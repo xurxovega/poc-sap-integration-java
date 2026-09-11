@@ -10,7 +10,7 @@ import org.springframework.util.backoff.ExponentialBackOff;
 /**
  * Manejo de errores del consumo Kafka del dominio Article:
  * reintentos con backoff exponencial (3 intentos, 1s inicial, multiplicador 2)
- * y publicacion en dead-letter topic ({@code <topic>.DLT}) al agotarlos.
+ * y publicacion en dead-letter topic ({@code <topic>-dlt}) al agotarlos.
  */
 @Configuration
 public class KafkaErrorHandlingConfig {

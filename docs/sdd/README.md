@@ -129,12 +129,13 @@ Estado de las brechas detectadas sobre el código real.
 |---|---|---|
 | Auth SAP era stub | `common/sap/auth/` — `OAuth2TokenClient` con client-credentials real; `BtpAuthProvider`/`S4NativeAuthProvider` caen a token stub solo si falta configuración | 2026-07-25 |
 | Retry/circuit breaker Resilience4j no disparaba | `WebClientSapClient` decora las llamadas con `Retry` + `CircuitBreaker` de los registries | 2026-07-25 |
-| Sin DLQ Kafka | `KafkaErrorHandlingConfig` (customer y article): reintentos con backoff + `DeadLetterPublishingRecoverer` → topic `<topic>.DLT` | 2026-07-25 |
+| Sin DLQ Kafka | `KafkaErrorHandlingConfig` (customer y article): reintentos con backoff + `DeadLetterPublishingRecoverer` → topic `<topic>-dlt` | 2026-07-25 |
 | Sin timeout WebClient SAP | `sap.client.connect-timeout-ms` / `sap.client.response-timeout-ms` en `application-common.yml` | 2026-07-25 |
 | CSRF no cableado | `common/sap/odata/CsrfTokenProvider` + `S4CsrfTokenProvider` (fetch de `x-csrf-token` para POST/PATCH/DELETE) | 2026-07-25 |
 | Sin idempotencia de consumo | dedupe por `payloadHash` en `SyncCustomerUseCase` (`stateRepo.alreadySent(...)`) | 2026-07-25 |
 | Elasticsearch 8 contra cliente 9 | `external-services/docker-compose.yml`: el compose levantaba ES/Kibana 8.11.0, pero Spring Boot 4.0 trae `elasticsearch-java` 9.x, que envía `application/vnd.elasticsearch+json;compatible-with=9` y el servidor 8 rechaza (`media_type_header_exception`). Rompía la indexación y dejaba el health en 503. Subido a 9.2.1 | 2026-09-09 |
 | Mongo escribía en la base `test` | `customer`/`article` `application.yml`: Boot 4 movió las propiedades de conexión de `spring.data.mongodb.*` a `spring.mongodb.*`. La propiedad antigua se ignora en silencio y ambas apps caían al default del driver (`mongodb://localhost/test`), compartiendo base. Cubierto por `CustomerMongoDatabaseConfigTest` | 2026-09-09 |
+| Topic DLT documentado ≠ real | Toda la documentación decía `<topic>.DLT`; el `DeadLetterPublishingRecoverer` usa el sufijo por defecto de Spring Kafka y el topic real es **`<topic>-dlt`**. Corregidas las 23 ocurrencias; decisión en `MEJORAS-Y-PROPUESTAS.md` OPS-3 | 2026-09-11 |
 | Re-sync con cambios reales rompía el pipeline | Tras un primer ciclo, cada línea de feature quedaba en `SENT_SAP` y `SENT_SAP → VALIDATING` no era transición permitida: el segundo evento con cambios reales moría en la primera feature y acababa en la DLT. Añadida la **re-entrada de features** por `VALIDATING` desde `SENT_SAP`, `INVALID` y `SAP_ERROR`. Spec: [`common/maquina-de-estados.md`](common/maquina-de-estados.md) AC-4/AC-5 · verificado por CDC en vivo | 2026-09-10 |
 | Pipeline por feature nunca arrancaba | Los cuatro `Sync<Feature>UseCase` no registraban la entrada en `VALIDATING`, así que la máquina evaluaba `null → VALID` y `POST /customers/sync` devolvía 500 siempre. Además `VALID → SENDING_SAP` no era legal: la máquina solo modelaba el pipeline agregado, que pasa por `INDEXING`. Primer ciclo SDD+TDD del proyecto: [`customer/sincronizacion-direccion.md`](customer/sincronizacion-direccion.md) AC-4/AC-5 | 2026-09-09 |
 | Índice único inservible en `*_current` | `external-services/mongodb/init.js` creaba `{id:1} unique`, pero los documentos usan `@Id` (se guarda como `_id`) y no tienen campo `id`: todos valían `null` y solo entraba **un** documento por colección (`E11000 dup key: { id: null }`). Índice eliminado | 2026-09-09 |
@@ -145,7 +146,6 @@ Estado de las brechas detectadas sobre el código real.
 
 | Brecha | Dónde | Impacto |
 |---|---|---|
-| Topic DLT real ≠ documentado | `KafkaErrorHandlingConfig` | El `DeadLetterPublishingRecoverer` usa el sufijo por defecto de Spring Kafka, así que el topic real es **`outbox.CUSTOMER-dlt`**, no `<topic>.DLT` como dice toda la documentación. Verificado: el mensaje fallido aterrizó en `outbox.CUSTOMER-dlt`. Hay que decidir si se configura el sufijo o se corrige la documentación |
 | Comandos `docker exec` rotos en Git Bash | `docs/QUICK_START.md`, `docs/testing/GUIA-PRUEBAS.md` | Las rutas absolutas del contenedor (`/opt/mssql-tools18/bin/sqlcmd`) las convierte Git Bash a rutas Windows y el `exec` falla. Hay que anteponer `MSYS_NO_PATHCONV=1` — justo el shell que la guía recomienda en Windows |
 | Sin transacción distribuida / saga entre features | `SyncCustomerUseCase` (envíos por feature independientes) | fallos parciales dejan SAP a medias, sin compensación |
 | Contactos no usan `A_AddressEmailAddress`/`A_AddressPhoneNumber` | adaptadores de CONTACT | el contrato real de S/4 para email/teléfono es por dirección |
@@ -160,7 +160,7 @@ Estado de las brechas detectadas sobre el código real.
 > negocio está en el [`CHANGELOG.md`](../../CHANGELOG.md) raíz; las mejoras aún
 > no abordadas, en [`../MEJORAS-Y-PROPUESTAS.md`](../MEJORAS-Y-PROPUESTAS.md).
 
-## 7. Supuestos vigentes del PoC
+## 7. Supuestos vigentes
 
 - **Auth SAP**: OAuth2 client-credentials vía variables de entorno; con
   configuración incompleta se usa token stub (solo para mocks locales).

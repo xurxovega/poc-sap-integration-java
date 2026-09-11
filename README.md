@@ -4,6 +4,10 @@ Integración de datos maestros (customer, article, supplier) desde sistemas
 legacy hacia **SAP S/4 Public Cloud**. Migración del POC Python a
 **Java 25 + Spring Boot 4.0 + Maven**.
 
+Nació como prueba de concepto y **es la aplicación final**: seguridad,
+retención de datos, alta disponibilidad y despliegue se deciden con ese
+criterio, no con el de un prototipo.
+
 > **Qué ha cambiado en cada revisión**, en lenguaje de negocio: [`CHANGELOG.md`](CHANGELOG.md).
 
 > **¿Vas a trabajar en este repo (persona o agente IA)?** Empieza por
@@ -16,7 +20,7 @@ La documentación está organizada por **para qué sirve cada cosa**:
 
 ### Qué debe hacer el sistema — SDD
 
-- [`docs/sdd/README.md`](docs/sdd/README.md) — **punto de entrada del proyecto**: la regla del ancla spec↔código, índice de features con su estado, criterios de aceptación globales, changelog de brechas resueltas/pendientes y supuestos vigentes del PoC.
+- [`docs/sdd/README.md`](docs/sdd/README.md) — **punto de entrada del proyecto**: la regla del ancla spec↔código, índice de features con su estado, criterios de aceptación globales, changelog de brechas resueltas/pendientes y supuestos vigentes.
 - [`docs/sdd/<subproyecto>/<feature>.md`](docs/sdd/) — una carpeta por módulo Maven (`customer/`, `article/`, `supplier/`, `common/`) y un fichero por feature, nombrado por lo que hace: entradas, reglas de negocio, mapeo a SAP, estados, criterios de aceptación y trazabilidad al código. Ejemplo: [`customer/sincronizacion-direccion.md`](docs/sdd/customer/sincronizacion-direccion.md); plantilla en [`docs/sdd/_template/feature.md`](docs/sdd/_template/feature.md).
 - [`docs/sdd/sap-api-catalog.md`](docs/sdd/sap-api-catalog.md) — contratos externos: catálogo de las specs OpenAPI oficiales de S/4HANA Cloud usadas o previstas (Business Partner, mandato SEPA, producto, stock, precios, características, números de serie, bancos, activos fijos) con enlaces al [SAP Business Accelerator Hub](https://api.sap.com/package/SAPS4HANACloud/odata); las copias canónicas viven en `sap-api-models/specs/<dominio>/`.
 
@@ -261,7 +265,7 @@ en [`docs/sdd/README.md`](docs/sdd/README.md) §6:
   en su nueva ubicación.
 - **Pipeline**: máquina de estados con estado inicial y re-sincronización
   (`SENT_SAP/INVALID → RECEIVED`), dedupe de idempotencia por `payloadHash`,
-  DLT Kafka (`<topic>.DLT`) con backoff, `DELETE` cableado.
+  DLT Kafka (`<topic>-dlt`) con backoff, `DELETE` cableado.
 - **Cliente SAP**: retry/circuit breaker funcionales (5xx y transporte),
   timeouts, OAuth2 client-credentials real con caché, CSRF completo
   (fetch + cookies + refresh en 403), payloads OData sin wrapper `d` y con

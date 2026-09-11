@@ -20,6 +20,30 @@ identifican por fecha.
 
 ## [Sin publicar]
 
+### 2026-09-11 — Auditoría externa y cambio de naturaleza del proyecto
+
+#### Cambiado
+
+- **El proyecto deja de ser una prueba de concepto y pasa a ser la aplicación
+  final.** Las decisiones de seguridad, retención de datos, alta disponibilidad y
+  despliegue se toman ya con ese criterio. La documentación lo refleja.
+- Una auditoría externa del código completo ha identificado 14 defectos
+  bloqueantes y unos 36 de atención. El informe y el plan de acción por fases
+  están en `docs/auditorias/`; se ejecutan de más crítico a menos.
+- La documentación técnica describía nueve componentes que no existían y
+  afirmaba tres cosas falsas sobre cómo se activan los adaptadores. Corregido:
+  ahora describe solo lo que hay, y lo aspiracional va marcado como tal.
+
+#### Pendiente (nuevo, detectado por la auditoría)
+
+- **Un cliente cuyo envío a SAP falle una vez no vuelve a sincronizarse nunca**:
+  queda bloqueado. Es el defecto más grave y el primero que se aborda.
+- **La baja de cliente nunca llega a ejecutarse**, y si lo hiciera enviaría un
+  alta vacía en lugar de un borrado.
+- Cuatro pruebas automáticas existen pero **nunca se ejecutan** por un error de
+  configuración del build.
+
+
 ### 2026-09-10 — Primera verificación del ciclo completo
 
 Primera vez que el sistema se levanta entero y se prueba de punta a punta. Hasta
@@ -34,7 +58,9 @@ sincronización fallaba en varios puntos distintos.
 - **Un cliente solo se podía sincronizar una vez.** El primer envío funcionaba,
   pero cualquier cambio posterior sobre ese mismo cliente se perdía: el mensaje
   acababa en la cola de descartes sin llegar a SAP y sin aviso. Un cliente se
-  re-sincroniza ahora tantas veces como cambie.
+  re-sincroniza ahora tantas veces como cambie **mientras cada envío termine
+  bien**; si un envío a SAP falla, el cliente sigue quedando bloqueado (ver
+  *Pendiente* del 2026-09-11).
 - **Solo se admitía un cliente y un artículo.** El segundo registro de cada tipo
   fallaba al guardarse.
 - **La aplicación de artículos no arrancaba.**
