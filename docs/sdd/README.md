@@ -87,9 +87,9 @@ con ese nombre la primera vez que se toque la feature.
 | Sincronización de dirección | [`sincronizacion-direccion.md`](customer/sincronizacion-direccion.md) | ✅ | ✅ implementado (BTP + OData), verificado end-to-end |
 | Sincronización de datos fiscales | `sincronizacion-datos-fiscales.md` | ⬜ | ✅ implementado |
 | Sincronización de datos de contacto | `sincronizacion-contacto.md` | ⬜ | ⚠️ no usa el contrato real de S/4 (`A_AddressEmailAddress`/`A_AddressPhoneNumber`) |
-| Sincronización de datos bancarios | `sincronizacion-datos-bancarios.md` | ⬜ | ⚠️ los mandatos no llegan del legacy |
+| Sincronización de datos bancarios | [`sincronizacion-datos-bancarios.md`](customer/sincronizacion-datos-bancarios.md) | ✅ | ⚠️ contratos S/4 corregidos (BIC fuera de `BankIdentification`, mandato en `API_APAR_SEPA_MANDATE_SRV`), pendientes de validar contra el tenant; los mandatos no llegan del legacy |
 | Baja de cliente | [`baja-cliente.md`](customer/baja-cliente.md) | ✅ | ✅ ejecutable, `DELETE` HTTP real y modelo de bloqueo — verificado en vivo el 2026-09-12 por CDC |
-| Baja de mandato SEPA | `baja-mandato-sepa.md` | ⬜ | ✅ implementado |
+| Baja de mandato SEPA | [`baja-mandato-sepa.md`](customer/baja-mandato-sepa.md) | ✅ | ⚠️ revoca por `PATCH` de estado (antes `POST` ficticio); sin llamador hasta que el legacy emita mandatos |
 
 ### `article/` — [ver carpeta](article/)
 
@@ -147,6 +147,7 @@ Estado de las brechas detectadas sobre el código real.
 | `InfrastructureSmokeIT` nunca arrancaba Kafka | `KafkaContainer(String)` deprecado duplicaba el nombre de la imagen en Testcontainers 1.21 (`cp-kafka:confluentinc/cp-kafka:7.7.1`). Sustituido por `ConfluentKafkaContainer` | 2026-09-12 |
 | **Transporte reactivo con `.block()` y Cloud SDK sin uso** (D-1) | `WebClientSapClient` → `RestClientSapClient` (`RestClient` sobre el `HttpClient` del JDK) detrás del mismo puerto; fuera `webflux`, Reactor, `sdk-core`, el `@ComponentScan("com.sap.cloud.sdk")` y el destino local del SDK. Mismo comportamiento observable: el test se portó íntegro. [ADR-0001](../architecture/adr/0001-transporte-http-sap-restclient.md); spec [`common/resiliencia-cliente-sap.md`](common/resiliencia-cliente-sap.md) | 2026-09-12 |
 | CSRF: fetch con Basic fijo, cualquier 403 tratado como CSRF, caché sin sincronizar (A6, C4) | El fetch usa la misma `Authorization` que la escritura; solo un 403 con `x-csrf-token: Required` refresca y reintenta; token y cookies son un único valor inmutable (`CsrfToken`) | 2026-09-12 |
+| **Contratos S/4 de banco y mandato incorrectos** (B3, parcial) | `S4BankingAdapter` enviaba a `API_CUSTOMER_MANDATE` (no existe) → `BtpBankingAdapter` en la familia BTP; `A_BusinessPartnerBank` llevaba el BIC en `BankIdentification` → ordinal `0001` + `BankCountryKey`, sin BIC; mandatos → `SepaMandateODataAdapter` sobre `API_APAR_SEPA_MANDATE_SRV` con `Creditor` por configuración, y la baja como `PATCH` de estado. Specs [`customer/sincronizacion-datos-bancarios.md`](customer/sincronizacion-datos-bancarios.md) y [`customer/baja-mandato-sepa.md`](customer/baja-mandato-sepa.md). Queda de B3: contacto (`A_AddressEmailAddress`/`A_AddressPhoneNumber`) y upsert con `AddressID`, ambos bloqueados por la comprobación contra el tenant | 2026-09-12 |
 | Listeners reintentaban fallos no transitorios (C5) | Tombstone, `operation` en minúsculas y operación desconocida producían 3 reintentos con backoff. Ahora: tombstone ignorado, operación normalizada, e `IllegalState/IllegalArgument/JsonProcessing` declaradas no reintentables en `KafkaErrorHandlingConfig` | 2026-09-11 |
 | Topic DLT documentado ≠ real | Toda la documentación decía `<topic>.DLT`; el `DeadLetterPublishingRecoverer` usa el sufijo por defecto de Spring Kafka y el topic real es **`<topic>-dlt`**. Corregidas las 23 ocurrencias; decisión en `MEJORAS-Y-PROPUESTAS.md` OPS-3 | 2026-09-11 |
 | Re-sync con cambios reales rompía el pipeline | Tras un primer ciclo, cada línea de feature quedaba en `SENT_SAP` y `SENT_SAP → VALIDATING` no era transición permitida: el segundo evento con cambios reales moría en la primera feature y acababa en la DLT. Añadida la **re-entrada de features** por `VALIDATING` desde `SENT_SAP`, `INVALID` y `SAP_ERROR`. Spec: [`common/maquina-de-estados.md`](common/maquina-de-estados.md) AC-4/AC-5 · verificado por CDC en vivo | 2026-09-10 |
@@ -162,7 +163,7 @@ Estado de las brechas detectadas sobre el código real.
 | Comandos `docker exec` rotos en Git Bash | `docs/QUICK_START.md`, `docs/testing/GUIA-PRUEBAS.md` | Las rutas absolutas del contenedor (`/opt/mssql-tools18/bin/sqlcmd`) las convierte Git Bash a rutas Windows y el `exec` falla. Hay que anteponer `MSYS_NO_PATHCONV=1` — justo el shell que la guía recomienda en Windows |
 | Sin transacción distribuida / saga entre features | `SyncCustomerUseCase` (envíos por feature independientes) | fallos parciales dejan SAP a medias, sin compensación |
 | Contactos no usan `A_AddressEmailAddress`/`A_AddressPhoneNumber` | adaptadores de CONTACT | el contrato real de S/4 para email/teléfono es por dirección |
-| Mandatos no llegan desde el legacy | `S4BankingAdapter` (mandates) | BANKING incompleto |
+| Mandatos no llegan desde el legacy | `SepaMandateODataAdapter` listo, `DeleteMandateUseCase` sin llamador | BANKING incompleto: solo llegan `mandateIds` |
 | Sin mapeo fino de errores SAP | `RestClientSapClient` | diagnóstico deficiente |
 | `supplier` vacío + MinIO sin uso | `SupplierApplicationPlaceholder`, compose | dominio/infra no operativos |
 | APIs REST sin autenticación | controllers de `customer`/`article` | bloqueante para exponer las APIs a terceros o a un MCP ([`../tools-integrations/MCP.md`](../tools-integrations/MCP.md) §4) |

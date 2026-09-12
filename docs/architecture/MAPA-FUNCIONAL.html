@@ -400,7 +400,7 @@ tr.nomatch { display: none; }
     <div class="carril">
       <h4>6 · Salida SAP</h4>
       <button class="pieza" data-id="adapters-btp" data-estado="parcial">
-        <span class="n">Familia BTP</span><span class="s">Btp*Adapter + S4BankingAdapter</span></button>
+        <span class="n">Familia BTP</span><span class="s">Btp*Adapter (5 features)</span></button>
       <button class="pieza" data-id="adapters-odata" data-estado="impl">
         <span class="n">Familia OData S/4</span><span class="s">BusinessPartner*ODataAdapter</span></button>
       <button class="pieza" data-id="sapclient" data-estado="impl">
@@ -1239,7 +1239,8 @@ sequenceDiagram
         <tr><td><code>AddressSapPort</code></td><td><code>BtpAddressAdapter</code></td><td><code>BusinessPartnerAddressODataAdapter</code></td><td>BTP / S4_NATIVE</td><td><code>/sap/btp/odata/CustomerAddress</code> · <code>…/A_BusinessPartnerAddress</code></td></tr>
         <tr><td><code>FiscalSapPort</code></td><td><code>BtpFiscalAdapter</code></td><td><code>BusinessPartnerTaxODataAdapter</code> <span class="badge impl">tax-type ES0</span></td><td>BTP / S4_NATIVE</td><td><code>/sap/btp/odata/CustomerFiscal</code> · <code>…/A_BusinessPartnerTaxNumber</code></td></tr>
         <tr><td><code>ContactSapPort</code></td><td><code>BtpContactAdapter</code></td><td><code>BusinessPartnerContactODataAdapter</code> <span class="badge gap">pierde datos</span></td><td>BTP / S4_NATIVE</td><td><code>/sap/btp/odata/CustomerContact</code> · <code>…/A_BusinessPartnerContact</code></td></tr>
-        <tr><td><code>BankingSapPort</code></td><td><code>S4BankingAdapter</code></td><td><code>BusinessPartnerBankODataAdapter</code></td><td>S4_NATIVE</td><td><code>…/API_CUSTOMER_MANDATE</code> · <code>…/A_BusinessPartnerBank</code></td></tr>
+        <tr><td><code>BankingSapPort</code></td><td><code>BtpBankingAdapter</code></td><td><code>BusinessPartnerBankODataAdapter</code></td><td>BTP · S4_NATIVE</td><td><code>/sap/btp/odata/CustomerBanking</code> · <code>…/A_BusinessPartnerBank</code></td></tr>
+        <tr><td><code>MandateSapOutboundPort</code></td><td colspan="2"><code>SepaMandateODataAdapter</code> (única implementación)</td><td>S4_NATIVE</td><td><code>…/API_APAR_SEPA_MANDATE_SRV/SEPAMandateSet</code></td></tr>
         <tr><td><code>MandateSapOutboundPort</code></td><td colspan="4"><span class="badge gap">declarado sin implementación</span> — <code>DeleteMandateUseCase</code> reutiliza <code>BankingSapPort</code></td></tr>
         <tr><td><code>BusinessPartnerReadPort</code></td><td>—</td><td><code>BusinessPartnerReadAdapter</code> (<code>sap.odata.read.enabled</code>)</td><td>S4_NATIVE</td><td>GET <code>A_BusinessPartner</code> con <code>$top</code> y <code>$filter</code>, desenvuelve el wrapper <code>d</code> <span class="badge gap">sin consumidores</span></td></tr>
         <tr><td><code>ArticleSapOutboundPort</code></td><td><code>S4ArticleAdapter</code> (siempre activo, JSON a mano)</td><td>—</td><td>S4_NATIVE</td><td><code>/sap/opu/odata/sap/API_PRODUCT</code></td></tr>
@@ -1436,7 +1437,7 @@ sequenceDiagram
         <tr><td><code>docs/sdd/sap-api-catalog.md</code></td><td>catálogo de las specs OpenAPI oficiales de S/4HANA usadas o previstas</td></tr>
         
         <tr><td><code>docs/tools-integrations/MCP.md</code> · <code>SAP_CLOUD_SDK.md</code></td><td>propuesta del MCP y guía del SAP Cloud SDK</td></tr>
-        <tr><td><code>docs/testing/TESTING.md</code> · <code>GUIA-PRUEBAS.md</code></td><td>catálogo de la suite (272 tests) y guía práctica CP-01…CP-13</td></tr>
+        <tr><td><code>docs/testing/TESTING.md</code> · <code>GUIA-PRUEBAS.md</code></td><td>catálogo de la suite (281 tests) y guía práctica CP-01…CP-13</td></tr>
         <tr><td><code>external-services/README.md</code> · <code>debezium/README.md</code></td><td>infraestructura local y detalle de los conectores</td></tr>
         <tr><td><code>docs/GLOSSARY.md</code></td><td>glosario de términos y siglas SAP</td></tr>
       </tbody>
@@ -1629,9 +1630,9 @@ const PIEZAS = {
   },
   'adapters-btp': {
     titulo: 'Familia BTP', estado: 'parcial',
-    rol: 'BtpCustomerAdapter, BtpAddressAdapter, BtpFiscalAdapter, BtpContactAdapter (destino BTP) y S4BankingAdapter (destino S4_NATIVE). Es la ruta ACTIVA POR DEFECTO. Cada uno serializa su propio DTO. El problema: la API BTP intermedia que consumirían no existe todavía; los paths /sap/btp/odata/* y los DTOs son contrato placeholder.',
-    ficheros: ['customer/…/adapters/sap/Btp*Adapter.java', 'customer/…/adapters/sap/S4BankingAdapter.java', 'customer/…/adapters/sap/dto/'],
-    config: ['sap.customer.btp.*-path', 'sap.mandate.s4.path', 'activos cuando sap.odata.<feature>.enabled = false'],
+    rol: 'BtpCustomerAdapter, BtpAddressAdapter, BtpFiscalAdapter, BtpContactAdapter y BtpBankingAdapter (destino BTP). Es la ruta ACTIVA POR DEFECTO. Cada uno serializa su propio DTO. El problema: la API BTP intermedia que consumirían no existe todavía; los paths /sap/btp/odata/* y los DTOs son contrato placeholder.',
+    ficheros: ['customer/…/adapters/sap/Btp*Adapter.java', 'customer/…/adapters/sap/dto/'],
+    config: ['sap.customer.btp.*-path', 'sap.sepa.creditor-id (mandatos)', 'activos cuando sap.odata.<feature>.enabled = false'],
     conexiones: ['uc-features','sapclient','btp-api'], diagramas: [['c4','C4']]
   },
   'adapters-odata': {

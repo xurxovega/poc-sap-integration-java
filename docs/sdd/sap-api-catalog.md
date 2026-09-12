@@ -186,7 +186,8 @@ GET /A_Supplier   → Suppliers  (BPs con rol de proveedor)
 | ADDRESS | `AddressSapPort` | `BtpAddressDto` | `to_BusinessPartnerAddress` | Street, City, PostalCode, Country, Region |
 | FISCAL | `FiscalSapPort` | `BtpFiscalDto` | `to_BusinessPartnerTax` | TaxNumber, VATNumber, LegalName, TaxResidency |
 | CONTACT | `ContactSapPort` | `BtpContactDto` | `to_BusinessPartnerContact` | Email, Phone, Fax, Website |
-| BANKING | `BankingSapPort` | `S4BankingDto` | `to_BusinessPartnerBank` | IBAN, BIC, mandates |
+| BANKING | `BankingSapPort` | `BtpBankingDto` (BTP) · `APIBUSINESSPARTNERABusinessPartnerBankTypeCreate` (S/4) | `A_BusinessPartnerBank` | S/4: `BankIdentification=0001`, `IBAN`, `BankCountryKey` (del IBAN). **Sin BIC**: no es campo de esta entidad. Spec [`customer/sincronizacion-datos-bancarios.md`](customer/sincronizacion-datos-bancarios.md) |
+| MANDATO SEPA | `MandateSapOutboundPort` | `APIAPARNOAPPSEPAMANDATESRVSEPAMandateTypeCreate` / `…Update` | `API_APAR_SEPA_MANDATE_SRV/SEPAMandateSet(Creditor,SEPAMandate)` | `Creditor` (config `sap.sepa.creditor-id`), `SEPAMandate`, `Sender`, `SenderIBAN`, `SenderBankSWIFTCode` (aquí va el BIC), `SEPASignatureDate`, `SEPAMandateStatus`; la baja es `PATCH` con estado `3` |
 | CUSTOMER | `CustomerSapOutboundPort` | `BtpCustomerDto` | `A_BusinessPartner` | BusinessPartner, Name, Status |
 
 > **Nota:** Los nombres de campo en los DTOs actuales no coinciden exactamente con el API de SAP.

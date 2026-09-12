@@ -27,6 +27,10 @@ Librería de tests que verifica reglas de arquitectura sobre el bytecode. En el 
 
 ## B
 
+### `BankIdentification` (A_BusinessPartnerBank)
+
+Identificador **secuencial** de cada cuenta bancaria dentro de un Business Partner (`0001`, `0002`...). No es el BIC ni el código de banco: el BIC/SWIFT pertenece al maestro de bancos y al mandato SEPA (`SenderBankSWIFTCode`). El país del banco va en `BankCountryKey`, derivado del IBAN. Auditoría B3.
+
 ### BAPI (Business Application Programming Interface)
 
 Interfaz estándar de SAP para acceder a procesos de negocio. En Java se invoca vía JCo/RFC. Ver [BAPI/RFC en SAP Cloud SDK](https://sap.github.io/cloud-sdk/docs/java/features/bapi-and-rfc/overview).
@@ -178,6 +182,10 @@ Plataforma de eventos. Recibe mensajes CDC (`outbox.<DOMINIO>`) y eventos direct
 Historia de estados propia de cada feature de una entidad, con clave `<entityId>:<FEATURE>` (p. ej. `CUST-001:ADDRESS`), independiente de la del agregado. Entra por `VALIDATING` en vez de por `RECEIVED`, porque el pipeline por feature valida y envía sin indexar. Ver [`maquina-de-estados.md`](sdd/common/maquina-de-estados.md).
 
 ## M
+
+### Mandato SEPA (`SEPAMandate`, `Creditor`)
+
+Autorización de un deudor para que un acreedor le domicilie cobros. En S/4 vive en `API_APAR_SEPA_MANDATE_SRV` con clave compuesta **`(Creditor, SEPAMandate)`**: `Creditor` es el *Creditor Identification Number* de la empresa (configuración `sap.sepa.creditor-id`, obligatorio) y `SEPAMandate` la referencia única del mandato. Estados (`SEPAMandateStatus`): 0 introducido, 1 activo, 2 bloqueado, 3 cancelado, 4 completado. Un mandato no se borra: se cancela. Ver [`sincronizacion-datos-bancarios.md`](sdd/customer/sincronizacion-datos-bancarios.md) y [`baja-mandato-sepa.md`](sdd/customer/baja-mandato-sepa.md).
 
 ### Maven Reactor
 

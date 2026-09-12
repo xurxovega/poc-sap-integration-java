@@ -78,7 +78,7 @@ nueve nombres que no existían):
 | `ImageStorePort<T>` | `MongoCustomerImageStore`, `MongoArticleImageStore` |
 | `HistoryIndexerPort<T>` | `ElasticsearchCustomerIndexer`, `ElasticsearchArticleIndexer` |
 | `SyncStateRepositoryPort` | `MongoSyncStateRepository` (en `common`, único) |
-| `SapOutboundPort<P>` | BTP: `BtpAddressAdapter`, `BtpFiscalAdapter`, `BtpContactAdapter`, `BtpCustomerAdapter`, `S4BankingAdapter` · OData S/4: `BusinessPartnerODataAdapter`, `BusinessPartnerAddressODataAdapter`, `BusinessPartnerTaxODataAdapter`, `BusinessPartnerContactODataAdapter`, `BusinessPartnerBankODataAdapter` · article: `S4ArticleAdapter` |
+| `SapOutboundPort<P>` | BTP: `BtpAddressAdapter`, `BtpFiscalAdapter`, `BtpContactAdapter`, `BtpCustomerAdapter`, `BtpBankingAdapter` · OData S/4: `BusinessPartnerODataAdapter`, `BusinessPartnerAddressODataAdapter`, `BusinessPartnerTaxODataAdapter`, `BusinessPartnerContactODataAdapter`, `BusinessPartnerBankODataAdapter`, `SepaMandateODataAdapter` (mandato SEPA, `API_APAR_SEPA_MANDATE_SRV`, sin alternativa BTP) · article: `S4ArticleAdapter` |
 | `BusinessPartnerReadPort` | `BusinessPartnerReadAdapter` (GET/search, `sap.odata.read.enabled=true`) |
 
 ## 6. Entradas

@@ -52,6 +52,3 @@ sap:
   customer:
     btp:
       path: /sap/btp/odata/Customer
-  mandate:
-    s4:
-      path: /sap/opu/odata/sap/API_CUSTOMER_MANDATE

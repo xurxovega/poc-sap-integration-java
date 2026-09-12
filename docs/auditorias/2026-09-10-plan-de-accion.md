@@ -271,6 +271,20 @@ comprobación PATCH parcial vs payload completo contra el tenant de test, el
 bloqueo en SAP, el upsert idempotente, y los contratos de contacto, BIC y
 mandatos.
 
+**Avance (12-09-2026, 3.2).** Contratos de **banco y mandato** corregidos (B3
+parcial): `S4BankingAdapter` → `BtpBankingAdapter` (familia BTP; la API
+`API_CUSTOMER_MANDATE` no existe); `A_BusinessPartnerBank` con
+`BankIdentification=0001` y `BankCountryKey`, sin BIC; `SepaMandateODataAdapter`
+sobre `API_APAR_SEPA_MANDATE_SRV` (clave `Creditor`+`SEPAMandate`, `Creditor` por
+`sap.sepa.creditor-id`, baja = `PATCH` estado 3). Specs
+`customer/sincronizacion-datos-bancarios.md` y `customer/baja-mandato-sepa.md`.
+Contract tests reales para los tres. **Queda de B3**: contacto por
+`A_AddressEmailAddress`/`A_AddressPhoneNumber` y upsert con `AddressID`: ambos
+necesitan la comprobación PATCH contra el tenant de test, que es el siguiente
+paso y no se puede adelantar sin él. Para validar en el tenant: la
+correspondencia de `SEPAMandateStatus` (1/3/4), `SenderType=BUS1006`,
+`SEPAMandateApplication=F` y que `BankCountryKey` + IBAN basten sin `BankNumber`.
+
 ---
 
 ## Fase 4 · Seguridad
@@ -478,7 +492,7 @@ una sesión nueva sepa dónde estamos sin leer el historial de ninguna otra.
 | 0 · Higiene | ✅ hecha | 2026-09-11 | `b55f889` (.gitattributes) + `00bbbae` | pendiente de verificación por otra sesión |
 | 1 · Inservible | ✅ hecha | 2026-09-12 | `84a9da4` | pendiente de verificación por otra sesión (verificación en vivo: 3/3 en esta sesión) |
 | 2 · Red de seguridad | ✅ hecha | 2026-09-12 | `299567a` | pendiente de verificación por otra sesión (`mvn verify` y `-pl it verify -Ddocker.available=true` en verde en esta sesión) |
-| 3 · SAP real | 🚧 en curso | | 3.1 transporte `RestClient` + CSRF A6/C4 (ADR-0001) hecho el 2026-09-12 | |
+| 3 · SAP real | 🚧 en curso | | 3.1 transporte `RestClient` + CSRF (ADR-0001, `c07adb0`) · 3.2 contratos banco y mandato SEPA, hechos el 2026-09-12 | |
 | 4 · Seguridad | ⬜ pendiente | | | |
 | 5 · Observabilidad | ⬜ pendiente | | | |
 | 6 · Consistencia | ⬜ pendiente | | | |

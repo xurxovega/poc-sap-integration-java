@@ -24,6 +24,13 @@ sap:
     banking-path: /sap/opu/odata/sap/API_BUSINESS_PARTNER/A_BusinessPartnerBank
     customer-path: /sap/opu/odata/sap/API_BUSINESS_PARTNER/A_BusinessPartner
     bp-path: /sap/opu/odata/sap/API_BUSINESS_PARTNER/A_BusinessPartner
+    mandate-path: /sap/opu/odata/sap/API_APAR_SEPA_MANDATE_SRV/SEPAMandateSet
+  sepa:
+    # Identificador de acreedor SEPA de la empresa: clave del mandato en S/4
+    # (SEPAMandateSet(Creditor, SEPAMandate)). Sin el, el adaptador de mandatos
+    # falla con un mensaje claro en la primera llamada.
+    creditor-id: ${SAP_SEPA_CREDITOR_ID:}
+    application: ${SAP_SEPA_APPLICATION:F}
   btp:
     base-url: ${SAP_BTP_BASE_URL:https://default-tenant.example.eu10.xsuaa.hana.ondemand.com}
     xsuaa:

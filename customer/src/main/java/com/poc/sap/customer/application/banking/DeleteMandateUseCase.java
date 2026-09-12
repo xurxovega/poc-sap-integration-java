@@ -4,17 +4,17 @@ import com.poc.sap.common.domain.SyncState;
 import com.poc.sap.common.domain.port.SyncStateRepositoryPort;
 import com.poc.sap.common.domain.SyncStateTransition;
 import com.poc.sap.common.observability.SyncMetrics;
-import com.poc.sap.customer.domain.port.BankingSapPort;
-import com.poc.sap.customer.domain.feature.banking.BankingData;
+import com.poc.sap.customer.domain.port.MandateSapOutboundPort;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
-import java.util.List;
 
 /**
- * Use case de borrado de Mandate (OVERVIEW.md §2; TECH.md §8).
- * Forma parte de la feature BANKING: notifica a SAP la revocacion del mandato
- * bancario.
+ * Baja (revocacion) de un mandato SEPA (sdd/customer/baja-mandato-sepa.md).
+ * Forma parte de la feature BANKING. En S/4 un mandato no se borra: se cancela
+ * ({@code SEPAMandateStatus = 3}) a traves de {@link MandateSapOutboundPort#revoke}.
+ * Hasta la Fase 3.2 mandaba un payload bancario ficticio a una API inexistente
+ * (auditoria B3).
  */
 @Service
 public class DeleteMandateUseCase {
@@ -22,11 +22,11 @@ public class DeleteMandateUseCase {
     private static final String DOMAIN = "customer";
     private static final String STAGE = "banking";
 
-    private final BankingSapPort sapPort;
+    private final MandateSapOutboundPort sapPort;
     private final SyncStateRepositoryPort stateRepo;
     private final SyncMetrics metrics;
 
-    public DeleteMandateUseCase(BankingSapPort sapPort,
+    public DeleteMandateUseCase(MandateSapOutboundPort sapPort,
                                 SyncStateRepositoryPort stateRepo,
                                 SyncMetrics metrics) {
         this.sapPort = sapPort;
@@ -35,10 +35,9 @@ public class DeleteMandateUseCase {
     }
 
     public SyncState execute(String mandateId, String customerId, String payloadHash) {
-        BankingData payload = new BankingData(null, null, List.of(mandateId));
         String entityId = customerId + ":" + "BANKING";
         beginCycle(entityId, payloadHash, SyncState.SENDING_SAP);
-        var response = sapPort.send(mandateId, payloadHash, payload);
+        var response = sapPort.revoke(mandateId, payloadHash);
         SyncState target = response.isSuccess() ? SyncState.SENT_SAP : SyncState.SAP_ERROR;
         transition(entityId, payloadHash, SyncState.SENDING_SAP, target);
         return target;

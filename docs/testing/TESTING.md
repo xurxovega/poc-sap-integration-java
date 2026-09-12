@@ -8,7 +8,7 @@
 
 ## 1. Resumen ejecutivo
 
-Total: **272 tests** declarados (medido el 12-09-2026 con JDK 25, `mvn clean test`).
+Total: **281 tests** declarados (medido el 12-09-2026 con JDK 25, `mvn clean test`).
 
 La cifra es de `@Test` **declarados** en `src/test/java` de todos los módulos; la vigila
 `TestCountMatchesDocsTest` (módulo `it`) y el build falla si diverge. Los IT gateados
@@ -18,9 +18,9 @@ El módulo `it` sigue ejecutando los contract dos veces — ver §8 issue 3.
 | Módulo     | Tests aprox. | Contenido principal |
 |------------|--------------|---------------------|
 | common     | 80           | dominio (máquina de estados con estado inicial/re-sync, ValidationResult acumulativo), Mongo repo (dedupe `alreadySent`), auth providers, **`RestClientSapClientTest`** (retry 5xx, no-retry 4xx, cabeceras, PATCH/DELETE, CSRF completo con auth del destino y 403 sin `Required` contra WireMock) |
-| customer   | 137          | unit + slice + **`CustomerApplicationContextTest`** (smoke de contexto Spring completo) |
+| customer   | 143          | unit + slice + **`CustomerApplicationContextTest`** (smoke de contexto Spring completo) |
 | article    | 42           | unit + slice + **`ArticleApplicationContextTest`** (smoke de contexto) |
-| it         | 13           | contract (WireMock, adaptadores **reales**, failsafe) + `TestCountMatchesDocsTest` + `SyncStateMongoIT`/`InfrastructureSmokeIT` (skip sin `-Ddocker.available=true`) |
+| it         | 16           | contract (WireMock, adaptadores **reales**, failsafe) + `TestCountMatchesDocsTest` + `SyncStateMongoIT`/`InfrastructureSmokeIT` (skip sin `-Ddocker.available=true`) |
 | supplier   | 0            | placeholder |
 
 Los smoke tests de contexto levantan cada app sin infraestructura externa
@@ -101,7 +101,9 @@ incompatible, Jackson 3, `spring-kafka` sin autoconfiguración).
 | BtpAddressAdapterTest | BtpAddressAdapter | 2 | Mapeo JSON, null address |
 | BtpFiscalAdapterTest | BtpFiscalAdapter | 2 | Mapeo JSON, null fiscal |
 | BtpContactAdapterTest | BtpContactAdapter | 2 | Mapeo JSON, null contact |
-| S4BankingAdapterTest | S4BankingAdapter | 3 | Mapeo JSON, null banking, mandates |
+| BtpBankingAdapterTest | BtpBankingAdapter | 3 | Contrato BTP, mandatos como lista, null banking (antes `S4BankingAdapterTest`) |
+| BusinessPartnerBankODataAdapterTest | BusinessPartnerBankODataAdapter | 2 | `BankIdentification` ordinal sin BIC, `BankCountryKey` del IBAN |
+| SepaMandateODataAdapterTest | SepaMandateODataAdapter | 4 | Alta en `SEPAMandateSet`, revocación por PATCH de estado, acreedor obligatorio, mapa de estados |
 
 **Unit persistence (12)**:
 
@@ -231,7 +233,9 @@ WireMock método, path, `Authorization`, `Idempotency-Key` y cuerpo JSON
 | `BtpAddressAdapter` | `/sap/btp/odata/CustomerAddress` | POST mapeado · 503 reintentado 3 veces |
 | `BtpFiscalAdapter` | `/sap/btp/odata/CustomerFiscal` | POST mapeado (NIF, IVA, razón social, residencia) |
 | `BtpContactAdapter` | `/sap/btp/odata/CustomerContact` | POST mapeado |
-| `S4BankingAdapter` | `/sap/opu/odata/sap/API_CUSTOMER_MANDATE` | POST mapeado (IBAN, BIC). El path es el que **hoy** se envía; la auditoría lo señala como API inexistente (B3, Fase 3) |
+| `BtpBankingAdapter` | `/sap/btp/odata/CustomerBanking` | POST del contrato BTP (IBAN, BIC, `Mandates` como lista). Antes `S4BankingAdapter` contra `API_CUSTOMER_MANDATE`, inexistente (B3) |
+| `BusinessPartnerBankODataAdapter` | `/sap/opu/odata/sap/API_BUSINESS_PARTNER/A_BusinessPartnerBank` | POST con `BankIdentification=0001`, `BankCountryKey` del IBAN y **sin BIC** |
+| `SepaMandateODataAdapter` | `/sap/opu/odata/sap/API_APAR_SEPA_MANDATE_SRV/SEPAMandateSet` | POST del alta (clave `Creditor`+`SEPAMandate`, BIC en `SenderBankSWIFTCode`) · **PATCH** de revocación (`SEPAMandateStatus=3`) sobre la clave, sin POST ni DELETE |
 | `S4ArticleAdapter` | `/sap/opu/odata/sap/API_PRODUCT` | POST mapeado (Product, Description, BaseUnit, Status) |
 
 WireMock sigue respondiendo lo que se le pide: estos tests fijan **lo que nosotros

@@ -20,7 +20,18 @@ identifican por fecha.
 
 ## [Sin publicar]
 
-### 2026-09-12 — Cliente SAP sobre un transporte más simple (Fase 3.1 de la auditoría)
+### 2026-09-12 — Cliente SAP sobre un transporte más simple (Fase 3.1 y 3.2 de la auditoría)
+
+#### Corregido (datos bancarios y mandatos, Fase 3.2)
+
+- Los **datos bancarios** se enviaban a SAP con el código BIC en un campo que no
+  es el suyo y sin el país del banco. Ahora van con el contrato real de SAP.
+- Los **mandatos SEPA** se enviaban a una API de SAP que **no existe**. Ahora se
+  dan de alta y se revocan en la API oficial de mandatos, identificados por el
+  acreedor SEPA de la empresa (nuevo dato de configuración obligatorio).
+- La **baja de un mandato** ya no intenta borrarlo: lo cancela, como exige SAP,
+  y se conserva el historial de cobros. Sigue sin haber eventos de mandato
+  desde el sistema origen: la funcionalidad está lista pero no se dispara.
 
 #### Cambiado
 

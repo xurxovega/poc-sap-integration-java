@@ -92,7 +92,7 @@ elige por configuración, feature a feature.
 │ AddressSapPort   │ BtpAddressAdapter     │ BTP              │ Push       │
 │ FiscalSapPort    │ BtpFiscalAdapter      │ BTP              │ Push       │
 │ ContactSapPort   │ BtpContactAdapter     │ BTP              │ Push       │
-│ BankingSapPort   │ S4BankingAdapter      │ S4_NATIVE        │ Push       │
+│ BankingSapPort   │ BtpBankingAdapter     │ BTP              │ Push       │
 │ CustomerSapPort  │ BtpCustomerAdapter    │ BTP              │ Push       │
 └──────────────────┴───────────────────────┴──────────────────┴────────────┘
 

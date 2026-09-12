@@ -12,8 +12,15 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
 /**
- * Adaptador OData S/4HANA para la feature BANKING.
+ * Adaptador OData S/4HANA para la feature BANKING
+ * (sdd/customer/sincronizacion-datos-bancarios.md §5, ruta OData).
  * Usa modelo generado desde {@code API_BUSINESS_PARTNER.yaml}.
+ *
+ * <p>Contrato real de {@code A_BusinessPartnerBank} (auditoria B3):
+ * {@code BankIdentification} es el identificador <b>secuencial</b> de la cuenta
+ * dentro del BP (4 caracteres), no el BIC. El BIC/SWIFT no vive en esta entidad:
+ * pertenece al maestro de bancos y al mandato SEPA ({@code SenderBankSWIFTCode}).
+ * {@code BankCountryKey} se deriva del IBAN.
  */
 @Component
 @ConditionalOnProperty(name = "sap.odata.banking.enabled", havingValue = "true")
@@ -38,12 +45,23 @@ public class BusinessPartnerBankODataAdapter implements BankingSapPort {
         return sapClient.send(SapDestination.S4_NATIVE, path, entityId, payloadHash, body);
     }
 
+    /** Primera (y por ahora unica) cuenta del BP. Con varias cuentas seria 0002, 0003... */
+    static final String FIRST_BANK_IDENTIFICATION = "0001";
+
     private APIBUSINESSPARTNERABusinessPartnerBankTypeCreate toSapPayload(String entityId, BankingData b) {
         var bank = new APIBUSINESSPARTNERABusinessPartnerBankTypeCreate();
         bank.setBusinessPartner(entityId);
-        bank.setBankIdentification(n(b.bic()));
+        bank.setBankIdentification(FIRST_BANK_IDENTIFICATION);
         bank.setIBAN(n(b.iban()));
+        bank.setBankCountryKey(countryOf(b.iban()));
         return bank;
+    }
+
+    /** Los dos primeros caracteres del IBAN son el pais ISO (ES76... -> ES). */
+    static String countryOf(String iban) {
+        if (iban == null) return "";
+        String t = iban.replace(" ", "");
+        return t.length() >= 2 ? t.substring(0, 2).toUpperCase(java.util.Locale.ROOT) : "";
     }
 
     private static String n(String s) { return s == null ? "" : s; }

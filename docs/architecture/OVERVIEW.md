@@ -112,7 +112,8 @@ sus entidades y sus features:
 |  BtpAddressAdapter  | BtpFiscalAdapter  | BtpContactAdapter         |
 |  (SapDestination.BTP)                                              |
 |                                                                     |
-|  S4BankingAdapter   (SapDestination.S4_NATIVE, incluye mandates)    |
+|  BtpBankingAdapter  (SapDestination.BTP)                            |
+|  SepaMandateODataAdapter (S4_NATIVE, API_APAR_SEPA_MANDATE_SRV)     |
 |  BtpCustomerAdapter (operaciones generales: DELETE OData)           |
 |                                                                     |
 |  Todos delegan en SapClient (common) → RestClient + OAuth2 + Retry   |
@@ -231,7 +232,7 @@ POST /customers/sync  { features:[ADDRESS] }  (futuro)
 | `ImageStorePort<T>`         | `MongoCustomerImageStore`         | `MongoArticleImageStore`          |
 | `HistoryIndexerPort<T>`     | `ElasticsearchCustomerIndexer`    | `ElasticsearchArticleIndexer`    |
 | `SyncStateRepositoryPort`   | `MongoSyncStateRepository` (en `common/`) | idem |
-| `SapOutboundPort<T>`        | `BtpCustomerAdapter`, `BtpAddressAdapter`, `BtpFiscalAdapter`, `BtpContactAdapter`, `S4BankingAdapter` | `S4ArticleAdapter` |
+| `SapOutboundPort<T>`        | `BtpCustomerAdapter`, `BtpAddressAdapter`, `BtpFiscalAdapter`, `BtpContactAdapter`, `BtpBankingAdapter`; mandatos: `SepaMandateODataAdapter` | `S4ArticleAdapter` |
 
 > `SyncStateRepositoryPort` está compartido en `common/adapters/persistence/MongoSyncStateRepository.java` — todos los dominios lo reutilizan sin duplicar.
 
