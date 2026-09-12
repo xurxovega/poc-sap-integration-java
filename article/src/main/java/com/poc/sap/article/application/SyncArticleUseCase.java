@@ -5,7 +5,7 @@ import com.poc.sap.common.domain.SyncState;
 import com.poc.sap.common.domain.port.SyncStateRepositoryPort;
 import com.poc.sap.common.domain.SyncStateTransition;
 import com.poc.sap.common.domain.ValidationResult;
-import com.poc.sap.common.observability.SyncMetrics;
+import com.poc.sap.common.domain.port.MetricsPort;
 import com.poc.sap.article.domain.Article;
 import com.poc.sap.article.domain.ArticleValidations;
 import com.poc.sap.article.domain.port.ArticleHistoryIndexerPort;
@@ -14,7 +14,6 @@ import com.poc.sap.article.domain.port.ArticleLegacyRepositoryPort;
 import com.poc.sap.article.domain.port.ArticleSapOutboundPort;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.stereotype.Service;
 
 import java.time.Instant;
 import java.util.Optional;
@@ -24,7 +23,6 @@ import java.util.function.Supplier;
  * Use case principal de Article: fetch → validate → index → send to SAP
  * (OVERVIEW.md §2, §5; TECH.md §6). Idempotente por payloadHash.
  */
-@Service
 public class SyncArticleUseCase {
 
     private static final Logger log = LoggerFactory.getLogger(SyncArticleUseCase.class);
@@ -35,14 +33,14 @@ public class SyncArticleUseCase {
     private final ArticleHistoryIndexerPort historyIndexer;
     private final ArticleSapOutboundPort sapOutbound;
     private final SyncStateRepositoryPort stateRepo;
-    private final SyncMetrics metrics;
+    private final MetricsPort metrics;
 
     public SyncArticleUseCase(ArticleLegacyRepositoryPort legacyRepo,
                               ArticleImageStorePort imageStore,
                               ArticleHistoryIndexerPort historyIndexer,
                               ArticleSapOutboundPort sapOutbound,
                               SyncStateRepositoryPort stateRepo,
-                              SyncMetrics metrics) {
+                              MetricsPort metrics) {
         this.legacyRepo = legacyRepo;
         this.imageStore = imageStore;
         this.historyIndexer = historyIndexer;

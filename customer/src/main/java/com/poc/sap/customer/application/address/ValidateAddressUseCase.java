@@ -3,21 +3,19 @@ package com.poc.sap.customer.application.address;
 import com.poc.sap.common.domain.SyncState;
 import com.poc.sap.common.domain.port.SyncStateRepositoryPort;
 import com.poc.sap.common.domain.SyncStateTransition;
-import com.poc.sap.common.observability.SyncMetrics;
+import com.poc.sap.common.domain.port.MetricsPort;
 import com.poc.sap.customer.domain.Customer;
 import com.poc.sap.customer.domain.feature.address.AddressValidator;
-import org.springframework.stereotype.Service;
 
 import java.time.Instant;
 
 /** Use case de validacion aislada de la feature ADDRESS. */
-@Service
 public class ValidateAddressUseCase {
 
     private final SyncStateRepositoryPort stateRepo;
-    private final SyncMetrics metrics;
+    private final MetricsPort metrics;
 
-    public ValidateAddressUseCase(SyncStateRepositoryPort stateRepo, SyncMetrics metrics) {
+    public ValidateAddressUseCase(SyncStateRepositoryPort stateRepo, MetricsPort metrics) {
         this.stateRepo = stateRepo;
         this.metrics = metrics;
     }

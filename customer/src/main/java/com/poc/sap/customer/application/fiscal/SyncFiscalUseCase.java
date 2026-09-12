@@ -4,18 +4,16 @@ import com.poc.sap.common.domain.SyncState;
 import com.poc.sap.common.domain.port.SyncStateRepositoryPort;
 import com.poc.sap.common.domain.SyncStateTransition;
 import com.poc.sap.common.domain.ValidationResult;
-import com.poc.sap.common.observability.SyncMetrics;
+import com.poc.sap.common.domain.port.MetricsPort;
 import com.poc.sap.customer.domain.Customer;
 import com.poc.sap.customer.domain.CustomerFeature;
 import com.poc.sap.customer.domain.feature.fiscal.FiscalData;
 import com.poc.sap.customer.domain.feature.fiscal.FiscalValidator;
 import com.poc.sap.customer.domain.port.FiscalSapPort;
-import org.springframework.stereotype.Service;
 
 import java.time.Instant;
 
 /** Use case de la feature FISCAL: valida y envia a SAP los datos fiscales. */
-@Service
 public class SyncFiscalUseCase {
 
     private static final String DOMAIN = "customer";
@@ -23,11 +21,11 @@ public class SyncFiscalUseCase {
 
     private final FiscalSapPort sapPort;
     private final SyncStateRepositoryPort stateRepo;
-    private final SyncMetrics metrics;
+    private final MetricsPort metrics;
 
     public SyncFiscalUseCase(FiscalSapPort sapPort,
                              SyncStateRepositoryPort stateRepo,
-                             SyncMetrics metrics) {
+                             MetricsPort metrics) {
         this.sapPort = sapPort;
         this.stateRepo = stateRepo;
         this.metrics = metrics;

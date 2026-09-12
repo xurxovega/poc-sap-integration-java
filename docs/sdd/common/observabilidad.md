@@ -83,7 +83,7 @@ Este spec **es** la observabilidad del sistema. Lo que falta está en §2 (fuera
 
 | Elemento del spec | Código | Test |
 |---|---|---|
-| R-1, R-2 (fachada) | `common/observability/SyncMetrics.java` | `SyncMetricsTest` |
+| R-1, R-2 (puerto y fachada) | `common/domain/port/MetricsPort.java` · `common/observability/SyncMetrics.java` (implementación Micrometer) | `SyncMetricsTest` |
 | R-2 (etapas) | `customer/application/general/SyncCustomerUseCase.timed` · `article/application/SyncArticleUseCase.timed` | `SyncCustomerUseCaseTest` · `SyncArticleUseCaseTest` |
 | R-3 (HTTP) | `common/sap/RestClientSapClient.recordRequest` | `RestClientSapClientTest` |
 | R-3 (Resilience4j) | `common/sap/SapIntegrationConfig.sapResilienceMetrics` | `SapResilienceMetricsTest` |
@@ -94,4 +94,5 @@ Este spec **es** la observabilidad del sistema. Lo que falta está en §2 (fuera
 
 | Fecha | Cambio | PR |
 |---|---|---|
+| 2026-09-12 | Fase 7: `MetricsPort` en el dominio; `application` deja de importar Micrometer | — |
 | 2026-09-12 | Spec inicial (plan Fase 5 parcial, auditoría A9/A10). Timer de etapas cableado en ambos orquestadores; timer por intento HTTP y binder de Resilience4j en el cliente SAP; tag `application` por app; `RetryBudgetGuard` con `max.poll.interval.ms` a 15 min; parada ordenada; formato ECS de log por variable de entorno. Trazas: pendientes de D-7 | — |

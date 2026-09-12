@@ -2,7 +2,7 @@ package com.poc.sap.customer.application.general;
 
 import com.poc.sap.common.domain.SyncState;
 import com.poc.sap.common.domain.port.SapOutboundPort.SapResponse;
-import com.poc.sap.common.observability.SyncMetrics;
+import com.poc.sap.common.domain.port.MetricsPort;
 import com.poc.sap.customer.application.CustomerFixtures;
 import com.poc.sap.customer.application.InMemoryStateRepo;
 import com.poc.sap.customer.domain.Customer;
@@ -36,7 +36,7 @@ class DeleteCustomerUseCaseTest {
 
     @Mock CustomerImageStorePort imageStore;
     @Mock CustomerSapOutboundPort sapOutbound;
-    @Mock SyncMetrics metrics;
+    @Mock MetricsPort metrics;
 
     private InMemoryStateRepo stateRepo;
     private DeleteCustomerUseCase useCase;

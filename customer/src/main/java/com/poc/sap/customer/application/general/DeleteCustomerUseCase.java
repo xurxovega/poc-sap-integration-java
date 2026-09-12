@@ -3,13 +3,12 @@ package com.poc.sap.customer.application.general;
 import com.poc.sap.common.domain.SyncState;
 import com.poc.sap.common.domain.SyncStateTransition;
 import com.poc.sap.common.domain.port.SyncStateRepositoryPort;
-import com.poc.sap.common.observability.SyncMetrics;
+import com.poc.sap.common.domain.port.MetricsPort;
 import com.poc.sap.customer.domain.Customer;
 import com.poc.sap.customer.domain.port.CustomerImageStorePort;
 import com.poc.sap.customer.domain.port.CustomerSapOutboundPort;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.stereotype.Service;
 
 import java.time.Instant;
 
@@ -25,7 +24,6 @@ import java.time.Instant;
  * <p>Hasta la auditoria del 2026-09-10 esta baja nunca se ejecutaba: abria por
  * un estado que la maquina no admitia y, de haberlo hecho, mandaba {@code POST {}}.
  */
-@Service
 public class DeleteCustomerUseCase {
 
     private static final Logger log = LoggerFactory.getLogger(DeleteCustomerUseCase.class);
@@ -35,12 +33,12 @@ public class DeleteCustomerUseCase {
     private final CustomerImageStorePort imageStore;
     private final CustomerSapOutboundPort sapOutbound;
     private final SyncStateRepositoryPort stateRepo;
-    private final SyncMetrics metrics;
+    private final MetricsPort metrics;
 
     public DeleteCustomerUseCase(CustomerImageStorePort imageStore,
                                  CustomerSapOutboundPort sapOutbound,
                                  SyncStateRepositoryPort stateRepo,
-                                 SyncMetrics metrics) {
+                                 MetricsPort metrics) {
         this.imageStore = imageStore;
         this.sapOutbound = sapOutbound;
         this.stateRepo = stateRepo;

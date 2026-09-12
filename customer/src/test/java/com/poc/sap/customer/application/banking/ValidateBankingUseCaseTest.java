@@ -3,7 +3,7 @@ package com.poc.sap.customer.application.banking;
 import com.poc.sap.common.domain.SyncState;
 import com.poc.sap.common.domain.SyncStateTransition;
 import com.poc.sap.common.domain.port.SyncStateRepositoryPort;
-import com.poc.sap.common.observability.SyncMetrics;
+import com.poc.sap.common.domain.port.MetricsPort;
 import com.poc.sap.customer.application.CustomerFixtures;
 import com.poc.sap.customer.domain.Customer;
 import com.poc.sap.customer.domain.feature.banking.BankingData;
@@ -23,7 +23,7 @@ import static org.mockito.Mockito.*;
 class ValidateBankingUseCaseTest {
 
     @Mock SyncStateRepositoryPort stateRepo;
-    @Mock SyncMetrics metrics;
+    @Mock MetricsPort metrics;
 
     private ValidateBankingUseCase useCase;
 

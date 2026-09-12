@@ -139,6 +139,9 @@ re-desplegar los dominios: ver el criterio en
   producción cita la sección de arquitectura (`(OVERVIEW.md §5)`, `(TECH.md §8)`).
   Esa doble cita es el ancla vista desde el código.
 - **Sin Spring en `domain` ni `application`**: dominio puro, sin beans ni contexto.
+  Los use cases no llevan `@Service`: se declaran como `@Bean` en
+  `bootstrap/<Dominio>UseCaseConfig`; las métricas se piden por `MetricsPort`.
+  Lo vigilan `DomainPurityTest` y `ApplicationPurityTest` (ArchUnit).
 - **Mocks sobre puertos** (interfaces de `domain/port/`), nunca sobre
   implementaciones concretas.
 - Resto de convenciones vigentes (fixtures, strict stubs, AssertJ, slice web) en
@@ -279,9 +282,9 @@ confundir con el Shared Kernel, que es `common`. Catálogo en
 > ⚠️ **Push es lo implementado.** El modo *pull* (SAP BTP orquestando el ciclo,
 > estado `PENDING_SAP`, endpoints `/btp/pending` y `/btp/result`) es una
 > **propuesta no implementada**: ese estado no está en el enum `SyncState` y esos
-> endpoints no existen. La propiedad `sap.integration.mode` sí está declarada en
-> `application-common.yml`, pero **ningún código la lee**: es un hueco reservado,
-> no un conmutador funcional. Lo mismo aplica al batch D+1 y a los eventos de
+> endpoints no existen. La propiedad `sap.integration.mode` **se retiró** en la
+> Fase 7 de la auditoría (nadie la leía; A18): el modo pull se configurará cuando
+> exista. Lo mismo aplica al batch D+1 y a los eventos de
 > stock desde S/4. Ver
 > [`docs/architecture/INTEGRATION-PATTERNS.md`](docs/architecture/INTEGRATION-PATTERNS.md),
 > que distingue implementado de propuesto.

@@ -309,7 +309,7 @@ En DDD, el contrato compartido con el que dos contextos se hablan. Aquí son los
 
 ### Pull (integración)
 
-**Propuesta, no implementada.** Modo de integración donde SAP BTP iniciaría el ciclo: preguntar pendientes (`GET /btp/pending`), procesar en S/4HANA, y notificar resultado (`POST /btp/result`). Ni los endpoints ni el estado asociado existen en el código actual, y la propiedad `sap.integration.mode` está declarada pero no la lee nadie. Ver [`MEJORAS-Y-PROPUESTAS.md`](MEJORAS-Y-PROPUESTAS.md) PRD-4.
+**Propuesta, no implementada.** Modo de integración donde SAP BTP iniciaría el ciclo: preguntar pendientes (`GET /btp/pending`), procesar en S/4HANA, y notificar resultado (`POST /btp/result`). Ni los endpoints ni el estado asociado existen en el código actual, y la propiedad `sap.integration.mode` se retiró en la Fase 7 (nadie la leía). Ver [`MEJORAS-Y-PROPUESTAS.md`](MEJORAS-Y-PROPUESTAS.md) PRD-4.
 
 ### Push (integración)
 

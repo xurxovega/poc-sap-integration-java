@@ -72,7 +72,7 @@
 | DX-4 | Maven wrapper (`mvnw`) en el repo | transversal | ✅ 2026-09-12 | Maven 3.9.9 fijado en `.mvn/wrapper`; la CI usa `./mvnw`. Elimina la dependencia del `mvn` del sistema y fija la versión |
 | DX-5 | Hook de pre-commit que ejecute `mvn test` sobre los módulos tocados | transversal | 💡 | |
 | DX-6 | Comprobador de enlaces de la documentación en CI | transversal | 💡 | Se ha usado a mano en cada reorganización de `docs/`; automatizarlo es barato y evita enlaces muertos |
-| TEST-7 | ArchUnit sobre `application`: sin Spring, Micrometer ni Jackson (auditoría A4) | proyecto | 📋 | `DomainPurityTest` ya lo vigila en `domain`. En `application` hoy 16/16 use cases llevan `@Service` y 14 dependen de Micrometer: la regla se activa cuando la Fase 7 introduzca `MetricsPort`/`DiffPort` |
+| TEST-7 | ArchUnit sobre `application`: sin Spring, Micrometer ni Jackson (auditoría A4) | proyecto | ✅ 2026-09-12 | `ApplicationPurityTest` en customer y article. `MetricsPort` en el dominio, `@Service` fuera de los 16 use cases, wiring en `bootstrap/*UseCaseConfig` |
 | DX-7 | Generador OpenAPI de `sap-api-models` **falla de forma intermitente en Windows** («Unable to delete original source file» / «Failed to generate data model») si `target/` no está limpio | proyecto | ✅ 2026-09-12 | Causa: tres ejecuciones del generador sobre el mismo `target/generated-sources` y cada una borraba lo de la anterior (`deleteOutputDirectory` por defecto). Fijado `deleteOutputDirectory=false` en la 2.ª y 3.ª ejecución |
 
 ## Features
@@ -120,9 +120,9 @@ pendiente en vez de empujarlo.
   (`BtpPendingQueryUseCase`, consulta `SyncStateRepositoryPort`) y
   `POST /btp/result` (`BtpResultProcessingUseCase`, transiciona
   `PENDING_SAP → SENT_SAP`/error).
-- La propiedad `sap.integration.mode` (`push|pull|both`) ya está declarada en
-  `application-common.yml` pero **ningún código la lee**: es un hueco reservado,
-  no un conmutador funcional.
+- La propiedad `sap.integration.mode` (`push|pull|both`) **se retiró** (Fase 7,
+  A18): estaba declarada y nadie la leía. Se reintroducirá con el primer
+  consumidor real.
 
 ## Panel de operación (dashboard web)
 

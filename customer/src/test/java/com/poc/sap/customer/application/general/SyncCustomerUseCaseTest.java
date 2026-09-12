@@ -6,7 +6,7 @@ import com.poc.sap.common.domain.port.SyncStateRepositoryPort;
 import com.poc.sap.common.domain.port.ImageStorePort;
 import com.poc.sap.common.domain.port.HistoryIndexerPort;
 import com.poc.sap.common.domain.port.LegacyRepositoryPort;
-import com.poc.sap.common.observability.SyncMetrics;
+import com.poc.sap.common.domain.port.MetricsPort;
 import com.poc.sap.customer.application.CustomerFixtures;
 import com.poc.sap.customer.application.address.SyncAddressUseCase;
 import com.poc.sap.customer.application.banking.SyncBankingUseCase;
@@ -51,7 +51,7 @@ class SyncCustomerUseCaseTest {
     @Mock CustomerImageStorePort imageStore;
     @Mock CustomerHistoryIndexerPort historyIndexer;
     @Mock SyncStateRepositoryPort stateRepo;
-    @Mock SyncMetrics metrics;
+    @Mock MetricsPort metrics;
     @Mock SyncAddressUseCase address;
     @Mock SyncFiscalUseCase fiscal;
     @Mock SyncContactUseCase contact;

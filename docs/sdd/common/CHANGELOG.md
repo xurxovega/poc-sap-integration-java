@@ -7,6 +7,7 @@
 
 | Fecha | Capacidad | Cambio |
 |---|---|---|
+| 2026-09-12 | [Observabilidad y operación](observabilidad.md) | `MetricsPort` en el dominio (Fase 7, A4): los use cases ya no importan Micrometer |
 | 2026-09-12 | [Idempotencia, dedupe y consistencia de la imagen](idempotencia-y-dedupe.md) | Spec inicial (Fase 6, A1/A31). Dedupe contra el último `SENT_SAP`; imagen solo tras el ACK; histórico por intento; semántica del atajo «sin cambios reales» |
 | 2026-09-12 | [Observabilidad y operación](observabilidad.md) | Spec inicial (Fase 5 parcial, A9/A10). Duración por etapa cableada, timer por intento HTTP a SAP, métricas Resilience4j, tag `application` por app, `RetryBudgetGuard` + `max.poll.interval.ms` 15 min, parada ordenada, ECS por variable. Trazas pendientes de D-7 |
 | 2026-09-12 | [Autenticación hacia SAP](autenticacion-sap.md) | Spec inicial (adelanto de la Fase 4, A8). Sin credenciales la app no arranca; token stub solo con `sap.auth.allow-stub=true`. Secretos de BD y SAP fuera de los YAML |

@@ -11,7 +11,7 @@ import com.poc.sap.common.domain.OperationType;
 import com.poc.sap.common.domain.SyncState;
 import com.poc.sap.common.domain.port.SyncStateRepositoryPort;
 import com.poc.sap.common.domain.port.SapOutboundPort.SapResponse;
-import com.poc.sap.common.observability.SyncMetrics;
+import com.poc.sap.common.domain.port.MetricsPort;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -34,7 +34,7 @@ class SyncArticleUseCaseTest {
     @Mock ArticleHistoryIndexerPort historyIndexer;
     @Mock ArticleSapOutboundPort sapOutbound;
     @Mock SyncStateRepositoryPort stateRepo;
-    @Mock SyncMetrics metrics;
+    @Mock MetricsPort metrics;
 
     private SyncArticleUseCase useCase;
 

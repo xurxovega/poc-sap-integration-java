@@ -20,6 +20,18 @@ identifican por fecha.
 
 ## [Sin publicar]
 
+### 2026-09-12 — Limpieza interna (Fase 7 de la auditoría, primera parte)
+
+#### Cambiado
+
+- La lógica de negocio deja de depender del framework: los casos de uso ya no
+  conocen Spring ni la librería de métricas, y una regla automática impide que
+  vuelvan a hacerlo. No cambia el comportamiento.
+- Los productos se envían a SAP omitiendo los campos sin valor en vez de mandar
+  cadenas vacías, que SAP puede rechazar.
+- Se retiran código y opciones de configuración que nadie usaba (un puerto sin
+  implementación, dos propiedades sin lector, un caso de uso sin llamadores).
+
 ### 2026-09-12 — Memoria del proyecto: decisiones, incidencias y operación (Fase 9 de la auditoría)
 
 #### Añadido

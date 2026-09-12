@@ -4,7 +4,6 @@ import com.poc.sap.article.domain.Article;
 import com.poc.sap.article.domain.port.ArticleHistoryIndexerPort;
 import com.poc.sap.common.diff.JsonDiff;
 import com.poc.sap.common.domain.port.HistoryIndexerPort.Snapshot;
-import org.springframework.stereotype.Service;
 
 import java.time.Instant;
 import java.util.List;
@@ -15,7 +14,6 @@ import java.util.NoSuchElementException;
  * Consulta del historico de versiones enviadas a SAP (Elasticsearch) y diff
  * entre dos versiones. Mismo contrato que el homologo de customer.
  */
-@Service
 public class ArticleHistoryUseCase {
 
     private final ArticleHistoryIndexerPort historyIndexer;

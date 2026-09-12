@@ -3,9 +3,8 @@ package com.poc.sap.customer.application.banking;
 import com.poc.sap.common.domain.SyncState;
 import com.poc.sap.common.domain.port.SyncStateRepositoryPort;
 import com.poc.sap.common.domain.SyncStateTransition;
-import com.poc.sap.common.observability.SyncMetrics;
+import com.poc.sap.common.domain.port.MetricsPort;
 import com.poc.sap.customer.domain.port.MandateSapOutboundPort;
-import org.springframework.stereotype.Service;
 
 import java.time.Instant;
 
@@ -16,7 +15,6 @@ import java.time.Instant;
  * Hasta la Fase 3.2 mandaba un payload bancario ficticio a una API inexistente
  * (auditoria B3).
  */
-@Service
 public class DeleteMandateUseCase {
 
     private static final String DOMAIN = "customer";
@@ -24,11 +22,11 @@ public class DeleteMandateUseCase {
 
     private final MandateSapOutboundPort sapPort;
     private final SyncStateRepositoryPort stateRepo;
-    private final SyncMetrics metrics;
+    private final MetricsPort metrics;
 
     public DeleteMandateUseCase(MandateSapOutboundPort sapPort,
                                 SyncStateRepositoryPort stateRepo,
-                                SyncMetrics metrics) {
+                                MetricsPort metrics) {
         this.sapPort = sapPort;
         this.stateRepo = stateRepo;
         this.metrics = metrics;

@@ -548,7 +548,7 @@ una sesión nueva sepa dónde estamos sin leer el historial de ninguna otra.
 | 4 · Seguridad | 🚧 parcial | | A8 adelantado el 2026-09-12 (sin stub silencioso, secretos fuera del YAML) como prerrequisito del tenant; B4 (auth REST/actuator) pendiente | |
 | 5 · Observabilidad | 🚧 parcial | | A9 (métricas, tag, ECS) y A10 (graceful, presupuesto de reintentos) hechos el 2026-09-12; trazas bloqueadas por D-7 | |
 | 6 · Consistencia | ✅ hecha (salvo compensación, D-2) | 2026-09-12 | `2c532a7` + `9e7fd6c` | pendiente de verificación por otra sesión (verificación en vivo 3/3 en esta sesión: imagen intacta con SAP en 500, imagen actualizada tras 2xx, A→B→A reenviado) |
-| 7 · Refactor | ⬜ pendiente (desbloqueada: Fase 2 cerrada) | | | |
+| 7 · Refactor | 🚧 parcial | | 2026-09-12: A4 (`application` sin Spring/Micrometer, `MetricsPort`, `*UseCaseConfig`, `ApplicationPurityTest`), A18 (código muerto), A19 (`S4ArticleAdapter` con Jackson). Quedan `SyncPipeline<E>` (A5) y fakes en vez de `@Mock` de clases concretas (A20) | |
 | 8 · Supply chain | ✅ hecha (salvo artefacto de despliegue, D-9) | 2026-09-12 | `16b0336` | pendiente de verificación por otra sesión |
 | 9 · Documentación | 🚧 parcial | | 2026-09-12: ADRs 0002-0006, `docs/incidencias/` (plantilla, fingerprints, 2 post-mortems), `docs/operacion/` (runbooks, aptitud para producción), checklist del tenant, `sdd-registry-check.py`, fuente única de la máquina, glosario (+11 términos), cierre de bloqueantes | |
 

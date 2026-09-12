@@ -1128,8 +1128,7 @@ sequenceDiagram
   <h3 id="f1">F1 · Pull: BTP orquesta el ciclo</h3>
   <p>
     La iniciativa pasa a SAP: un job o iFlow en BTP pregunta qué hay pendiente, procesa en S/4 y notifica
-    el resultado. Existe la property <code>sap.integration.mode: push | pull | both</code>, pero
-    <strong>no la lee nadie</strong>, y el estado <code>PENDING_SAP</code> no forma parte del enum.
+    el resultado. La property <code>sap.integration.mode</code> se retiró en la Fase 7 (nadie la leía) <strong>no la lee nadie</strong>, y el estado <code>PENDING_SAP</code> no forma parte del enum.
   </p>
   <figure class="diagrama">
     <figcaption>F1 <span class="badge prop">Propuesto</span>
@@ -1350,7 +1349,6 @@ sequenceDiagram
       <thead><tr><th>Propiedad</th><th>Defecto</th><th>Efecto</th></tr></thead>
       <tbody>
         <tr><td><code>sap.odata.{address,fiscal,contact,banking,customer,read}.enabled</code></td><td><code>false</code></td><td>a <code>true</code> conmuta esa feature del adaptador BTP al OData real contra <code>API_BUSINESS_PARTNER</code></td></tr>
-        <tr><td><code>sap.integration.mode</code></td><td><code>push</code></td><td><span class="badge gap">declarada pero no la lee ningún componente</span> — los valores <code>pull</code> y <code>both</code> no tienen efecto</td></tr>
         <tr><td><code>sap.s4.csrf.enabled</code></td><td><code>false</code></td><td>activa el fetch de <code>x-csrf-token</code> + cookies antes de cada escritura a <code>S4_NATIVE</code></td></tr>
         <tr><td><code>sap.s4.auth.type</code></td><td><code>oauth2</code></td><td><code>oauth2</code> (client_credentials) o <code>basic</code>; sin configurar devuelve <code>stub-s4-token</code></td></tr>
         <tr><td><code>sap.btp.xsuaa.{client-id,client-secret,token-url}</code></td><td>vacíos</td><td>sin ellos la app no arranca; con <code>sap.auth.allow-stub=true</code> (solo mock) <code>BtpAuthProvider</code> devuelve <code>stub-btp-token</code> y avisa</td></tr>
@@ -1438,7 +1436,7 @@ sequenceDiagram
         <tr><td><code>docs/sdd/sap-api-catalog.md</code></td><td>catálogo de las specs OpenAPI oficiales de S/4HANA usadas o previstas</td></tr>
         
         <tr><td><code>docs/tools-integrations/MCP.md</code> · <code>SAP_CLOUD_SDK.md</code></td><td>propuesta del MCP y guía del SAP Cloud SDK</td></tr>
-        <tr><td><code>docs/testing/TESTING.md</code> · <code>GUIA-PRUEBAS.md</code></td><td>catálogo de la suite (293 tests) y guía práctica CP-01…CP-13</td></tr>
+        <tr><td><code>docs/testing/TESTING.md</code> · <code>GUIA-PRUEBAS.md</code></td><td>catálogo de la suite (291 tests) y guía práctica CP-01…CP-13</td></tr>
         <tr><td><code>external-services/README.md</code> · <code>debezium/README.md</code></td><td>infraestructura local y detalle de los conectores</td></tr>
         <tr><td><code>docs/GLOSSARY.md</code></td><td>glosario de términos y siglas SAP</td></tr>
       </tbody>

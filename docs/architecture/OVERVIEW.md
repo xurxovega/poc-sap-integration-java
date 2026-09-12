@@ -90,7 +90,7 @@ sus entidades y sus features:
 | SyncContactUseCase          |      |   .execute(msg, Set<feat>) | ← subconjunto
 | SyncBankingUseCase          |      |                             |
 | ValidateAddressUseCase      |      | ValidateCustomerUseCase    |
-| ValidateFiscalUseCase       |      | IndexCustomerUseCase       |
+| ValidateFiscalUseCase       |      |                            |
 | ValidateContactUseCase      |      | DeleteCustomerUseCase      |
 | ValidateBankingUseCase      |      +-----------------------------+
 | DeleteMandateUseCase        |
@@ -406,7 +406,6 @@ com.poc.sap.<dominio>/
 │   ├── general/
 │   │   ├── SyncCustomerUseCase       (orchestrador)
 │   │   ├── ValidateCustomerUseCase
-│   │   ├── IndexCustomerUseCase
 │   │   └── DeleteCustomerUseCase
 │   ├── address/SyncAddressUseCase, ValidateAddressUseCase
 │   ├── fiscal/ ...

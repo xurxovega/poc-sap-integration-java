@@ -4,7 +4,6 @@ import com.poc.sap.common.diff.JsonDiff;
 import com.poc.sap.common.domain.port.HistoryIndexerPort.Snapshot;
 import com.poc.sap.customer.domain.Customer;
 import com.poc.sap.customer.domain.port.CustomerHistoryIndexerPort;
-import org.springframework.stereotype.Service;
 
 import java.time.Instant;
 import java.util.List;
@@ -21,7 +20,6 @@ import java.util.NoSuchElementException;
  * toma el mas reciente. Sin parametros, el diff compara la ultima version contra
  * la anterior.
  */
-@Service
 public class CustomerHistoryUseCase {
 
     private final CustomerHistoryIndexerPort historyIndexer;

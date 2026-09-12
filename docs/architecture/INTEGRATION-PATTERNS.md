@@ -143,8 +143,8 @@ sequenceDiagram
     Note over BTP,GW: reintentos/paginación los gobierna BTP;<br/>la plataforma solo garantiza idempotencia de lectura
 ```
 
-**Punto de partida en el código**: `sap.integration.mode: push|pull|both`
-existe como property (hoy sin efecto); los flujos 2 y 4 de
+**Punto de partida en el código**: ninguno todavía (la property
+`sap.integration.mode` se retiró en la Fase 7 de la auditoría porque nadie la leía); los flujos 2 y 4 de
 [`../MEJORAS-Y-PROPUESTAS.md`](../MEJORAS-Y-PROPUESTAS.md) describe los controllers propuestos;
 `BusinessPartnerReadAdapter`/`BusinessPartnerReadPort` (lectura de SAP,
 sin consumidores aún) cubrirían la variante inversa.

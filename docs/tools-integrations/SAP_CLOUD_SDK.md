@@ -212,7 +212,7 @@ sin depender directamente del SAP Cloud SDK para las llamadas HTTP:
 | OData support | ✅ | `CsrfTokenProvider`, `S4CsrfTokenProvider` en `common/sap/odata/` (el antiguo `ODataPayload` se eliminó: el wrapper `d` solo aparece en las **respuestas** V2, nunca en las peticiones — ver sección siguiente) |
 | Adaptadores OData | ✅ | 5 `BusinessPartner*ODataAdapter.java` en `customer/adapters/sap/odata/` — refactorizados a modelos generados |
 | Puerto de lectura | ✅ | `BusinessPartnerReadPort` + `BusinessPartnerReadAdapter` para GET/search |
-| Push vs Pull | ✅ | Modos `push|pull|both` documentados en `FLOWS.md` y configurados via `sap.integration.mode` |
+| Push vs Pull | ⚠️ | Solo push implementado; la property `sap.integration.mode` se retiró (Fase 7) hasta que exista el modo pull |
 | Modelos SAP generados | ✅ | Módulo `sap-api-models` con `openapi-generator-maven-plugin` + spec `API_BUSINESS_PARTNER.yaml`. Modelos en `target/generated-sources/` |
 | Casos de uso CRUD | 🔜 | `LookupCustomerUseCase`, `CreateBusinessPartnerUseCase`, `UpdateBusinessPartnerUseCase`, `BtpPendingQueryUseCase`, `BtpResultProcessingUseCase` — pendientes de implementar |
 

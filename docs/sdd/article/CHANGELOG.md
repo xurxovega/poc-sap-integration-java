@@ -7,4 +7,5 @@
 
 | Fecha | Feature | Cambio |
 |---|---|---|
+| 2026-09-12 | [Sincronización del artículo](sincronizacion-articulo.md) | Fase 7 (A19/C10): serialización con `SapJsonMapper`, nulos omitidos |
 | 2026-09-12 | [Sincronización del artículo](sincronizacion-articulo.md) | Spec inicial (Fase 6). Imagen solo tras el ACK de SAP, histórico por intento, dedupe contra el último `SENT_SAP` |

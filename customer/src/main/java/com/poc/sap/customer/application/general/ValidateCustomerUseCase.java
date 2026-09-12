@@ -3,10 +3,9 @@ package com.poc.sap.customer.application.general;
 import com.poc.sap.common.domain.SyncState;
 import com.poc.sap.common.domain.port.SyncStateRepositoryPort;
 import com.poc.sap.common.domain.SyncStateTransition;
-import com.poc.sap.common.observability.SyncMetrics;
+import com.poc.sap.common.domain.port.MetricsPort;
 import com.poc.sap.customer.domain.CustomerValidations;
 import com.poc.sap.customer.domain.port.CustomerLegacyRepositoryPort;
-import org.springframework.stereotype.Service;
 
 import java.time.Instant;
 import java.util.EnumSet;
@@ -15,18 +14,17 @@ import java.util.Optional;
 /**
  * Use case de validacion aislada del aggregate Customer (todas las features).
  */
-@Service
 public class ValidateCustomerUseCase {
 
     private static final String DOMAIN = "customer";
 
     private final CustomerLegacyRepositoryPort legacyRepo;
     private final SyncStateRepositoryPort stateRepo;
-    private final SyncMetrics metrics;
+    private final MetricsPort metrics;
 
     public ValidateCustomerUseCase(CustomerLegacyRepositoryPort legacyRepo,
                                    SyncStateRepositoryPort stateRepo,
-                                   SyncMetrics metrics) {
+                                   MetricsPort metrics) {
         this.legacyRepo = legacyRepo;
         this.stateRepo = stateRepo;
         this.metrics = metrics;

@@ -4,7 +4,7 @@ import com.poc.sap.common.domain.IngestionMessage;
 import com.poc.sap.common.domain.SyncState;
 import com.poc.sap.common.domain.port.SyncStateRepositoryPort;
 import com.poc.sap.common.domain.SyncStateTransition;
-import com.poc.sap.common.observability.SyncMetrics;
+import com.poc.sap.common.domain.port.MetricsPort;
 import com.poc.sap.customer.application.address.SyncAddressUseCase;
 import com.poc.sap.customer.application.banking.SyncBankingUseCase;
 import com.poc.sap.customer.application.contact.SyncContactUseCase;
@@ -17,7 +17,6 @@ import com.poc.sap.customer.domain.port.CustomerHistoryIndexerPort;
 import com.poc.sap.customer.domain.port.CustomerLegacyRepositoryPort;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.stereotype.Service;
 
 import java.time.Instant;
 import java.util.EnumSet;
@@ -36,7 +35,6 @@ import java.util.function.Supplier;
  * aggregate (entityId.original), las features gestionan su propio estado por
  * entidad compuesta {@code customerId:FEATURE}.
  */
-@Service
 public class SyncCustomerUseCase {
 
     private static final Logger log = LoggerFactory.getLogger(SyncCustomerUseCase.class);
@@ -46,7 +44,7 @@ public class SyncCustomerUseCase {
     private final CustomerImageStorePort imageStore;
     private final CustomerHistoryIndexerPort historyIndexer;
     private final SyncStateRepositoryPort stateRepo;
-    private final SyncMetrics metrics;
+    private final MetricsPort metrics;
 
     private final SyncAddressUseCase  address;
     private final SyncFiscalUseCase  fiscal;
@@ -57,7 +55,7 @@ public class SyncCustomerUseCase {
                               CustomerImageStorePort imageStore,
                               CustomerHistoryIndexerPort historyIndexer,
                               SyncStateRepositoryPort stateRepo,
-                              SyncMetrics metrics,
+                              MetricsPort metrics,
                               SyncAddressUseCase address,
                               SyncFiscalUseCase fiscal,
                               SyncContactUseCase contact,

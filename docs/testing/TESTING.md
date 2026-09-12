@@ -8,7 +8,7 @@
 
 ## 1. Resumen ejecutivo
 
-Total: **293 tests** declarados (medido el 12-09-2026 con JDK 25, `mvn clean test`).
+Total: **291 tests** declarados (medido el 12-09-2026 con JDK 25, `mvn clean test`).
 
 La cifra es de `@Test` **declarados** en `src/test/java` de todos los módulos; la vigila
 `TestCountMatchesDocsTest` (módulo `it`) y el build falla si diverge. Los IT gateados
@@ -18,7 +18,7 @@ El módulo `it` sigue ejecutando los contract dos veces — ver §8 issue 3.
 | Módulo     | Tests aprox. | Contenido principal |
 |------------|--------------|---------------------|
 | common     | 88           | dominio (máquina de estados con estado inicial/re-sync, ValidationResult acumulativo), Mongo repo (dedupe `alreadySent`), auth providers, **`RestClientSapClientTest`** (retry 5xx, no-retry 4xx, cabeceras, PATCH/DELETE, CSRF completo con auth del destino y 403 sin `Required` contra WireMock) |
-| customer   | 145          | unit + slice + **`CustomerApplicationContextTest`** (smoke de contexto Spring completo) |
+| customer   | 143          | unit + slice + **`CustomerApplicationContextTest`** (smoke de contexto Spring completo) |
 | article    | 44           | unit + slice + **`ArticleApplicationContextTest`** (smoke de contexto) |
 | it         | 16           | contract (WireMock, adaptadores **reales**, failsafe) + `TestCountMatchesDocsTest` + `SyncStateMongoIT`/`InfrastructureSmokeIT` (skip sin `-Ddocker.available=true`) |
 | supplier   | 0            | placeholder |
@@ -75,7 +75,6 @@ incompatible, Jackson 3, `spring-kafka` sin autoconfiguración).
 |---------|----------------|---|-------------|
 | SyncCustomerUseCaseTest | SyncCustomerUseCase (orchestrador) | 8 | Happy path, empty legacy, invalid, partial features, invalid feature, sap_error, args inválidos |
 | ValidateCustomerUseCaseTest | ValidateCustomerUseCase | 4 | Valid, invalid, missing, partial features |
-| IndexCustomerUseCaseTest | IndexCustomerUseCase | 2 | Indexa, error legacy empty |
 | DeleteCustomerUseCaseTest | DeleteCustomerUseCase | 2 | Borra ok, mantiene imagen si SAP falla |
 | SyncAddressUseCaseTest | SyncAddressUseCase | 4 | Happy, invalid, sap_error, featureEntityId |
 | SyncFiscalUseCaseTest | SyncFiscalUseCase | 4 | Happy, invalid, sap_error, featureEntityId |
@@ -201,10 +200,11 @@ JDK 25 (`C:\Program Files\Java\jdk-25.0.3`). **JDK 25 es el mínimo**: el reacto
   falla (comprobado forzando `-Djacoco.domain.line-minimum=0.95`). El dominio lo
   cubren también los tests de use case, así que protege la cobertura agregada, no
   cada test por separado. Informe HTML en `<módulo>/target/site/jacoco/index.html`.
-- **ArchUnit** (`DomainPurityTest` en common, customer y article): `..domain..` no
-  puede depender de Spring, Jackson, Mongo, Kafka, Micrometer ni JPA. La misma
-  regla para `application` (auditoría A4: 16/16 use cases llevan `@Service`)
-  queda para la Fase 7 del plan.
+- **ArchUnit**: `DomainPurityTest` (common, customer, article): `..domain..` no
+  puede depender de Spring, Jackson, Mongo, Kafka, Micrometer ni JPA;
+  `ApplicationPurityTest` (customer, article): `..application..` no depende de
+  Spring, Micrometer ni Jackson (plan Fase 7; el wiring está en
+  `bootstrap/*UseCaseConfig`). Las reglas `@ArchTest` no cuentan como `@Test`.
 - **Recuento de tests vigilado**: `TestCountMatchesDocsTest` (módulo `it`) cuenta
   los `@Test` declarados y falla si §1 de este documento no coincide.
 - **IT con Docker** (`-Ddocker.available=true`): `SyncStateMongoIT` (Mongo 7 real:

@@ -3,7 +3,7 @@ package com.poc.sap.customer.application.banking;
 import com.poc.sap.common.domain.SyncState;
 import com.poc.sap.common.domain.port.SyncStateRepositoryPort;
 import com.poc.sap.common.domain.port.SapOutboundPort.SapResponse;
-import com.poc.sap.common.observability.SyncMetrics;
+import com.poc.sap.common.domain.port.MetricsPort;
 import com.poc.sap.customer.domain.port.MandateSapOutboundPort;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -20,7 +20,7 @@ class DeleteMandateUseCaseTest {
 
     @Mock MandateSapOutboundPort sapPort;
     @Mock SyncStateRepositoryPort stateRepo;
-    @Mock SyncMetrics metrics;
+    @Mock MetricsPort metrics;
 
     private DeleteMandateUseCase useCase;
 

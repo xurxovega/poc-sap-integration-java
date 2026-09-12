@@ -55,7 +55,7 @@ sap-integration-java/
 ├── customer/                     # customer-app (spring-boot jar)
 │   └── src/main/java/.../customer/
 │       ├── domain/               # Customer, CustomerValidations, ports
-│       ├── application/          # SyncCustomer, ValidateCustomer, IndexCustomer, DeleteCustomer/Mandate
+│       ├── application/          # SyncCustomer, ValidateCustomer, DeleteCustomer/Mandate, Sync/Validate<Feature>
 │       ├── adapters/             # kafka, sqlserver_repo, mongo_repo, es_indexer, sap_sender
 │       └── bootstrap/            # CustomerApplication, REST controllers, Kafka listener
 ├── article/                      # article-app
@@ -67,7 +67,9 @@ sap-integration-java/
 
 - `domain`: **puro, sin Spring**. Records/sealed para entidades y value objects.
   Validaciones y **ports = interfaces Java**. Sin dependencias de framework.
-- `application`: use cases / features. Orquesta ports. Sin infraestructura.
+- `application`: use cases / features. Orquesta ports. **Sin Spring ni Micrometer**
+  (ArchUnit `ApplicationPurityTest`): las métricas van por `MetricsPort` y el
+  wiring vive en `bootstrap/*UseCaseConfig` (plan Fase 7, auditoría A4).
 - `adapters`: implementaciones de ports (Kafka, SQL, Mongo, ES, SAP). Spring beans.
 - `bootstrap`: `@SpringBootApplication`, wiring, controladores REST, listeners
   Kafka, configuración CDC/Debezium, properties.
@@ -207,6 +209,6 @@ Spec: [`../sdd/common/observabilidad.md`](../sdd/common/observabilidad.md).
 
 - Value objects como `record`; agregados como clases con estado encapsulado.
 - Ports como interfaces en `domain`; implementaciones en `adapters`.
-- Propiedades por dominio vía `application.yml` + profiles.
+- Propiedades por dominio vía `application.yml` (sin perfiles Spring: variables de entorno, `scripts/env/*.env`).
 - Sin lógica de negocio en `bootstrap` ni `adapters`.
 - Virtual threads activados: `spring.threads.virtual.enabled=true`.

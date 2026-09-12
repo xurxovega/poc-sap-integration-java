@@ -65,6 +65,7 @@ Reglas de validación en `ArticleValidations`.
 | `description` | `Description` | — |
 | `unit` | `BaseUnit` | — |
 | `status` | `Status` | nombre del enum |
+| *(cualquier campo nulo)* | *(se omite)* | `SapJsonMapper` NON_NULL: una cadena vacía no es «sin valor» para S/4 (A19/C10) |
 
 Además: documento en `articles_history` (id `articleId-hash-epochMillis`) e
 imagen en `articles_current` tras el ACK.
@@ -115,4 +116,5 @@ logs «inicio»/«fin»/«dedupe»/«sin cambios reales» con `entityId`.
 
 | Fecha | Cambio | PR |
 |---|---|---|
+| 2026-09-12 | Fase 7 (A19/C10): `S4ArticleAdapter` serializa con `SapJsonMapper` via `S4ProductDto`; los campos nulos se omiten en vez de viajar como `""`. Test `nullFieldsAreOmittedInsteadOfSentAsEmptyStrings` | — |
 | 2026-09-12 | Spec inicial, escrito al aplicar la Fase 6 del plan: imagen guardada solo tras el ACK de SAP, histórico con un documento por intento, dedupe contra el último `SENT_SAP`. Recoge el comportamiento ya verificado end-to-end el 2026-09-10 | — |

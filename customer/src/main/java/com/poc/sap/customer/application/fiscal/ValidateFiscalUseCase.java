@@ -3,21 +3,19 @@ package com.poc.sap.customer.application.fiscal;
 import com.poc.sap.common.domain.SyncState;
 import com.poc.sap.common.domain.port.SyncStateRepositoryPort;
 import com.poc.sap.common.domain.SyncStateTransition;
-import com.poc.sap.common.observability.SyncMetrics;
+import com.poc.sap.common.domain.port.MetricsPort;
 import com.poc.sap.customer.domain.Customer;
 import com.poc.sap.customer.domain.feature.fiscal.FiscalValidator;
-import org.springframework.stereotype.Service;
 
 import java.time.Instant;
 
 /** Use case de validacion aislada de la feature FISCAL. */
-@Service
 public class ValidateFiscalUseCase {
 
     private final SyncStateRepositoryPort stateRepo;
-    private final SyncMetrics metrics;
+    private final MetricsPort metrics;
 
-    public ValidateFiscalUseCase(SyncStateRepositoryPort stateRepo, SyncMetrics metrics) {
+    public ValidateFiscalUseCase(SyncStateRepositoryPort stateRepo, MetricsPort metrics) {
         this.stateRepo = stateRepo;
         this.metrics = metrics;
     }

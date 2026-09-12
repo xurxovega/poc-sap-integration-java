@@ -4,13 +4,12 @@ import com.poc.sap.common.domain.SyncState;
 import com.poc.sap.common.domain.port.SyncStateRepositoryPort;
 import com.poc.sap.common.domain.SyncStateTransition;
 import com.poc.sap.common.domain.ValidationResult;
-import com.poc.sap.common.observability.SyncMetrics;
+import com.poc.sap.common.domain.port.MetricsPort;
 import com.poc.sap.customer.domain.Customer;
 import com.poc.sap.customer.domain.CustomerFeature;
 import com.poc.sap.customer.domain.feature.address.AddressData;
 import com.poc.sap.customer.domain.feature.address.AddressValidator;
 import com.poc.sap.customer.domain.port.AddressSapPort;
-import org.springframework.stereotype.Service;
 
 import java.time.Instant;
 
@@ -18,7 +17,6 @@ import java.time.Instant;
  * Use case de la feature ADDRESS: valida y envia a SAP los datos de direccion
  * del Customer (OVERVIEW.md §2, §5; TECH.md §8). Idempotente por payloadHash.
  */
-@Service
 public class SyncAddressUseCase {
 
     private static final String DOMAIN = "customer";
@@ -26,11 +24,11 @@ public class SyncAddressUseCase {
 
     private final AddressSapPort sapPort;
     private final SyncStateRepositoryPort stateRepo;
-    private final SyncMetrics metrics;
+    private final MetricsPort metrics;
 
     public SyncAddressUseCase(AddressSapPort sapPort,
                                SyncStateRepositoryPort stateRepo,
-                               SyncMetrics metrics) {
+                               MetricsPort metrics) {
         this.sapPort = sapPort;
         this.stateRepo = stateRepo;
         this.metrics = metrics;

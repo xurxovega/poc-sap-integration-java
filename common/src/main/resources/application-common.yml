@@ -2,10 +2,7 @@
 # Cada dominio sobreescribe lo que necesite en su application.yml.
 
 sap:
-  integration:
-    mode: ${SAP_INTEGRATION_MODE:push}   # push | pull | both
   odata:
-    enabled: ${SAP_ODATA_ENABLED:false}
     address:
       enabled: ${SAP_ODATA_ADDRESS_ENABLED:false}
     fiscal:
