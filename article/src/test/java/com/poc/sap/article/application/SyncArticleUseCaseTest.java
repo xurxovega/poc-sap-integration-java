@@ -159,6 +159,9 @@ class SyncArticleUseCaseTest {
         SyncState result = useCase.execute(ingestion());
 
         assertThat(result).isEqualTo(SyncState.SAP_ERROR);
+        // idempotencia-y-dedupe AC-3: historico si, imagen no (SAP no tiene el dato).
+        verify(historyIndexer).index(eq("A-1"), any(), eq("hash-a"));
+        verify(imageStore, never()).save(anyString(), any());
     }
 
     /**

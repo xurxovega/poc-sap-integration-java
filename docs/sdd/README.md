@@ -95,7 +95,7 @@ con ese nombre la primera vez que se toque la feature.
 
 | Feature | Fichero | Spec | Estado del código |
 |---|---|---|---|
-| Sincronización del artículo | `sincronizacion-articulo.md` | ⬜ | ✅ implementado, verificado end-to-end |
+| Sincronización del artículo | [`sincronizacion-articulo.md`](article/sincronizacion-articulo.md) | ✅ | ✅ implementado, verificado end-to-end |
 
 ### `supplier/` — [ver carpeta](supplier/)
 
@@ -110,7 +110,7 @@ Capacidades transversales del shared kernel, no features de negocio.
 | Capacidad | Fichero | Spec | Estado del código |
 |---|---|---|---|
 | Máquina de estados de sincronización | [`maquina-de-estados.md`](common/maquina-de-estados.md) | ✅ | ✅ implementada (`SyncStateMachine`) |
-| Idempotencia y deduplicación por hash | `idempotencia-y-dedupe.md` | ⬜ | ✅ implementada (`alreadySent`, `Idempotency-Key`) |
+| Idempotencia, dedupe y consistencia de la imagen | [`idempotencia-y-dedupe.md`](common/idempotencia-y-dedupe.md) | ✅ | ✅ implementada: dedupe contra el último `SENT_SAP`, imagen tras el ACK, histórico por intento |
 | Cliente SAP: transporte, resiliencia y CSRF | [`resiliencia-cliente-sap.md`](common/resiliencia-cliente-sap.md) | ✅ | ✅ implementada (`RestClientSapClient`, ADR-0001) |
 | Autenticación hacia SAP (OAuth2/basic, sin stub silencioso) | [`autenticacion-sap.md`](common/autenticacion-sap.md) | ✅ | ✅ implementada (`BtpAuthProvider`, `S4NativeAuthProvider`; `sap.auth.allow-stub`) |
 | Observabilidad y operación del pipeline | [`observabilidad.md`](common/observabilidad.md) | ✅ | ⚠️ métricas (estado, etapa, HTTP SAP, Resilience4j), parada ordenada y presupuesto de reintentos hechos; trazas pendientes de D-7 |
@@ -151,6 +151,9 @@ Estado de las brechas detectadas sobre el código real.
 | **Contratos S/4 de banco y mandato incorrectos** (B3, parcial) | `S4BankingAdapter` enviaba a `API_CUSTOMER_MANDATE` (no existe) → `BtpBankingAdapter` en la familia BTP; `A_BusinessPartnerBank` llevaba el BIC en `BankIdentification` → ordinal `0001` + `BankCountryKey`, sin BIC; mandatos → `SepaMandateODataAdapter` sobre `API_APAR_SEPA_MANDATE_SRV` con `Creditor` por configuración, y la baja como `PATCH` de estado. Specs [`customer/sincronizacion-datos-bancarios.md`](customer/sincronizacion-datos-bancarios.md) y [`customer/baja-mandato-sepa.md`](customer/baja-mandato-sepa.md). Queda de B3: contacto (`A_AddressEmailAddress`/`A_AddressPhoneNumber`) y upsert con `AddressID`, ambos bloqueados por la comprobación contra el tenant | 2026-09-12 |
 | Fallback silencioso a token stub y secretos en el YAML empaquetado (A8) | `BtpAuthProvider`/`S4NativeAuthProvider` validan al arrancar: sin credenciales, `IllegalStateException` con las propiedades que faltan; el stub solo con `sap.auth.allow-stub=true` y aviso. `sa`/`SqlServer_Pa55w0rd!`, `postgres/postgres` y `trustServerCertificate=true` fuera de los YAML: los aporta `scripts/env/*.env`. Spec [`common/autenticacion-sap.md`](common/autenticacion-sap.md) | 2026-09-12 |
 | Observabilidad prometida y no implementada (A9, parcial) | `recordStageDuration` nunca se invocaba → cableado en `SyncCustomerUseCase` y `SyncArticleUseCase` (`fetch`/`validate`/`index`/`send`); sin métricas HTTP del cliente SAP → `sap_client_request_duration` por intento; sin binder de Resilience4j → `MeterBinder` para retry y circuit breaker `sap`; tag `application` idéntico en ambas apps → `${spring.application.name}`; logs JSON → formato ECS por `LOGGING_STRUCTURED_FORMAT_CONSOLE`. Quedan las trazas (D-7). Spec [`common/observabilidad.md`](common/observabilidad.md) | 2026-09-12 |
+| Dedupe contra cualquier `SENT_SAP` histórico (A1) | `alreadySent` compara solo con el **último** `SENT_SAP`: A→B→A ya reenvía el tercer evento. Spec [`common/idempotencia-y-dedupe.md`](common/idempotencia-y-dedupe.md) | 2026-09-12 |
+| Imagen persistida antes del ACK de SAP | `SyncCustomerUseCase` y `SyncArticleUseCase` guardan la imagen **solo** si el ciclo termina en `SENT_SAP`; un `SAP_ERROR` ya no deja una imagen que SAP nunca recibió (y el atajo «sin cambios reales» deja de saltarse el reenvío) | 2026-09-12 |
+| Id del histórico ES `entityId-hash` sobrescribía reenvíos (A31) | id `entityId-hash-epochMillis`: un documento por intento | 2026-09-12 |
 | Sin parada ordenada y presupuesto de reintentos que rozaba `max.poll.interval.ms` (A10) | `server.shutdown=graceful` + 30 s por fase; `max.poll.interval.ms` a 15 min y `RetryBudgetGuard` que calcula el peor caso por mensaje (5,1 min con los defaults) y no deja arrancar si no cabe | 2026-09-12 |
 | Listeners reintentaban fallos no transitorios (C5) | Tombstone, `operation` en minúsculas y operación desconocida producían 3 reintentos con backoff. Ahora: tombstone ignorado, operación normalizada, e `IllegalState/IllegalArgument/JsonProcessing` declaradas no reintentables en `KafkaErrorHandlingConfig` | 2026-09-11 |
 | Topic DLT documentado ≠ real | Toda la documentación decía `<topic>.DLT`; el `DeadLetterPublishingRecoverer` usa el sufijo por defecto de Spring Kafka y el topic real es **`<topic>-dlt`**. Corregidas las 23 ocurrencias; decisión en `MEJORAS-Y-PROPUESTAS.md` OPS-3 | 2026-09-11 |

@@ -20,6 +20,7 @@ import org.springframework.dao.DuplicateKeyException;
 import com.poc.sap.common.domain.ConcurrentTransitionException;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.never;
 
 /**
@@ -147,14 +148,24 @@ class MongoSyncStateRepositoryTest {
                 .containsExactly(t1, t2);
     }
 
+    /**
+     * idempotencia-y-dedupe AC-1 (auditoria A1): el dedupe mira el ULTIMO SENT_SAP.
+     * Secuencia A -> B -> A: el tercer evento (hash A) NO esta deduplicado porque
+     * SAP tiene B; solo lo esta si el ultimo envio fue exactamente A.
+     */
     @Test
-    void alreadySentDelegatesToExistsQuery() {
-        when(mongo.existsByDomainAndEntityIdAndPayloadHashAndStateCode(
-                "article", "A-1", "h-1", SyncState.SENT_SAP.code())).thenReturn(true);
+    void alreadySentOnlyMatchesTheLatestSentSap() {
+        SyncStateTransition sentB = new SyncStateTransition("A-1", "article",
+                SyncState.SENDING_SAP, SyncState.SENT_SAP, "cdc", "hash-B", Instant.now());
+        when(mongo.findFirstByDomainAndEntityIdAndStateCodeOrderBySeqDescTimestampDesc(
+                "article", "A-1", SyncState.SENT_SAP.code()))
+                .thenReturn(Optional.of(SyncStateDoc.from("article", "A-1", sentB, SyncState.SENT_SAP.code(), 9L)));
 
-        assertThat(repo.alreadySent("article", "A-1", "h-1")).isTrue();
+        assertThat(repo.alreadySent("article", "A-1", "hash-A")).isFalse();
+        assertThat(repo.alreadySent("article", "A-1", "hash-B")).isTrue();
         assertThat(repo.alreadySent("article", "A-1", null)).isFalse();
         assertThat(repo.alreadySent("article", "A-1", "")).isFalse();
+        verify(mongo, never()).existsByDomainAndEntityIdAndPayloadHashAndStateCode(any(), any(), any(), anyInt());
     }
 
     /**

@@ -15,9 +15,11 @@ import java.util.NoSuchElementException;
  * Consulta del historico de versiones enviadas a SAP (Elasticsearch) y diff
  * entre dos versiones: auditar que cambio realmente entre dos envios.
  *
- * <p>Las versiones se identifican por su {@code payloadHash} (id del doc ES =
- * {@code customerId-payloadHash}). Sin parametros, el diff compara la ultima
- * version contra la anterior.
+ * <p>Las versiones se identifican por su {@code payloadHash}; el id del doc ES
+ * es {@code customerId-payloadHash-epochMillis}, un documento por intento, asi
+ * que un mismo hash puede aparecer varias veces (reenvios tras SAP_ERROR): se
+ * toma el mas reciente. Sin parametros, el diff compara la ultima version contra
+ * la anterior.
  */
 @Service
 public class CustomerHistoryUseCase {

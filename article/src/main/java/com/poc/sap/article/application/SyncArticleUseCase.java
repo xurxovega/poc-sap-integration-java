@@ -96,8 +96,8 @@ public class SyncArticleUseCase {
             }
 
             transition(message, SyncState.VALID, SyncState.INDEXING);
+            // Historico = lo que se va a enviar, un documento por intento (idempotencia-y-dedupe R-5).
             timed("index", () -> {
-                imageStore.save(article.id(), article);
                 historyIndexer.index(article.id(), article, message.payloadHash());
                 return null;
             });
@@ -108,6 +108,10 @@ public class SyncArticleUseCase {
             SyncState finalState = response.isSuccess()
                     ? SyncState.SENT_SAP
                     : SyncState.SAP_ERROR;
+            if (finalState == SyncState.SENT_SAP) {
+                // Imagen = lo que SAP tiene: solo tras el ACK (idempotencia-y-dedupe R-4).
+                imageStore.save(article.id(), article);
+            }
             transition(message, SyncState.SENDING_SAP, finalState);
 
             log.info("SyncArticle fin entityId={} state={} http={}",

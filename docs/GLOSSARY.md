@@ -163,6 +163,10 @@ Servicio de autenticación de SAP BTP, alternativa a XSUAA.
 
 Integration Suite es el iPaaS de SAP BTP; un *iFlow* es un flujo de integración configurado en él (mapeos, orquestación, planificación). Alternativa a una app CAP como intermediario del patrón 2 y como iniciador del patrón 3 de [`INTEGRATION-PATTERNS.md`](architecture/INTEGRATION-PATTERNS.md).
 
+### Imagen (staging) vs histórico
+
+**Imagen** (`customers_current` / `articles_current`, Mongo): lo último que SAP **aceptó**; se guarda solo cuando el ciclo termina en `SENT_SAP`. **Histórico** (`customers_history` / `articles_history`, Elasticsearch): lo que se **intentó enviar**, un documento por intento (id `entityId-hash-epochMillis`). La diferencia entre ambos es lo que SAP no tiene todavía. Ver [`idempotencia-y-dedupe.md`](sdd/common/idempotencia-y-dedupe.md).
+
 ## J
 
 ### JaCoCo / umbral de cobertura
@@ -325,7 +329,7 @@ Módulo `common` con primitivas de dominio, máquina de estados, clientes SAP y 
 
 ### «Sin cambios reales» (corta-circuito)
 
-Optimización del pipeline agregado: si el ciclo anterior terminó en `SENT_SAP` y el snapshot re-leído del legacy es idéntico a la imagen almacenada, no se reenvía a SAP y se transiciona `VALID → SENT_SAP` directamente. Evita tráfico y coste por eventos que no cambian datos sincronizados.
+Optimización del pipeline agregado: si el ciclo anterior terminó en `SENT_SAP` y el snapshot re-leído del legacy es idéntico a la **imagen** (que desde la Fase 6 es exactamente lo que SAP aceptó), no se reenvía a SAP y se transiciona `VALID → SENT_SAP` directamente. Ese `SENT_SAP` significa «SAP está en sincronía con este payload». Ver [`idempotencia-y-dedupe.md`](sdd/common/idempotencia-y-dedupe.md) R-3.
 
 ### Slice Test
 

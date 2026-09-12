@@ -38,10 +38,21 @@ class ElasticsearchCustomerIndexerTest {
         ArgumentCaptor<CustomerHistoryDoc> captor =
                 ArgumentCaptor.forClass(CustomerHistoryDoc.class);
         verify(repo).save(captor.capture());
-        assertThat(captor.getValue().getId()).isEqualTo("C-1-hash-1");
+        assertThat(captor.getValue().getId()).startsWith("C-1-hash-1-");
         assertThat(captor.getValue().getCustomerId()).isEqualTo("C-1");
         assertThat(captor.getValue().getPayloadHash()).isEqualTo("hash-1");
         assertThat(captor.getValue().getTimestamp()).isNotNull();
+    }
+
+    /** idempotencia-y-dedupe AC-4 (auditoria A31): un reenvio con el mismo hash es otro documento. */
+    @Test
+    void retriesWithTheSameHashKeepBothVersions() {
+        Customer c = CustomerFixtures.validCustomer();
+        CustomerHistoryDoc first = CustomerHistoryDoc.from(c, "hash-1", Instant.parse("2026-01-01T00:00:00.000Z"));
+        CustomerHistoryDoc retry = CustomerHistoryDoc.from(c, "hash-1", Instant.parse("2026-01-01T00:00:00.500Z"));
+
+        assertThat(first.getId()).isNotEqualTo(retry.getId());
+        assertThat(first.getPayloadHash()).isEqualTo(retry.getPayloadHash());
     }
 
     @Test

@@ -39,9 +39,10 @@ public interface SyncStateRepositoryPort {
     java.util.List<SyncStateTransition> history(String domain, String entityId);
 
     /**
-     * Dedupe de idempotencia: true si ya existe una transicion SENT_SAP de
-     * esta entidad con el mismo payloadHash (el mensaje ya fue procesado y
-     * enviado a SAP; un reintento no debe duplicar efectos).
+     * Dedupe de idempotencia: true si el <b>ultimo</b> SENT_SAP de esta entidad
+     * lleva el mismo payloadHash, es decir, si lo que SAP tiene ahora es
+     * exactamente este payload (sdd/common/idempotencia-y-dedupe.md R-1). Un
+     * SENT_SAP anterior con ese hash no cuenta: SAP ya tiene otra cosa.
      */
     boolean alreadySent(String domain, String entityId, String payloadHash);
 }

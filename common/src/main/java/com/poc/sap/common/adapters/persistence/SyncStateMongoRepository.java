@@ -27,4 +27,8 @@ public interface SyncStateMongoRepository extends MongoRepository<SyncStateDoc, 
 
     boolean existsByDomainAndEntityIdAndPayloadHashAndStateCode(String domain, String entityId,
                                                                 String payloadHash, int stateCode);
+
+    /** Ultima transicion a un estado concreto (p. ej. el ultimo SENT_SAP), por secuencia. */
+    Optional<SyncStateDoc> findFirstByDomainAndEntityIdAndStateCodeOrderBySeqDescTimestampDesc(
+            String domain, String entityId, int stateCode);
 }

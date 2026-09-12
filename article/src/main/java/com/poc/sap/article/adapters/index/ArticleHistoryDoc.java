@@ -42,7 +42,9 @@ public class ArticleHistoryDoc {
 
     public static ArticleHistoryDoc from(Article a, String payloadHash, Instant ts) {
         ArticleHistoryDoc d = new ArticleHistoryDoc();
-        d.id = a.id() + "-" + payloadHash;
+        // Un documento por INTENTO: un reenvio del mismo hash tras SAP_ERROR no
+        // sobrescribe la version anterior (idempotencia-y-dedupe R-5; auditoria A31).
+        d.id = a.id() + "-" + payloadHash + "-" + ts.toEpochMilli();
         d.articleId = a.id();
         d.sku = a.sku();
         d.description = a.description();

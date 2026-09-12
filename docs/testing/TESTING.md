@@ -8,7 +8,7 @@
 
 ## 1. Resumen ejecutivo
 
-Total: **291 tests** declarados (medido el 12-09-2026 con JDK 25, `mvn clean test`).
+Total: **293 tests** declarados (medido el 12-09-2026 con JDK 25, `mvn clean test`).
 
 La cifra es de `@Test` **declarados** en `src/test/java` de todos los módulos; la vigila
 `TestCountMatchesDocsTest` (módulo `it`) y el build falla si diverge. Los IT gateados
@@ -18,8 +18,8 @@ El módulo `it` sigue ejecutando los contract dos veces — ver §8 issue 3.
 | Módulo     | Tests aprox. | Contenido principal |
 |------------|--------------|---------------------|
 | common     | 88           | dominio (máquina de estados con estado inicial/re-sync, ValidationResult acumulativo), Mongo repo (dedupe `alreadySent`), auth providers, **`RestClientSapClientTest`** (retry 5xx, no-retry 4xx, cabeceras, PATCH/DELETE, CSRF completo con auth del destino y 403 sin `Required` contra WireMock) |
-| customer   | 144          | unit + slice + **`CustomerApplicationContextTest`** (smoke de contexto Spring completo) |
-| article    | 43           | unit + slice + **`ArticleApplicationContextTest`** (smoke de contexto) |
+| customer   | 145          | unit + slice + **`CustomerApplicationContextTest`** (smoke de contexto Spring completo) |
+| article    | 44           | unit + slice + **`ArticleApplicationContextTest`** (smoke de contexto) |
 | it         | 16           | contract (WireMock, adaptadores **reales**, failsafe) + `TestCountMatchesDocsTest` + `SyncStateMongoIT`/`InfrastructureSmokeIT` (skip sin `-Ddocker.available=true`) |
 | supplier   | 0            | placeholder |
 

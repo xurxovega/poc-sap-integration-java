@@ -20,6 +20,25 @@ identifican por fecha.
 
 ## [Sin publicar]
 
+### 2026-09-12 — Lo que guardamos coincide con lo que SAP tiene (Fase 6 de la auditoría)
+
+#### Corregido
+
+- Un cambio que **volvía** a un valor anterior (A → B → A) se descartaba como
+  repetido aunque SAP tuviera el valor intermedio. Ahora solo se descarta lo que
+  coincide con **el último** envío aceptado.
+- La copia local de «lo que SAP tiene» se guardaba **antes** de enviar: si SAP
+  rechazaba, quedaba registrado un dato que SAP nunca recibió, y el siguiente
+  evento idéntico se daba por sincronizado. Ahora se guarda solo cuando SAP
+  acepta.
+- Un reenvío tras un fallo de SAP **sobrescribía** la versión anterior en el
+  histórico. Ahora cada intento es una versión distinta y el rastro se conserva.
+
+#### Pendiente
+
+- Qué hacer cuando SAP acepta unas partes del cliente y rechaza otras
+  (compensación entre features): decisión D-2 del plan.
+
 ### 2026-09-12 — Operación y métricas (Fase 5 de la auditoría, parcial)
 
 #### Añadido

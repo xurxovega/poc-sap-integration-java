@@ -136,6 +136,7 @@ class SyncCustomerUseCaseTest {
         SyncState result = useCase.execute(CustomerFixtures.ingestionMessage());
 
         assertThat(result).isEqualTo(SyncState.INVALID);
+        verify(imageStore, never()).save(anyString(), any());
     }
 
     @Test
@@ -150,6 +151,10 @@ class SyncCustomerUseCaseTest {
         SyncState result = useCase.execute(CustomerFixtures.ingestionMessage());
 
         assertThat(result).isEqualTo(SyncState.SAP_ERROR);
+        // idempotencia-y-dedupe AC-3: el historico registra el intento, la imagen NO
+        // cambia porque SAP no tiene el dato (antes se guardaba antes de enviar).
+        verify(historyIndexer).index(eq("C-1"), eq(c), anyString());
+        verify(imageStore, never()).save(anyString(), any());
     }
 
     @Test

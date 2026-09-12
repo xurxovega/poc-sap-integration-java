@@ -72,13 +72,21 @@ public class MongoSyncStateRepository implements SyncStateRepositoryPort {
                 .toList();
     }
 
+    /**
+     * Dedupe contra el <b>ultimo</b> {@code SENT_SAP}, no contra cualquiera del
+     * historico (sdd/common/idempotencia-y-dedupe.md R-1; auditoria A1): con la
+     * secuencia A -> B -> A, el tercer evento debe reenviarse porque SAP tiene B.
+     */
     @Override
     public boolean alreadySent(String domain, String entityId, String payloadHash) {
         if (payloadHash == null || payloadHash.isBlank()) {
             return false;
         }
-        return mongo.existsByDomainAndEntityIdAndPayloadHashAndStateCode(
-                domain, entityId, payloadHash, SyncState.SENT_SAP.code());
+        return mongo.findFirstByDomainAndEntityIdAndStateCodeOrderBySeqDescTimestampDesc(
+                        domain, entityId, SyncState.SENT_SAP.code())
+                .map(SyncStateDoc::getPayloadHash)
+                .filter(payloadHash::equals)
+                .isPresent();
     }
 
     private Optional<SyncStateDoc> head(String domain, String entityId) {

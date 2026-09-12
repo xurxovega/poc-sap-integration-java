@@ -337,6 +337,15 @@ Prometheus + Grafana aplazados por ti.
   la versión anterior (A31).
 - Compensación entre features: **bloqueada por D-2**.
 
+**Resultado (12-09-2026).** Hechos los tres primeros puntos: `alreadySent`
+compara con el **último** `SENT_SAP` (A1); la imagen se guarda **solo** con
+`SENT_SAP` en ambos orquestadores; el histórico usa id `entityId-hash-epochMillis`
+(A31). Sobre el atajo «sin cambios reales»: se mantiene, pero ahora es correcto
+por construcción (compara contra lo que SAP tiene de verdad) y su semántica queda
+escrita (`common/idempotencia-y-dedupe.md` R-3). Specs nuevos:
+`common/idempotencia-y-dedupe.md` y `article/sincronizacion-articulo.md`. Queda
+la compensación entre features (D-2).
+
 ---
 
 ## Fase 7 · Refactor, ya con red
@@ -509,7 +518,7 @@ una sesión nueva sepa dónde estamos sin leer el historial de ninguna otra.
 | 3 · SAP real | 🚧 en curso | | 3.1 transporte `RestClient` + CSRF (ADR-0001, `c07adb0`) · 3.2 contratos banco y mandato SEPA, hechos el 2026-09-12 | |
 | 4 · Seguridad | 🚧 parcial | | A8 adelantado el 2026-09-12 (sin stub silencioso, secretos fuera del YAML) como prerrequisito del tenant; B4 (auth REST/actuator) pendiente | |
 | 5 · Observabilidad | 🚧 parcial | | A9 (métricas, tag, ECS) y A10 (graceful, presupuesto de reintentos) hechos el 2026-09-12; trazas bloqueadas por D-7 | |
-| 6 · Consistencia | ⬜ pendiente | | | |
+| 6 · Consistencia | ✅ hecha (salvo compensación, D-2) | 2026-09-12 | commit de la Fase 6 (ver `git log`) | pendiente de verificación por otra sesión |
 | 7 · Refactor | ⬜ pendiente (desbloqueada: Fase 2 cerrada) | | | |
 | 8 · Supply chain | ⬜ pendiente | | | |
 | 9 · Documentación | ⬜ pendiente | | | |

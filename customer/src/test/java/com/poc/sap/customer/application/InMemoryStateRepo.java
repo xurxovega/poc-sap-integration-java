@@ -23,6 +23,8 @@ public final class InMemoryStateRepo implements SyncStateRepositoryPort {
 
     private final SyncStateMachine machine = new SyncStateMachine();
     private final Map<String, List<SyncState>> byEntity = new HashMap<>();
+    /** Hash del ultimo SENT_SAP por entidad: lo que SAP tiene ahora (idempotencia-y-dedupe R-1). */
+    private final Map<String, String> lastSentHash = new HashMap<>();
 
     /** Estados registrados para una entidad, en orden. */
     public List<SyncState> states(String entityId) {
@@ -51,6 +53,9 @@ public final class InMemoryStateRepo implements SyncStateRepositoryPort {
     public SyncState transition(String domain, String entityId, SyncStateTransition t) {
         SyncState to = machine.advance(currentState(domain, entityId).orElse(null), t.to());
         byEntity.computeIfAbsent(entityId, k -> new ArrayList<>()).add(to);
+        if (to == SyncState.SENT_SAP) {
+            lastSentHash.put(entityId, t.payloadHash());
+        }
         return to;
     }
 
@@ -61,6 +66,6 @@ public final class InMemoryStateRepo implements SyncStateRepositoryPort {
 
     @Override
     public boolean alreadySent(String domain, String entityId, String payloadHash) {
-        return false;
+        return payloadHash != null && payloadHash.equals(lastSentHash.get(entityId));
     }
 }

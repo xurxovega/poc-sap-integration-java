@@ -7,4 +7,4 @@
 
 | Fecha | Feature | Cambio |
 |---|---|---|
-| — | — | Sin specs escritos todavía |
+| 2026-09-12 | [Sincronización del artículo](sincronizacion-articulo.md) | Spec inicial (Fase 6). Imagen solo tras el ACK de SAP, histórico por intento, dedupe contra el último `SENT_SAP` |

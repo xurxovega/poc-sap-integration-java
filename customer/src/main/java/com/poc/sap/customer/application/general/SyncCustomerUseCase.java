@@ -124,11 +124,10 @@ public class SyncCustomerUseCase {
         // deja la entidad en ERROR y se propaga. Antes quedaba colgada en
         // INDEXING/SENDING_SAP para siempre (auditoria B12/C2).
         try {
-            // Deteccion de "sin cambios reales": si el ciclo anterior termino en
-            // SENT_SAP y el snapshot re-leido del legacy es identico a la imagen
-            // actual (Mongo, staging), la modificacion no afecta a datos
-            // sincronizados y no se reenvia a SAP. El historico ELK conserva el
-            // snapshot de cada envio real para auditar la comparacion.
+            // "Sin cambios reales" (idempotencia-y-dedupe R-3): si el ciclo anterior
+            // termino en SENT_SAP y el snapshot re-leido del legacy es identico a la
+            // imagen (= lo que SAP tiene, R-4), no hay nada que enviar. SENT_SAP con
+            // este hash significa "SAP esta en sincronia con este payload".
             if (lastCycleSent && imageStore.find(customer.id()).filter(customer::equals).isPresent()) {
                 log.info("SyncCustomer sin cambios reales entityId={} (snapshot == imagen staging), no se reenvia",
                         message.entityId());
@@ -136,9 +135,10 @@ public class SyncCustomerUseCase {
                 return SyncState.SENT_SAP;
             }
 
+            // El historico registra lo que SE VA A ENVIAR, con un documento por
+            // intento (idempotencia-y-dedupe R-5): un reenvio no pisa la version anterior.
             transition(message, SyncState.VALID, SyncState.INDEXING);
             timed("index", () -> {
-                imageStore.save(customer.id(), customer);
                 historyIndexer.index(customer.id(), customer, message.payloadHash());
                 return null;
             });
@@ -146,6 +146,12 @@ public class SyncCustomerUseCase {
 
             transition(message, SyncState.INDEXED, SyncState.SENDING_SAP);
             SyncState finalState = timed("send", () -> sendFeatures(customer, message.payloadHash(), features));
+            if (finalState == SyncState.SENT_SAP) {
+                // La imagen es "lo que SAP tiene": se persiste solo tras el ACK de todas
+                // las features (idempotencia-y-dedupe R-4). Antes se guardaba antes de
+                // enviar y un SAP_ERROR dejaba una imagen que SAP nunca recibio.
+                imageStore.save(customer.id(), customer);
+            }
             transition(message, SyncState.SENDING_SAP, finalState);
 
             log.info("SyncCustomer fin entityId={} state={}", message.entityId(), finalState);
