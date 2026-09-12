@@ -95,6 +95,10 @@ Regla verificable de un spec SDD, numerada `AC-1`, `AC-2`… Cada una debe tener
 
 Plataforma CDC de código abierto. Captura cambios del legacy y los publica en Kafka.
 
+### Dependabot
+
+Servicio de GitHub que abre PRs con actualizaciones de dependencias. Configurado en `.github/dependabot.yml` (Maven y GitHub Actions, semanal, agrupando Spring y librerías de test). La CI valida cada PR.
+
 ### Destination Service
 
 Servicio de SAP BTP que centraliza URL, autenticación y propiedades de conexión a sistemas SAP. Ver [Destination Service — Cloud SDK](https://sap.github.io/cloud-sdk/docs/java/features/connectivity/destination-service).
@@ -167,6 +171,10 @@ Integration Suite es el iPaaS de SAP BTP; un *iFlow* es un flujo de integración
 
 **Imagen** (`customers_current` / `articles_current`, Mongo): lo último que SAP **aceptó**; se guarda solo cuando el ciclo termina en `SENT_SAP`. **Histórico** (`customers_history` / `articles_history`, Elasticsearch): lo que se **intentó enviar**, un documento por intento (id `entityId-hash-epochMillis`). La diferencia entre ambos es lo que SAP no tiene todavía. Ver [`idempotencia-y-dedupe.md`](sdd/common/idempotencia-y-dedupe.md).
 
+### Imagen por digest
+
+Referencia a una imagen Docker por su hash de contenido (`repo:tag@sha256:...`) además de la etiqueta. La etiqueta documenta la versión; el digest garantiza que es exactamente la misma imagen en todos los equipos (una etiqueta como `2022-latest` puede cambiar de contenido). Aplicado a las 11 imágenes de `external-services/docker-compose.yml`.
+
 ## J
 
 ### JaCoCo / umbral de cobertura
@@ -198,6 +206,10 @@ Autorización de un deudor para que un acreedor le domicilie cobros. En S/4 vive
 ### Maven Reactor
 
 Build multi-módulo de Maven que compila `common`, `customer`, `article`, `supplier` e `it` en orden de dependencias. Ver [`TECH.md`](architecture/TECH.md#2-build).
+
+### Maven wrapper (`mvnw`)
+
+Scripts `mvnw` / `mvnw.cmd` y `.mvn/wrapper/` que descargan y usan la versión de Maven fijada por el repo (3.9.9), de modo que todos los equipos y la CI compilan igual. `maven-enforcer` además rechaza Maven < 3.9 y JDK < 25.
 
 ### Micrometer
 
@@ -310,6 +322,10 @@ SDK oficial de SAP para conectividad, generación de clientes tipados (VDM) y op
 ### `SapCircuitOpenException`
 
 El circuit breaker hacia SAP está abierto y la llamada no se ha intentado. Antes se tragaba como `SapResponse(0)` y el use case marcaba `SAP_ERROR` sin reintento ni señal (auditoría B13). Ahora se propaga como fallo transitorio para que la ingesta reintente con backoff.
+
+### SBOM (CycloneDX)
+
+*Software Bill of Materials*: inventario de todos los componentes (dependencias con versión y licencia) que forman una versión del software, en formato CycloneDX. Lo genera `cyclonedx-maven-plugin` en `package` (`target/bom.json`) y la CI lo publica como artefacto. Sirve para responder «¿nos afecta esta vulnerabilidad?» sin abrir el código.
 
 ### SDD (Spec-Driven Development)
 

@@ -79,7 +79,8 @@ Cada dominio sigue capas por paquete:
   ni fallback a un JDK anterior desde la Fase 2 de la auditoría).
   - En WSL sin JDK 25 del sistema: descomprimir Temurin 25 en `~/.jdks` y usar
     `JAVA_HOME=$HOME/.jdks/jdk-25.0.3+9 mvn ...`.
-- Maven 3.9+ (no hay wrapper en el repo; se añadirá en la Fase 8).
+- Maven: usa el **wrapper** del repo (`./mvnw`, `mvnw.cmd` en Windows): fija Maven 3.9.9
+  y lo descarga la primera vez. `maven-enforcer` rechaza Maven < 3.9 y JDK < 25.
 - Docker (para Testcontainers en tests de integración y para la
   infraestructura local de `external-services/`, incluido Debezium/Kafka Connect).
 

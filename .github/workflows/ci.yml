@@ -1,7 +1,8 @@
 # CI minimo (plan de accion Fase 2, auditoria B7/T12): sin esto, cuatro tests
 # vivieron 53 dias sin ejecutarse y nadie lo supo.
 #
-# - build: unit + slice + ArchUnit + contract (WireMock) + JaCoCo. Sin Docker.
+# - build: enforcer + unit + slice + ArchUnit + contract (WireMock) + JaCoCo + SBOM. Sin Docker.
+#   Usa ./mvnw: la version de Maven la fija el repo, no el runner.
 # - e2e-docker: las IT gateadas por -Ddocker.available=true (Testcontainers).
 #   Separado para que un runner sin Docker siga dando senal.
 name: ci
@@ -26,7 +27,7 @@ jobs:
           java-version: "25"
           cache: maven
       - name: Verify (unit, slice, ArchUnit, contract, JaCoCo)
-        run: mvn -B -ntp verify
+        run: ./mvnw -B -ntp verify
       - name: Subir informes JaCoCo
         if: always()
         uses: actions/upload-artifact@v4
@@ -34,6 +35,12 @@ jobs:
           name: jacoco
           path: "**/target/site/jacoco/**"
           if-no-files-found: ignore
+      - name: Subir SBOM (CycloneDX)
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom
+          path: target/bom.*
+          if-no-files-found: error
 
   e2e-docker:
     runs-on: ubuntu-latest
@@ -46,4 +53,4 @@ jobs:
           java-version: "25"
           cache: maven
       - name: IT con Testcontainers (Mongo real, smoke de infraestructura)
-        run: mvn -B -ntp -pl it -am verify -DskipTests=false -Ddocker.available=true
+        run: ./mvnw -B -ntp -pl it -am verify -DskipTests=false -Ddocker.available=true

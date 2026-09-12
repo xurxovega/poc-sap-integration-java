@@ -14,7 +14,17 @@
 
 ## 2. Build
 
-- **Maven 3.9+**, reactor multi-módulo con parent `sap-integration-parent`.
+- **Maven 3.9.9 vía wrapper** (`./mvnw`, `.mvn/wrapper/`), reactor multi-módulo
+  con parent `sap-integration-parent`. `maven-enforcer` exige Maven ≥ 3.9 y
+  JDK ≥ 25 y prohíbe dependencias duplicadas en un pom.
+- **Cadena de suministro** (plan Fase 8): SBOM CycloneDX agregado
+  (`target/bom.json`, artefacto de la CI), Dependabot semanal (Maven y GitHub
+  Actions), imágenes de `external-services` fijadas por **digest**,
+  `spring-boot:build-image` configurado (`poc-sap/<app>:<version>`). Sin
+  Dockerfile ni Helm: la plataforma de despliegue está por decidir (D-9).
+  `dependency:analyze` **no** está en `verify`: `maven-dependency-plugin` 3.8.1
+  aún no lee class files de Java 25 («Unsupported class file major version 69»);
+  se reintenta cuando el plugin actualice su ASM (Dependabot avisará).
 - `spring-boot-dependencies` BOM importado en `dependencyManagement`.
 - **Sin perfiles Maven**. No existen perfiles `dev`/`it`/`native` ni `jdk25`;
   la configuración por entorno va por variables de entorno (`scripts/env/`).

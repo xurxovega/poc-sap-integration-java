@@ -373,6 +373,20 @@ Maven wrapper (el README dice que existe y no existe), `maven-enforcer`,
 `spring-boot:build-image`, perfiles `local/test/prod`, `launch.json` que hoy
 activa un perfil inexistente.
 
+**Resultado (12-09-2026).** Hecho: wrapper (`./mvnw`, Maven 3.9.9; la CI lo
+usa), `maven-enforcer` (Maven ≥ 3.9, JDK ≥ 25, sin dependencias duplicadas),
+SBOM CycloneDX agregado en `package` (artefacto `sbom` en la CI), Dependabot
+(Maven + GitHub Actions), 11 imágenes del compose por digest, `build-image`
+configurado (`poc-sap/<app>:<version>`), `launch.json` sin el perfil `dev`
+inexistente (carga `scripts/env/local.env`). **Desviaciones deliberadas**: los
+perfiles Spring `local/test/prod` no se adoptan (la configuración va por
+variables de entorno, decisión del Quick Start); `dependency:analyze` **no se
+puede** activar todavía: `maven-dependency-plugin` 3.8.1 falla con los class
+files de Java 25 (major version 69); queda anotado en TECH §2 para reintentarlo
+cuando el plugin actualice ASM. **Queda**
+el artefacto de despliegue (Dockerfile/Helm/mta), que depende de decidir la
+plataforma: **D-9**, añadida a la tabla de decisiones.
+
 ---
 
 ## Fase 9 · Documentación, ADRs y cierre
@@ -413,6 +427,7 @@ D-1 y D-6 están decididas (arriba). Quedan abiertas:
 | D-4 | OData V4 ahora o después | Fase 3 (se diseña para que el cambio sea local) |
 | D-5 | MCP de solo lectura | Después |
 | D-8 | Schema Registry para la outbox | Después |
+| D-9 | Plataforma de despliegue (contenedores propios, BTP Cloud Foundry, Kubernetes) → Dockerfile/Helm/mta | Antes de la primera instalación fuera del equipo de desarrollo |
 
 ## Esto no es un PoC: es probablemente la aplicación final
 
@@ -520,7 +535,7 @@ una sesión nueva sepa dónde estamos sin leer el historial de ninguna otra.
 | 5 · Observabilidad | 🚧 parcial | | A9 (métricas, tag, ECS) y A10 (graceful, presupuesto de reintentos) hechos el 2026-09-12; trazas bloqueadas por D-7 | |
 | 6 · Consistencia | ✅ hecha (salvo compensación, D-2) | 2026-09-12 | `2c532a7` + fix semconv | pendiente de verificación por otra sesión (verificación en vivo 3/3 en esta sesión: imagen intacta con SAP en 500, imagen actualizada tras 2xx, A→B→A reenviado) |
 | 7 · Refactor | ⬜ pendiente (desbloqueada: Fase 2 cerrada) | | | |
-| 8 · Supply chain | ⬜ pendiente | | | |
+| 8 · Supply chain | ✅ hecha (salvo artefacto de despliegue, D-9) | 2026-09-12 | commit de la Fase 8 (ver `git log`) | pendiente de verificación por otra sesión |
 | 9 · Documentación | ⬜ pendiente | | | |
 
 ## Esfuerzo

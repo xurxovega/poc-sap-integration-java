@@ -1,3 +1,7 @@
+# Imagenes fijadas por digest (plan Fase 8, auditoria A22): la etiqueta dice que
+# version es; el digest garantiza que es exactamente la misma imagen en todos los
+# equipos y en CI. Para actualizar una: docker pull <img>:<tag> && docker images
+# --digests, y sustituir el sha256.
 # Infraestructura externa para ejecutar poc-sap-integration-java en local.
 # Servicios: Kafka, PostgreSQL, SQL Server, MongoDB, Elasticsearch/Kibana, MinIO (S3).
 #
@@ -16,7 +20,7 @@ services:
   # Kafka (Confluent Community)
   # ---------------------------------------------------------------------------
   zookeeper:
-    image: confluentinc/cp-zookeeper:7.7.0
+    image: confluentinc/cp-zookeeper:7.7.0@sha256:d4312a5b61b45ab5c4d33d4c77e5a235cdd95a16dbfc1d381639520a2af48f01
     hostname: zookeeper
     container_name: zookeeper
     ports:
@@ -28,7 +32,7 @@ services:
       - poc_sap
 
   kafka-broker:
-    image: confluentinc/cp-kafka:7.7.0
+    image: confluentinc/cp-kafka:7.7.0@sha256:1fa3cdb3ef77b75bc56e7040bbdfa2bd6950b6ee6363381b2493f7a83e07a0b3
     container_name: kafka-broker
     ports:
       - "9092:9092"
@@ -59,7 +63,7 @@ services:
   # Registro de conectores: ver external-services/debezium/README.md
   # ---------------------------------------------------------------------------
   kafka-connect:
-    image: debezium/connect:2.7.3.Final
+    image: debezium/connect:2.7.3.Final@sha256:997b67feff614549acd20d54bfed398fc73b339881c649d42821c1e55ec9972b
     container_name: kafka-connect
     depends_on:
       kafka-broker:
@@ -93,7 +97,7 @@ services:
   # PostgreSQL — legacy source para el dominio ARTICLE
   # ---------------------------------------------------------------------------
   postgres-source:
-    image: postgres:16
+    image: postgres:16@sha256:78df81b1442dcc764c1104154da7162635e40cfffe67579c42a1c1b96dfc209c
     container_name: postgres-source
     environment:
       POSTGRES_DB: poc
@@ -125,7 +129,7 @@ services:
   # SQL Server — legacy source para el dominio CUSTOMER
   # ---------------------------------------------------------------------------
   sqlserver-source:
-    image: mcr.microsoft.com/mssql/server:2022-latest
+    image: mcr.microsoft.com/mssql/server:2022-latest@sha256:0ec7739e1c5ec2f57861facbe1f2b74f1d3e147c7c97edf91eeea920c5944d9c
     container_name: sqlserver-source
     environment:
       ACCEPT_EULA: 'Y'
@@ -152,7 +156,7 @@ services:
       start_period: 600s
 
   sqlserver-init:
-    image: mcr.microsoft.com/mssql/server:2022-latest
+    image: mcr.microsoft.com/mssql/server:2022-latest@sha256:0ec7739e1c5ec2f57861facbe1f2b74f1d3e147c7c97edf91eeea920c5944d9c
     container_name: sqlserver-init
     depends_on:
       sqlserver-source:
@@ -172,7 +176,7 @@ services:
   # MongoDB — imagen actual + estado de sincronización
   # ---------------------------------------------------------------------------
   mongodb:
-    image: mongo:7.0
+    image: mongo:7.0@sha256:81ed620b45935fb49704010b75d3fa73df547f71323cfdba49323a64412253a4
     container_name: mongodb
     environment:
       MONGO_INITDB_DATABASE: sap_integration
@@ -199,7 +203,7 @@ services:
   # lo rechaza con media_type_header_exception, rompiendo indexacion y health.
   # ---------------------------------------------------------------------------
   elasticsearch:
-    image: docker.elastic.co/elasticsearch/elasticsearch:9.2.1
+    image: docker.elastic.co/elasticsearch/elasticsearch:9.2.1@sha256:43ea348fb0ae21f8610b1d144dfd165ee4045537bcdba3789ad0e5107533415c
     container_name: elasticsearch
     environment:
       - discovery.type=single-node
@@ -220,7 +224,7 @@ services:
       start_period: 60s
 
   kibana:
-    image: docker.elastic.co/kibana/kibana:9.2.1
+    image: docker.elastic.co/kibana/kibana:9.2.1@sha256:7a68229de6555baec927c0680ca377a56fddb0e3ff9bef0eb804c4f374449960
     container_name: kibana
     depends_on:
       - elasticsearch
@@ -243,7 +247,7 @@ services:
   # Ningun modulo del reactor se conecta aqui: es el registro del trabajo.
   # ---------------------------------------------------------------------------
   mysql-sdd:
-    image: mysql:8.4
+    image: mysql:8.4@sha256:3466ba4a4828aa8d46fb7c3bc16b67b781c98413cf4ea0fac6feaa6e881faa26
     container_name: mysql-sdd
     environment:
       MYSQL_ROOT_PASSWORD: sdd_root
@@ -268,7 +272,7 @@ services:
   # MinIO — S3-compatible para almacenamiento de objetos (futuro)
   # ---------------------------------------------------------------------------
   minio:
-    image: minio/minio:RELEASE.2024-07-04T14-25-45Z
+    image: minio/minio:RELEASE.2024-07-04T14-25-45Z@sha256:5db7e40b69f0c3ad5a878521ff5029468e3070ef146c084dc2540e2d492075c4
     container_name: minio
     command: server /data --console-address ":9001"
     environment:
@@ -290,7 +294,7 @@ services:
 
   minio-init:
     # minio/mc tiene sus propias releases (no coinciden con las de minio/minio)
-    image: minio/mc:RELEASE.2024-07-26T13-08-44Z
+    image: minio/mc:RELEASE.2024-07-26T13-08-44Z@sha256:a8c51dd4a53d46d1c3693106134f714b6c78dfe70469f8312b789d19826fe8d5
     container_name: minio-init
     depends_on:
       minio:

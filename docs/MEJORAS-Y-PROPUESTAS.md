@@ -49,6 +49,7 @@
 | OPS-3 | Decidir el **sufijo del topic DLT** | proyecto | ✅ 2026-09-11 | Decidido: se mantiene el sufijo por defecto de Spring Kafka, **`<topic>-dlt`**, y se corrige la documentación (23 ocurrencias en 13 ficheros). Motivo: fabricar un sufijo propio obliga a configurar el recoverer en cada dominio para no ganar nada; el topic real ya existía con ese nombre y tenía mensajes |
 | OPS-4 | Mapeo fino de errores SAP (código, mensaje, campo) en vez de propagar el HTTP crudo | proyecto | 📋 | Ya listado como brecha; diagnóstico muy pobre cuando SAP rechaza algo |
 | OPS-5 | Saga / compensación entre features | proyecto | 📋 | Un fallo parcial deja SAP a medias. Es la brecha estructural más grande del sistema |
+| OPS-7 | **Artefacto de despliegue** (Dockerfile / Helm / `mta.yaml`) y entorno de producción | proyecto | 📋 | Depende de decidir la plataforma (D-9: contenedores propios, BTP Cloud Foundry, Kubernetes...). `spring-boot:build-image` ya genera una imagen OCI con buildpacks; los perfiles Spring `local/test/prod` que pedía la auditoría **no** se adoptan: la configuración va por variables de entorno (`scripts/env/*.env`) |
 | OPS-6 | Reevaluar el **VDM del SAP Cloud SDK** como transporte hacia S/4 | proyecto | 📋 | Decidido en [ADR-0001](architecture/adr/0001-transporte-http-sap-restclient.md): hoy `RestClient`. Disparador: soporte oficial de Boot 4 por el SDK, o que reimplementar OData V2 (ETag, deep insert, `$batch`) en la Fase 3 cueste más que adoptar el VDM |
 
 ## Seguridad
@@ -68,7 +69,7 @@
 | DX-1 | Versión **PowerShell** de `start-all.sh` / `stop-all.sh` | transversal | 💡 | Hoy hay que usar Git Bash o WSL en Windows |
 | DX-2 | Perfil opcional de compose con **UIs de inspección** (Kafka UI, mongo-express) | transversal | 💡 | Hoy se inspecciona por CLI o con clientes de escritorio |
 | DX-3 | `MSYS_NO_PATHCONV=1` en los `docker exec` de las guías | proyecto | 📋 | Git Bash convierte `/opt/...` a ruta Windows y el `exec` falla — justo el shell que recomendamos |
-| DX-4 | Maven wrapper (`mvnw`) en el repo | transversal | 💡 | Elimina la dependencia del `mvn` del sistema y fija la versión |
+| DX-4 | Maven wrapper (`mvnw`) en el repo | transversal | ✅ 2026-09-12 | Maven 3.9.9 fijado en `.mvn/wrapper`; la CI usa `./mvnw`. Elimina la dependencia del `mvn` del sistema y fija la versión |
 | DX-5 | Hook de pre-commit que ejecute `mvn test` sobre los módulos tocados | transversal | 💡 | |
 | DX-6 | Comprobador de enlaces de la documentación en CI | transversal | 💡 | Se ha usado a mano en cada reorganización de `docs/`; automatizarlo es barato y evita enlaces muertos |
 | TEST-7 | ArchUnit sobre `application`: sin Spring, Micrometer ni Jackson (auditoría A4) | proyecto | 📋 | `DomainPurityTest` ya lo vigila en `domain`. En `application` hoy 16/16 use cases llevan `@Service` y 14 dependen de Micrometer: la regla se activa cuando la Fase 7 introduzca `MetricsPort`/`DiffPort` |

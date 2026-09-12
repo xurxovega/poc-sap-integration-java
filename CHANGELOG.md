@@ -20,6 +20,23 @@ identifican por fecha.
 
 ## [Sin publicar]
 
+### 2026-09-12 — Cadena de suministro (Fase 8 de la auditoría)
+
+#### Añadido
+
+- El repositorio incluye su propia herramienta de construcción (Maven wrapper):
+  todos compilan con la misma versión sin instalar nada.
+- La compilación **rechaza** entornos que no cumplen lo prometido (Maven o Java
+  antiguos) y genera el **inventario de componentes** (SBOM) de cada versión.
+- Avisos automáticos semanales de actualizaciones de dependencias (Dependabot).
+- Las imágenes de la infraestructura local quedan fijadas exactamente
+  (por digest), no solo por etiqueta.
+
+#### Pendiente
+
+- Empaquetado para despliegue (contenedor, Helm...): a la espera de decidir la
+  plataforma de destino (D-9).
+
 ### 2026-09-12 — Lo que guardamos coincide con lo que SAP tiene (Fase 6 de la auditoría)
 
 #### Corregido

@@ -45,6 +45,9 @@
              muere con ClassNotFoundException. Ningun test lo cazo (los slices no tocan ES;
              solo lo habria cazado el e2e con Docker, TEST-1). Visto en vivo el 12-09-2026. -->
         <opentelemetry-semconv.version>1.34.0</opentelemetry-semconv.version>
+        <enforcer.version>3.5.0</enforcer.version>
+        <cyclonedx.version>2.9.1</cyclonedx.version>
+        <dependency-plugin.version>3.8.1</dependency-plugin.version>
         <sap-cloud-sdk.version>5.32.0</sap-cloud-sdk.version>
     </properties>
 
@@ -137,6 +140,53 @@
 
     <build>
         <plugins>
+            <!-- Cadena de suministro (plan Fase 8, auditoria A22/A24): el build exige
+                 el Maven y el JDK que la documentacion promete y prohibe declarar dos
+                 veces la misma dependencia en un pom. -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-enforcer-plugin</artifactId>
+                <version>${enforcer.version}</version>
+                <executions>
+                    <execution>
+                        <id>enforce-toolchain</id>
+                        <goals><goal>enforce</goal></goals>
+                        <configuration>
+                            <rules>
+                                <requireMavenVersion>
+                                    <version>[3.9,)</version>
+                                    <message>Maven 3.9+ (usa ./mvnw)</message>
+                                </requireMavenVersion>
+                                <requireJavaVersion>
+                                    <version>[25,)</version>
+                                    <message>JDK 25 es el minimo del proyecto (release 25)</message>
+                                </requireJavaVersion>
+                                <banDuplicatePomDependencyVersions/>
+                            </rules>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <!-- SBOM CycloneDX agregado del reactor: target/bom.json (y .xml) en package.
+                 La CI lo sube como artefacto. Solo en el modulo raiz. -->
+            <plugin>
+                <groupId>org.cyclonedx</groupId>
+                <artifactId>cyclonedx-maven-plugin</artifactId>
+                <version>${cyclonedx.version}</version>
+                <inherited>false</inherited>
+                <executions>
+                    <execution>
+                        <id>sbom</id>
+                        <phase>package</phase>
+                        <goals><goal>makeAggregateBom</goal></goals>
+                        <configuration>
+                            <outputName>bom</outputName>
+                            <outputFormat>all</outputFormat>
+                            <includeTestScope>false</includeTestScope>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
             <!-- JaCoCo: agente en todos los modulos, report y check en verify
                  (auditoria B7 / plan Fase 2.3). El check solo mira domain/**:
                  medido el 12-09-2026 -> common 90 %, customer 78 %, article 88 %
@@ -198,8 +248,21 @@
                     <version>${failsafe.version}</version>
                 </plugin>
                 <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-dependency-plugin</artifactId>
+                    <version>${dependency-plugin.version}</version>
+                </plugin>
+                <plugin>
                     <groupId>org.springframework.boot</groupId>
                     <artifactId>spring-boot-maven-plugin</artifactId>
+                    <!-- Imagen OCI con buildpacks: ./mvnw -pl customer spring-boot:build-image
+                         (requiere Docker). Sin Dockerfile: la plataforma de despliegue
+                         esta por decidir (plan Fase 8, D-9). -->
+                    <configuration>
+                        <image>
+                            <name>poc-sap/${project.artifactId}:${project.version}</name>
+                        </image>
+                    </configuration>
                     <version>${spring-boot.version}</version>
                 </plugin>
                 <plugin>

@@ -307,7 +307,7 @@ confundir con el Shared Kernel, que es `common`. Catálogo en
 ```bash
 ./scripts/start-all.sh                # levantar todo (infra + mock SAP + apps)
 ./scripts/stop-all.sh                 # parar todo
-mvn validate                          # validar reactor
+mvn validate                          # validar reactor (o ./mvnw: wrapper con Maven 3.9.9 fijado)
 mvn test                              # unit + slice (sin Docker)
 mvn verify                            # + contract reales (failsafe) + JaCoCo check + ArchUnit; sin Docker
 mvn -pl common install -DskipTests    # publicar shared kernel local

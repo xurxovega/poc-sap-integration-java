@@ -81,7 +81,7 @@ después las bases de datos, y así sucesivamente.
 | Requisito | Versión | Notas |
 |---|---|---|
 | JDK | **25 LTS** (mínimo) | El reactor compila con `release 25`; no hay perfil ni forma soportada de usar un JDK anterior |
-| Maven | 3.9+ | No hay wrapper en el repo: usa el `mvn` del sistema |
+| Maven | wrapper del repo | `./mvnw` (o `mvnw.cmd`) descarga Maven 3.9.9 la primera vez; `mvn` del sistema también vale si es 3.9+ (`maven-enforcer` lo comprueba) |
 | Docker | con ~6 GB libres | Solo en modo `local` |
 | `curl` | — | `jq` opcional pero muy recomendable |
 | Bash | — | En Windows, **Git Bash** o WSL: los scripts y los ejemplos son POSIX |
