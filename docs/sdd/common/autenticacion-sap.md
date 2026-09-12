@@ -46,7 +46,7 @@ explícito.
 | R-2 | Con `sap.auth.allow-stub=true` y configuración incompleta, el destino usa un token stub (`stub-btp-token` / `stub-s4-token`) y lo **avisa en el log al arrancar** | — |
 | R-3 | Con configuración completa, `allow-stub` es irrelevante: siempre credencial real. El token OAuth2 se cachea y se renueva antes de caducar (`OAuth2TokenClient`) | — |
 | R-4 | Con `sap.s4.auth.type=basic`, la cabecera es `Basic base64(usuario:clave)`; el usuario y la clave son los del communication user | — |
-| R-5 | Ningún secreto tiene valor por defecto en los YAML empaquetados: ni credenciales SAP ni usuario/clave de las bases de datos legacy (`SQLSERVER_USER/PASSWORD`, `POSTGRES_USER/PASSWORD`). Sin ellos la app no arranca (placeholder sin resolver). `trustServerCertificate=true` tampoco es default: lo pone `scripts/env/local.env` para el contenedor de desarrollo | Auditoría A8: `sa`/`SqlServer_Pa55w0rd!` y `trustServerCertificate=true` iban dentro del jar |
+| R-5 | Ningún secreto tiene valor por defecto en los YAML empaquetados: ni credenciales SAP ni usuario/clave de las bases de datos legacy (`SQLSERVER_USER/PASSWORD`, `POSTGRES_USER/PASSWORD`). Sin ellos la app **no arranca**: `LegacyCredentialsGuard` falla al arrancar con las variables que faltan (Spring Boot deja el placeholder `${POSTGRES_USER}` literal y, sin el guard, el síntoma era un fallo de autenticación en la base de datos varias capas más abajo). `trustServerCertificate=true` tampoco es default: lo pone `scripts/env/local.env` para el contenedor de desarrollo | Auditoría A8: `sa`/`SqlServer_Pa55w0rd!` y `trustServerCertificate=true` iban dentro del jar |
 
 ## 5. Salida
 
@@ -68,6 +68,7 @@ No toca la máquina de estados. Un fallo de configuración es un fallo de
 | AC-3 | Dada configuración completa, entonces arranca con `allow-stub=false` | `BtpAuthProviderTest#completeCredentialsPassStartupWithoutStub` · `S4NativeAuthProviderTest#completeOauth2CredentialsPassStartupWithoutStub` |
 | AC-4 | Con `basic`, la cabecera es `Basic base64(usuario:clave)` | `S4NativeAuthProviderTest#basicAuthBuildsBasicHeader` |
 | AC-5 | El contexto completo de cada app arranca **solo** si recibe credenciales de BD y `allow-stub` (o credenciales SAP) desde fuera del jar | `CustomerApplicationContextTest` · `ArticleApplicationContextTest` (fijan `SQLSERVER_*`/`POSTGRES_*` y `sap.auth.allow-stub=true` en sus propiedades) |
+| AC-6 | Dado un placeholder de credencial de BD sin resolver o vacío, cuando arranca la app, entonces falla con un mensaje que nombra las variables y cómo cargarlas | `LegacyCredentialsGuardTest` (3 tests) |
 
 Aplican además los [criterios globales](../README.md#4-criterios-de-aceptación-globales).
 
@@ -83,10 +84,11 @@ como excepción de Spring con el mensaje de R-1.
 | R-1, R-2, R-3 (BTP) | `common/sap/auth/BtpAuthProvider.java` (`validate`, `accessToken`) | `BtpAuthProviderTest` |
 | R-1, R-2, R-3, R-4 (S/4) | `common/sap/auth/S4NativeAuthProvider.java` | `S4NativeAuthProviderTest` |
 | R-3 caché | `common/sap/auth/OAuth2TokenClient.java` | integración (pendiente contra tenant) |
-| R-5 | `customer/application.yml`, `article/application.yml`, `application-common.yml` (`sap.auth.allow-stub`), `scripts/env/local.env`, `scripts/env/test.env.example` | `*ApplicationContextTest` |
+| R-5 | `customer/application.yml`, `article/application.yml`, `application-common.yml` (`sap.auth.allow-stub`), `common/config/LegacyCredentialsGuard.java`, `scripts/env/local.env`, `scripts/env/test.env.example` | `*ApplicationContextTest` · `LegacyCredentialsGuardTest` |
 
 ## 10. Cambios
 
 | Fecha | Cambio | PR |
 |---|---|---|
+| 2026-09-12 | AC-6: `LegacyCredentialsGuard`. Al arrancar article-app sin `local.env` el placeholder `${POSTGRES_USER}` llegó literal a PostgreSQL (Boot no falla por placeholders sin resolver); ahora la app se niega a arrancar y dice qué exportar | — |
 | 2026-09-12 | Spec inicial (plan: adelanto de la Fase 4 antes del tenant de test; auditoría A8). Fallback a token stub solo con `sap.auth.allow-stub=true` y aviso en log; sin credenciales la app no arranca. Usuario y clave de las BD legacy y `trustServerCertificate` fuera de los YAML empaquetados: los aporta el entorno (`scripts/env/*.env`) | — |

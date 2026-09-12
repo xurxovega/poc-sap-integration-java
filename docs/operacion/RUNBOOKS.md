@@ -90,7 +90,7 @@ propósito y dicen qué falta:
 | Mensaje | Causa | Acción |
 |---|---|---|
 | `Credenciales ... incompletas y sap.auth.allow-stub=false` | Sin credenciales SAP | Rellenar `SAP_*_CLIENT_ID/SECRET/TOKEN_URL` (test) o `SAP_AUTH_ALLOW_STUB=true` (solo mock) |
-| `Could not resolve placeholder 'SQLSERVER_PASSWORD'` (o `POSTGRES_*`) | El YAML no trae credenciales de BD | Cargar `scripts/env/<env>.env` (`set -a; source ...; set +a`) |
+| `Credenciales del legacy sin resolver: spring.datasource.username='${POSTGRES_USER}' (placeholder sin resolver)` | El YAML no trae credenciales de BD y no se cargó el `.env` (Boot deja el placeholder literal; sin el guard el síntoma era `password authentication failed for user "${POSTGRES_USER}"`) | Cargar `scripts/env/<env>.env` (`set -a; source ...; set +a`) |
 | `Presupuesto de reintentos por mensaje ... alcanza max.poll.interval.ms` | Timeouts/intentos subidos sin subir Kafka | Subir `KAFKA_MAX_POLL_INTERVAL_MS` o bajar `SAP_CLIENT_RESPONSE_TIMEOUT_MS` |
 | `Port 8081 was already in use` | Instancia anterior viva (en Windows `pkill` no la mata) | `netstat -ano \| grep :8081` → `taskkill //PID <pid> //F`, o `scripts/stop-all.sh --apps-only` |
 | `ddl-auto: validate` falla | El legacy aún no tiene el DDL (SQL Server tarda minutos) | Esperar a `sqlserver-init`; `start-all.sh` ya lo hace |

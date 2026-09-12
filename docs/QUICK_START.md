@@ -123,7 +123,7 @@ mvn -pl common install -DskipTests
 Recomendable antes de arrancar nada — la suite no necesita Docker:
 
 ```bash
-mvn clean test                        # 295 tests (unit, slice, resiliencia, smoke de contexto)
+mvn clean test                        # 298 tests (unit, slice, resiliencia, smoke de contexto)
 ```
 
 Los smoke `CustomerApplicationContextTest` / `ArticleApplicationContextTest`
@@ -555,7 +555,7 @@ A mano: `Ctrl+C` en cada terminal de `spring-boot:run`, `docker stop mock-sap` y
 | `SENT_SAP` inmediato sin llamadas al mock | Dedupe por `payloadHash` idéntico: usa un hash distinto |
 | Estado `SAP_ERROR` | El mock no responde 2xx o no está levantado: revisa el stub y `SAP_*_BASE_URL` |
 | La app no arranca: «Credenciales ... incompletas y sap.auth.allow-stub=false» | Es lo esperado sin credenciales SAP. Contra el mock: `SAP_AUTH_ALLOW_STUB=true` (ya en `local.env`). Contra SAP de test: rellena `SAP_S4_CLIENT_ID`/`SECRET`/`TOKEN_URL` en `test.env` |
-| La app no arranca: «Could not resolve placeholder 'SQLSERVER_PASSWORD'» | Falta cargar `scripts/env/local.env` (`set -a; source ...; set +a`) o rellenar `test.env` |
+| La app no arranca: «Credenciales del legacy sin resolver ... placeholder sin resolver» | Falta cargar `scripts/env/local.env` (`set -a; source ...; set +a`) o rellenar `test.env` |
 | `401` contra SAP de test | Credenciales OAuth2 incorrectas o `SAP_AUTH_ALLOW_STUB=true` dejado de la opción A: pásalo a `false` y revisa `SAP_S4_CLIENT_ID`/`SECRET`/`TOKEN_URL` |
 | `403` en escrituras contra S/4 real | CSRF: pon `SAP_S4_CSRF_ENABLED=true` |
 | Los conectores Debezium no publican nada | Los triggers se crean después del seed: el estado inicial no genera eventos. Lanza un `UPDATE` |

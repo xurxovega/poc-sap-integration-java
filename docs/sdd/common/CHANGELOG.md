@@ -7,6 +7,7 @@
 
 | Fecha | Capacidad | Cambio |
 |---|---|---|
+| 2026-09-12 | [Autenticación hacia SAP](autenticacion-sap.md) | AC-6 `LegacyCredentialsGuard`: placeholder de BD sin resolver = la app no arranca con mensaje claro |
 | 2026-09-12 | [Máquina de estados](maquina-de-estados.md) | Fase 7 (A5): `SyncCycleRecorder` + `FeatureSyncPipeline<D>` en `common/application`; `KafkaErrorHandlingConfig` compartido en `common/kafka` |
 | 2026-09-12 | [Observabilidad y operación](observabilidad.md) | `MetricsPort` en el dominio (Fase 7, A4): los use cases ya no importan Micrometer |
 | 2026-09-12 | [Idempotencia, dedupe y consistencia de la imagen](idempotencia-y-dedupe.md) | Spec inicial (Fase 6, A1/A31). Dedupe contra el último `SENT_SAP`; imagen solo tras el ACK; histórico por intento; semántica del atajo «sin cambios reales» |
