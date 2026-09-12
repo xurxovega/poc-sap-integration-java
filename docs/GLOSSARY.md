@@ -9,6 +9,10 @@
 
 Implementación de un **port** en la capa de infraestructura. Traduce entre el dominio y tecnologías externas (Kafka, MongoDB, SAP, Elasticsearch). Ver [`TECH.md`](architecture/TECH.md#5-puertos-y-adaptadores).
 
+### Apertura de ciclo (`beginCycle`) / avance (`advance`)
+
+Las dos intenciones de la máquina de estados, separadas desde la Fase 1 de la auditoría. **Abrir ciclo** es lo que ocurre cuando llega un evento: legal desde *cualquier* estado actual, por el estado de entrada del pipeline. **Avanzar** es moverse dentro del ciclo abierto y sigue la tabla de transiciones. Mientras fueron la misma operación, cada camino nuevo descubría «una fila que faltaba» y fallaba igual — tres veces. Ver [`maquina-de-estados.md`](sdd/common/maquina-de-estados.md) §3.
+
 ### API Business Hub
 
 Portal oficial de SAP para descubrir APIs y especificaciones OData/OpenAPI de SAP. [api.sap.com](https://api.sap.com/)
@@ -45,6 +49,10 @@ Endpoint REST propio que recibe notificaciones de SAP. Se modela como entrada al
 
 Captura de cambios en bases de datos legacy. En este proyecto: triggers → tabla outbox → Debezium → Kafka. Ver [`TECH.md`](architecture/TECH.md#6-entradas).
 
+### Ciclo en vuelo
+
+Ciclo de sincronización que quedó a medias porque el proceso murió entre `RECEIVED` y `SENDING_SAP`. Antes bloqueaba la entidad para siempre (OPS-1); ahora un evento nuevo abre ciclo igualmente y el repositorio lo registra en log (`isInFlight`). Los estados en vuelo son `RECEIVED`, `FETCHING`, `VALIDATING`, `VALID`, `INDEXING`, `INDEXED`, `SENDING_SAP`.
+
 ### Circuit Breaker
 
 Patrón de resiliencia que abre el circuito tras fallos consecutivos para evitar sobrecargar el sistema downstream. Implementado con **Resilience4j**. Ver [`TECH.md`](architecture/TECH.md#8-clientes-sap).
@@ -56,6 +64,10 @@ Componente de SAP BTP que permite conectividad segura desde BTP hacia sistemas o
 ### Communication arrangement / communication user
 
 Configuración en S/4HANA Public Cloud que habilita un escenario de API (p. ej. `SAP_COM_0008` para Business Partner) y el usuario técnico con el que se autentican las llamadas entrantes.
+
+### `ConcurrentTransitionException`
+
+Dos instancias intentaron escribir la misma secuencia de estado para la misma entidad; la primera gana y la segunda recibe esta excepción en lugar de pisar el estado. La produce el índice único `dom_ent_seq_uk` sobre `(domain, entityId, seq)`. Es transitoria: se reintenta releyendo. Ver **Secuencia de estado**.
 
 ### Criterio de aceptación (AC-n)
 
@@ -85,6 +97,10 @@ Topic `<original>-dlt` al que el `DefaultErrorHandler` publica un mensaje que si
 
 Motor de búsqueda e indexación. Almacena histórico de sincronizaciones. Port: `HistoryIndexerPort`.
 
+### Estados de entrada (`ENTRY_STATES`)
+
+Los cuatro puntos reales por los que arranca un pipeline y por los que `beginCycle` puede abrir ciclo: `RECEIVED` (agregado), `VALIDATING` (línea de feature), `SENDING_SAP` (baja), `INDEXING` (indexación). Sustituyen a los antiguos «estados iniciales», que solo admitían dos y por eso la baja y la indexación nunca se ejecutaban.
+
 ### Event Mesh / Advanced Event Mesh
 
 Broker de eventos de SAP BTP por el que se distribuyen los Business Events de S/4 hacia consumidores externos (webhook o AMQP). Candidato a transporte del patrón 5 de [`INTEGRATION-PATTERNS.md`](architecture/INTEGRATION-PATTERNS.md).
@@ -102,6 +118,10 @@ En el dominio `customer`, cada parte del aggregate que puede sincronizarse de fo
 ### `feature_evento` / `sdd_registry`
 
 Base de datos MySQL (contenedor `mysql-sdd`) donde se registra la información ampliada de cada feature solicitada — quién la pidió, cuándo, en qué estado — y su ciclo de vida: un evento `ALTA`, `MODIFICACION` o `BAJA` por cada cambio. **No es una base de datos de la aplicación**: ningún módulo del reactor se conecta a ella. Ver [`sdd/README.md`](sdd/README.md#8-registro-de-features-mysql).
+
+### Fingerprint (incidencias)
+
+Identificador estable de la *causa raíz* de un defecto, no de su síntoma, para reconocer recurrencias. El primero del proyecto es `sync-state:reentrada-no-permitida`: tres arreglos «fila a fila» de la máquina de estados que fallaron igual (`IllegalStateException` → 3 reintentos → DLT) hasta el rediseño de raíz. Convención propuesta en `docs/incidencias/`.
 
 ## H
 
@@ -150,6 +170,10 @@ Build multi-módulo de Maven que compila `common`, `customer`, `article`, `suppl
 ### Micrometer
 
 Librería de métricas. Exposición Prometheus en `/actuator/prometheus`.
+
+### Modelo de bloqueo
+
+Decisión del 2026-09-11 para la baja de cliente: la ficha local pasa a `status = BLOCKED` en lugar de eliminarse, y el histórico y el estado se conservan. Encaja con la obligación de conservar por motivos fiscales y mercantiles y con el propósito de auditoría del histórico. Ver [`baja-cliente.md`](sdd/customer/baja-cliente.md).
 
 ### MongoDB
 
@@ -211,7 +235,7 @@ Modo de integración donde nuestra app empuja datos a SAP activamente vía `SapC
 
 ### Re-entrada (re-sincronización)
 
-Capacidad de reabrir el ciclo de una entidad ya procesada cuando llega un evento nuevo. Cada pipeline vuelve por su estado de entrada: el agregado a `RECEIVED`, una línea de feature a `VALIDATING`. Los estados que la admiten son `SENT_SAP`, `INVALID` y `SAP_ERROR`. La idempotencia la garantiza el dedupe por `payloadHash`, no el bloqueo de la máquina.
+Reabrir el ciclo de una entidad ya procesada cuando llega un evento nuevo. Desde la Fase 1 de la auditoría es una operación propia, **apertura de ciclo** (`beginCycle`), legal desde cualquier estado — cerrado, de error o en vuelo — y no una fila más de la tabla de transiciones. Cada pipeline re-entra por su estado de entrada. La idempotencia la garantiza el dedupe por `payloadHash`, no el bloqueo de la máquina.
 
 ### Registro de features
 
@@ -239,6 +263,10 @@ Suite ERP de SAP. En este proyecto se sincronizan datos maestros con **SAP S/4HA
 
 SDK oficial de SAP para conectividad, generación de clientes y operaciones en BTP/SAP. Ver [`SAP_CLOUD_SDK.md`](tools-integrations/SAP_CLOUD_SDK.md).
 
+### `SapCircuitOpenException`
+
+El circuit breaker hacia SAP está abierto y la llamada no se ha intentado. Antes se tragaba como `SapResponse(0)` y el use case marcaba `SAP_ERROR` sin reintento ni señal (auditoría B13). Ahora se propaga como fallo transitorio para que la ingesta reintente con backoff.
+
 ### SDD (Spec-Driven Development)
 
 Método de trabajo del repositorio: cada feature tiene un spec que define su comportamiento esperado, y spec y código **no pueden divergir**. Si cambia uno, cambia el otro en el mismo PR. Ver [`sdd/README.md`](sdd/README.md) §1.
@@ -246,6 +274,10 @@ Método de trabajo del repositorio: cada feature tiene un spec que define su com
 ### SDD anchor (ancla)
 
 La regla bidireccional que sostiene el SDD: un cambio de comportamiento sin spec actualizado está incompleto, y un spec cambiado sin tests que lo respalden también. Del lado del código el ancla son las citas `AC-n` en el Javadoc de los tests.
+
+### Secuencia de estado (`seq`)
+
+Número monótono por entidad que lleva cada transición en `sync_state`. Decide cuál es el estado actual (antes se ordenaba por `timestamp` en milisegundos, y las transiciones en ráfaga empataban) y, con el índice único `dom_ent_seq_uk`, actúa como **versión optimista** entre instancias. Los documentos anteriores a su introducción no lo tienen; por eso el índice es **parcial** (`seq` existe), no `sparse`: un índice compuesto `sparse` indexa el documento si tiene *al menos una* clave, y todos los antiguos colisionaban en `seq = null`.
 
 ### Shared Kernel
 

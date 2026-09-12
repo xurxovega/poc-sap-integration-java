@@ -13,6 +13,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
+import java.util.Locale;
 
 /**
  * Listener Kafka para CDC (Debezium) del dominio Customer (TECH.md §6).
@@ -42,11 +43,17 @@ public class CustomerKafkaListener {
     public void onMessage(ConsumerRecord<String, String> record) throws JsonProcessingException {
         log.info("Kafka recibido topic={} key={} offset={}",
                 record.topic(), record.key(), record.offset());
+        if (record.value() == null) {
+            // Tombstone de Kafka (compactacion o borrado de clave): no es un mensaje
+            // de negocio. Antes producia IllegalArgumentException y tres reintentos.
+            log.info("Tombstone ignorado topic={} key={} offset={}", record.topic(), record.key(), record.offset());
+            return;
+        }
         var node = mapper.readTree(record.value());
         IngestionMessage msg = new IngestionMessage(
                 node.path("entityId").asText(),
                 "customer",
-                OperationType.valueOf(node.path("operation").asText("UPDATE")),
+                OperationType.valueOf(node.path("operation").asText("UPDATE").toUpperCase(Locale.ROOT)),
                 IngestionOrigin.CDC,
                 node.path("payloadHash").asText(),
                 node.path("payload").toString());

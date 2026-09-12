@@ -98,7 +98,9 @@ public class SyncCustomerUseCase {
                 .filter(s -> s == SyncState.SENT_SAP)
                 .isPresent();
 
-        transition(message, null, SyncState.RECEIVED);
+        // R-5 (sdd/customer/sincronizacion-cliente.md): un evento nuevo siempre
+        // abre ciclo, venga de SENT_SAP, SAP_ERROR, ERROR o de un ciclo en vuelo.
+        beginCycle(message, SyncState.RECEIVED);
         transition(message, SyncState.RECEIVED, SyncState.FETCHING);
 
         Optional<Customer> fetched = legacyRepo.fetch(message.entityId());
@@ -117,50 +119,74 @@ public class SyncCustomerUseCase {
         }
         transition(message, SyncState.VALIDATING, SyncState.VALID);
 
-        // Deteccion de "sin cambios reales": si el ciclo anterior termino en
-        // SENT_SAP y el snapshot re-leido del legacy es identico a la imagen
-        // actual (Mongo, staging), la modificacion no afecta a datos
-        // sincronizados y no se reenvia a SAP. El historico ELK conserva el
-        // snapshot de cada envio real para auditar la comparacion.
-        if (lastCycleSent && imageStore.find(customer.id()).filter(customer::equals).isPresent()) {
-            log.info("SyncCustomer sin cambios reales entityId={} (snapshot == imagen staging), no se reenvia",
-                    message.entityId());
-            transition(message, SyncState.VALID, SyncState.SENT_SAP);
-            return SyncState.SENT_SAP;
-        }
-
-        transition(message, SyncState.VALID, SyncState.INDEXING);
-        imageStore.save(customer.id(), customer);
-        historyIndexer.index(customer.id(), customer, message.payloadHash());
-        transition(message, SyncState.INDEXING, SyncState.INDEXED);
-
-        transition(message, SyncState.INDEXED, SyncState.SENDING_SAP);
-        Map<CustomerFeature, BiFunction<Customer, String, SyncState>> dispatch = Map.of(
-                CustomerFeature.ADDRESS, address::execute,
-                CustomerFeature.FISCAL,  fiscal::execute,
-                CustomerFeature.CONTACT, contact::execute,
-                CustomerFeature.BANKING, banking::execute);
-
-        boolean allOk = true;
-        boolean anyInvalid = false;
-        for (CustomerFeature f : features) {
-            BiFunction<Customer, String, SyncState> uc = dispatch.get(f);
-            if (uc == null) {
-                continue;
+        // R-6: cualquier fallo de infraestructura tras VALID (Mongo, ES, HTTP)
+        // deja la entidad en ERROR y se propaga. Antes quedaba colgada en
+        // INDEXING/SENDING_SAP para siempre (auditoria B12/C2).
+        try {
+            // Deteccion de "sin cambios reales": si el ciclo anterior termino en
+            // SENT_SAP y el snapshot re-leido del legacy es identico a la imagen
+            // actual (Mongo, staging), la modificacion no afecta a datos
+            // sincronizados y no se reenvia a SAP. El historico ELK conserva el
+            // snapshot de cada envio real para auditar la comparacion.
+            if (lastCycleSent && imageStore.find(customer.id()).filter(customer::equals).isPresent()) {
+                log.info("SyncCustomer sin cambios reales entityId={} (snapshot == imagen staging), no se reenvia",
+                        message.entityId());
+                transition(message, SyncState.VALID, SyncState.SENT_SAP);
+                return SyncState.SENT_SAP;
             }
-            SyncState s = uc.apply(customer, message.payloadHash());
-            if (s == SyncState.INVALID) {
-                anyInvalid = true;
-            } else if (s != SyncState.SENT_SAP) {
-                allOk = false;
-            }
-        }
-        SyncState finalState = anyInvalid ? SyncState.INVALID
-                : (allOk ? SyncState.SENT_SAP : SyncState.SAP_ERROR);
-        transition(message, SyncState.SENDING_SAP, finalState);
 
-        log.info("SyncCustomer fin entityId={} state={}", message.entityId(), finalState);
-        return finalState;
+            transition(message, SyncState.VALID, SyncState.INDEXING);
+            imageStore.save(customer.id(), customer);
+            historyIndexer.index(customer.id(), customer, message.payloadHash());
+            transition(message, SyncState.INDEXING, SyncState.INDEXED);
+
+            transition(message, SyncState.INDEXED, SyncState.SENDING_SAP);
+            Map<CustomerFeature, BiFunction<Customer, String, SyncState>> dispatch = Map.of(
+                    CustomerFeature.ADDRESS, address::execute,
+                    CustomerFeature.FISCAL,  fiscal::execute,
+                    CustomerFeature.CONTACT, contact::execute,
+                    CustomerFeature.BANKING, banking::execute);
+
+            boolean allOk = true;
+            boolean anyInvalid = false;
+            for (CustomerFeature f : features) {
+                BiFunction<Customer, String, SyncState> uc = dispatch.get(f);
+                if (uc == null) {
+                    continue;
+                }
+                SyncState s = uc.apply(customer, message.payloadHash());
+                if (s == SyncState.INVALID) {
+                    anyInvalid = true;
+                } else if (s != SyncState.SENT_SAP) {
+                    allOk = false;
+                }
+            }
+            SyncState finalState = anyInvalid ? SyncState.INVALID
+                    : (allOk ? SyncState.SENT_SAP : SyncState.SAP_ERROR);
+            transition(message, SyncState.SENDING_SAP, finalState);
+
+            log.info("SyncCustomer fin entityId={} state={}", message.entityId(), finalState);
+            return finalState;
+        } catch (RuntimeException e) {
+            markError(message, e);
+            throw e;
+        }
+    }
+
+    private void beginCycle(IngestionMessage msg, SyncState entry) {
+        stateRepo.beginCycle(DOMAIN, msg.entityId(), new SyncStateTransition(
+                msg.entityId(), DOMAIN, null, entry,
+                msg.origin().name().toLowerCase(), msg.payloadHash(), Instant.now()));
+        metrics.incrementState(DOMAIN, entry.name());
+    }
+
+    /** R-6: registra ERROR sin enmascarar la excepcion original si el propio registro falla. */
+    private void markError(IngestionMessage msg, RuntimeException cause) {
+        try {
+            transition(msg, null, SyncState.ERROR);
+        } catch (RuntimeException e) {
+            log.error("No se pudo registrar ERROR entityId={} tras fallo '{}'", msg.entityId(), cause.toString(), e);
+        }
     }
 
     private void transition(IngestionMessage msg, SyncState from, SyncState to) {

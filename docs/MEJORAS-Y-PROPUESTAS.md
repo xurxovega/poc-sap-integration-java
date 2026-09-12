@@ -36,7 +36,7 @@
 | TEST-1 | **Test de integración que arranque la app contra Testcontainers reales** (Mongo, ES, Kafka, SQL Server) | transversal | 📋 | **La lección más cara de este proyecto**: seis defectos llegaron a producción local porque los tests unitarios mockean los puertos. Ni la configuración real ni la máquina de estados se ejercían. Un solo IT de humo los habría cazado todos |
 | TEST-2 | Patrón «test de configuración»: afirmar que las propiedades resuelven a lo esperado | transversal | ✅ 2026-09-09 | `CustomerMongoDatabaseConfigTest`. Nació de que Boot 4 ignoraba en silencio `spring.data.mongodb.uri`. **Replicable en cualquier proyecto Spring**: por cada propiedad crítica, un test que compruebe el valor efectivo, no el fichero |
 | TEST-3 | Repositorios en memoria con las reglas reales en vez de mocks para los puertos con invariantes | transversal | ✅ 2026-09-09 | `InMemoryStateRepo` en `SyncAddressUseCaseTest`. Mockear un puerto que valida invariantes esconde justo los fallos que importan |
-| TEST-4 | Smoke E2E en CI: levantar el compose, lanzar un sync y comprobar `SENT_SAP` | proyecto | 💡 | Sería el guardián de las regresiones que hemos ido encontrando a mano |
+| TEST-4 | Smoke E2E en CI: levantar el compose, lanzar un sync y comprobar `SENT_SAP` | proyecto | 📋 | Sería el guardián de las regresiones que hemos ido encontrando a mano. Las tres verificaciones en vivo de la Fase 1 (entidad atascada, `SAP_ERROR` → re-sync con SAP en 500, baja por CDC con `DELETE` y `BLOCKED`) son exactamente el guion a automatizar |
 | TEST-5 | Contract tests contra el tenant SAP de test, no solo contra WireMock | proyecto | 📋 | WireMock devuelve 201 a todo: valida nuestro lado, no el contrato |
 | TEST-6 | Cobertura JaCoCo con umbral que rompa el build en `domain` y `common` | proyecto | 💡 | Hoy el umbral está documentado pero no forzado |
 
@@ -44,7 +44,7 @@
 
 | # | Mejora | Ámbito | Estado | Notas |
 |---|---|---|---|---|
-| OPS-1 | **Recuperación de entidades atascadas** en estados intermedios | proyecto | 📋 | Si el proceso muere entre `FETCHING`/`INDEXING`/`SENDING_SAP`, la entidad queda bloqueada: esos estados no tienen transición de salida hacia `RECEIVED`. Verificado en vivo el 2026-09-09 con `CUST-001`. Hace falta una política de estado obsoleto (por antigüedad) o una transición de recuperación explícita. Es lo que invocaría UI-4 |
+| OPS-1 | **Recuperación de entidades atascadas** en estados intermedios | proyecto | ✅ 2026-09-11 | Si el proceso muere entre `FETCHING`/`INDEXING`/`SENDING_SAP`, la entidad queda bloqueada: esos estados no tienen transición de salida hacia `RECEIVED`. Verificado en vivo el 2026-09-09 con `CUST-001`. Resuelto de raíz en la Fase 1 de la auditoría: `beginCycle` abre ciclo desde **cualquier** estado, en vuelo incluido, y lo registra en log. No hace falta lease ni job. UI-4 ya tiene qué invocar |
 | OPS-2 | Endpoint o comando de **reproceso desde la DLT** | proyecto | 💡 | Hoy los mensajes de `outbox.<DOM>-dlt` se inspeccionan a mano y no hay forma de reinyectarlos. Lo consumiría UI-4 |
 | OPS-3 | Decidir el **sufijo del topic DLT** | proyecto | ✅ 2026-09-11 | Decidido: se mantiene el sufijo por defecto de Spring Kafka, **`<topic>-dlt`**, y se corrige la documentación (23 ocurrencias en 13 ficheros). Motivo: fabricar un sufijo propio obliga a configurar el recoverer en cada dominio para no ganar nada; el topic real ya existía con ese nombre y tenía mensajes |
 | OPS-4 | Mapeo fino de errores SAP (código, mensaje, campo) en vez de propagar el HTTP crudo | proyecto | 📋 | Ya listado como brecha; diagnóstico muy pobre cuando SAP rechaza algo |
@@ -69,6 +69,7 @@
 | DX-4 | Maven wrapper (`mvnw`) en el repo | transversal | 💡 | Elimina la dependencia del `mvn` del sistema y fija la versión |
 | DX-5 | Hook de pre-commit que ejecute `mvn test` sobre los módulos tocados | transversal | 💡 | |
 | DX-6 | Comprobador de enlaces de la documentación en CI | transversal | 💡 | Se ha usado a mano en cada reorganización de `docs/`; automatizarlo es barato y evita enlaces muertos |
+| DX-7 | Generador OpenAPI de `sap-api-models` **falla de forma intermitente en Windows** («Unable to delete original source file» / «Failed to generate data model») si `target/` no está limpio | proyecto | 📋 | Ha roto `mvn test` y `start-all.sh` tres veces. Opciones: `clean` del módulo en el script, `skipIfSpecIsUnchanged` en el plugin, o generar en `install` y no en cada `test` |
 
 ## Features
 

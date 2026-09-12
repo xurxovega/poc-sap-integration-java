@@ -18,6 +18,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.verifyNoInteractions;
 
 /**
  * Test unit directo del {@link CustomerKafkaListener} (TECH.md §6).
@@ -105,5 +106,34 @@ class CustomerKafkaListenerTest {
         assertThatThrownBy(() -> listener.onMessage(record))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessage("boom");
+    }
+
+    private static ConsumerRecord<String, String> rec(String json) {
+        return new ConsumerRecord<>(TOPIC, 0, 0L, "C-1", json);
+    }
+
+    /**
+     * C5 (auditoria): un tombstone (value null) no es un mensaje de negocio.
+     * Antes producia IllegalArgumentException y tres reintentos inutiles.
+     */
+    @Test
+    void tombstoneIsIgnored() throws JsonProcessingException {
+        listener.onMessage(rec(null));
+        verifyNoInteractions(syncUseCase, deleteUseCase);
+    }
+
+    /** C5: la operacion se acepta en minusculas; Debezium no garantiza el caso. */
+    @Test
+    void lowercaseOperationIsAccepted() throws JsonProcessingException {
+        listener.onMessage(rec("{\"entityId\":\"C-1\",\"operation\":\"update\",\"payloadHash\":\"h\",\"payload\":{}}"));
+        verify(syncUseCase).execute(any(IngestionMessage.class));
+    }
+
+    /** C5: una operacion desconocida es un error del mensaje, no transitorio. */
+    @Test
+    void unknownOperationIsAnIllegalArgument() {
+        assertThatThrownBy(() -> listener.onMessage(
+                rec("{\"entityId\":\"C-1\",\"operation\":\"FROB\",\"payloadHash\":\"h\",\"payload\":{}}")))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 }

@@ -26,6 +26,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.*;
+import com.poc.sap.customer.application.InMemoryStateRepo;
 
 @ExtendWith(MockitoExtension.class)
 class SyncAddressUseCaseTest {
@@ -76,8 +77,8 @@ class SyncAddressUseCaseTest {
     /**
      * AC-4 (sdd/customer/sincronizacion-direccion.md): la linea de estado de la feature no
      * existe antes del primer sync, asi que el use case debe registrar la
-     * entrada en VALIDATING. Sin ella la maquina evalua null -> VALID, que no es
-     * un estado inicial permitido, y el sync entero revienta.
+     * entrada en VALIDATING abriendo ciclo (beginCycle). Sin ella la maquina
+     * evaluaba null -> VALID y el sync entero reventaba.
      */
     @Test
     void firstSyncEntersThroughValidating() {
@@ -86,8 +87,8 @@ class SyncAddressUseCaseTest {
 
         useCase.execute(c, "hash-a");
 
-        verify(stateRepo).transition(eq("customer"), eq("C-1:ADDRESS"),
-                argThat(t -> t.from() == null && t.to() == SyncState.VALIDATING));
+        verify(stateRepo).beginCycle(eq("customer"), eq("C-1:ADDRESS"),
+                argThat(t -> t.to() == SyncState.VALIDATING));
     }
 
     /**
@@ -132,38 +133,6 @@ class SyncAddressUseCaseTest {
         verify(sapPort, times(2)).send(any(), any(), any());
     }
 
-    /** Repositorio de estado en memoria con las mismas reglas que el de Mongo. */
-    private static final class InMemoryStateRepo implements SyncStateRepositoryPort {
-        private final SyncStateMachine machine = new SyncStateMachine();
-        private final Map<String, List<SyncState>> byEntity = new HashMap<>();
-
-        List<SyncState> states(String entityId) {
-            return byEntity.getOrDefault(entityId, List.of());
-        }
-
-        @Override
-        public Optional<SyncState> currentState(String domain, String entityId) {
-            List<SyncState> s = byEntity.get(entityId);
-            return s == null || s.isEmpty() ? Optional.empty() : Optional.of(s.get(s.size() - 1));
-        }
-
-        @Override
-        public SyncState transition(String domain, String entityId, SyncStateTransition t) {
-            SyncState to = machine.transition(currentState(domain, entityId).orElse(null), t.to());
-            byEntity.computeIfAbsent(entityId, k -> new ArrayList<>()).add(to);
-            return to;
-        }
-
-        @Override
-        public List<SyncStateTransition> history(String domain, String entityId) {
-            return List.of();
-        }
-
-        @Override
-        public boolean alreadySent(String domain, String entityId, String payloadHash) {
-            return false;
-        }
-    }
 
     @Test
     void featureEntityIdContainsFeatureSuffix() {

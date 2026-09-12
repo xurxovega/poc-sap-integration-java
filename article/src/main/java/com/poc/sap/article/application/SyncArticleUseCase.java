@@ -62,7 +62,8 @@ public class SyncArticleUseCase {
                 .filter(s -> s == SyncState.SENT_SAP)
                 .isPresent();
 
-        transition(message, null, SyncState.RECEIVED);
+        // Un evento nuevo siempre abre ciclo (sdd/common/maquina-de-estados.md R-3).
+        beginCycle(message, SyncState.RECEIVED);
         transition(message, SyncState.RECEIVED, SyncState.FETCHING);
 
         Optional<Article> fetched = legacyRepo.fetch(message.entityId());
@@ -82,30 +83,51 @@ public class SyncArticleUseCase {
 
         transition(message, SyncState.VALIDATING, SyncState.VALID);
 
-        // Sin cambios reales: ciclo anterior SENT_SAP + snapshot identico a la
-        // imagen staging (Mongo) → no se reindexa ni se reenvia a SAP.
-        if (lastCycleSent && imageStore.find(article.id()).filter(article::equals).isPresent()) {
-            log.info("SyncArticle sin cambios reales entityId={} (snapshot == imagen staging), no se reenvia",
-                    message.entityId());
-            transition(message, SyncState.VALID, SyncState.SENT_SAP);
-            return SyncState.SENT_SAP;
+        // Fallo de infraestructura tras VALID → ERROR y se propaga (auditoria B12/C2).
+        try {
+            // Sin cambios reales: ciclo anterior SENT_SAP + snapshot identico a la
+            // imagen staging (Mongo) → no se reindexa ni se reenvia a SAP.
+            if (lastCycleSent && imageStore.find(article.id()).filter(article::equals).isPresent()) {
+                log.info("SyncArticle sin cambios reales entityId={} (snapshot == imagen staging), no se reenvia",
+                        message.entityId());
+                transition(message, SyncState.VALID, SyncState.SENT_SAP);
+                return SyncState.SENT_SAP;
+            }
+
+            transition(message, SyncState.VALID, SyncState.INDEXING);
+            imageStore.save(article.id(), article);
+            historyIndexer.index(article.id(), article, message.payloadHash());
+            transition(message, SyncState.INDEXING, SyncState.INDEXED);
+
+            transition(message, SyncState.INDEXED, SyncState.SENDING_SAP);
+            var response = sapOutbound.send(article.id(), message.payloadHash(), article);
+            SyncState finalState = response.isSuccess()
+                    ? SyncState.SENT_SAP
+                    : SyncState.SAP_ERROR;
+            transition(message, SyncState.SENDING_SAP, finalState);
+
+            log.info("SyncArticle fin entityId={} state={} http={}",
+                    message.entityId(), finalState, response.httpStatus());
+            return finalState;
+        } catch (RuntimeException e) {
+            markError(message, e);
+            throw e;
         }
+    }
 
-        transition(message, SyncState.VALID, SyncState.INDEXING);
-        imageStore.save(article.id(), article);
-        historyIndexer.index(article.id(), article, message.payloadHash());
-        transition(message, SyncState.INDEXING, SyncState.INDEXED);
+    private void beginCycle(IngestionMessage msg, SyncState entry) {
+        stateRepo.beginCycle(DOMAIN, msg.entityId(), new SyncStateTransition(
+                msg.entityId(), DOMAIN, null, entry,
+                msg.origin().name().toLowerCase(), msg.payloadHash(), Instant.now()));
+        metrics.incrementState(DOMAIN, entry.name());
+    }
 
-        transition(message, SyncState.INDEXED, SyncState.SENDING_SAP);
-        var response = sapOutbound.send(article.id(), message.payloadHash(), article);
-        SyncState finalState = response.isSuccess()
-                ? SyncState.SENT_SAP
-                : SyncState.SAP_ERROR;
-        transition(message, SyncState.SENDING_SAP, finalState);
-
-        log.info("SyncArticle fin entityId={} state={} http={}",
-                message.entityId(), finalState, response.httpStatus());
-        return finalState;
+    private void markError(IngestionMessage msg, RuntimeException cause) {
+        try {
+            transition(msg, null, SyncState.ERROR);
+        } catch (RuntimeException e) {
+            log.error("No se pudo registrar ERROR entityId={} tras fallo '{}'", msg.entityId(), cause.toString(), e);
+        }
     }
 
     private void transition(IngestionMessage msg, SyncState from, SyncState to) {

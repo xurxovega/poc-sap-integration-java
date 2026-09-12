@@ -24,11 +24,18 @@ public class ValidateContactUseCase {
 
     public SyncState execute(Customer c, String payloadHash) {
         String entityId = SyncContactUseCase.featureEntityId(c.id());
-        transition(entityId, payloadHash, null, SyncState.VALIDATING);
+        beginCycle(entityId, payloadHash, SyncState.VALIDATING);
         var r = ContactValidator.validate(c.contact());
         SyncState target = r.valid() ? SyncState.VALID : SyncState.INVALID;
         transition(entityId, payloadHash, SyncState.VALIDATING, target);
         return target;
+    }
+
+    /** Abre un ciclo nuevo (sdd/common/maquina-de-estados.md R-3): legal desde cualquier estado previo. */
+    private void beginCycle(String entityId, String payloadHash, SyncState entry) {
+        stateRepo.beginCycle("customer", entityId, new SyncStateTransition(
+                entityId, "customer", null, entry, "contact", payloadHash, Instant.now()));
+        metrics.incrementState("customer", entry.name());
     }
 
     private void transition(String entityId, String payloadHash,

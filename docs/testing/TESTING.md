@@ -8,14 +8,14 @@
 
 ## 1. Resumen ejecutivo
 
-Total: **240 tests** en verde (medido el 10-09-2026 con JDK 25, `mvn clean test`).
+Total: **264 tests** en verde (medido el 12-09-2026 con JDK 25, `mvn clean test`).
 El módulo `it` sigue ejecutando los contract dos veces — ver §8 issue 3.
 
 | Módulo     | Tests aprox. | Contenido principal |
 |------------|--------------|---------------------|
-| common     | 69           | dominio (máquina de estados con estado inicial/re-sync, ValidationResult acumulativo), Mongo repo (dedupe `alreadySent`), auth providers, **`WebClientSapClientTest`** (retry 5xx, no-retry 4xx, cabeceras, CSRF completo contra WireMock) |
-| customer   | 120          | unit + slice + **`CustomerApplicationContextTest`** (smoke de contexto Spring completo) |
-| article    | 40           | unit + slice + **`ArticleApplicationContextTest`** (smoke de contexto) |
+| common     | 78           | dominio (máquina de estados con estado inicial/re-sync, ValidationResult acumulativo), Mongo repo (dedupe `alreadySent`), auth providers, **`WebClientSapClientTest`** (retry 5xx, no-retry 4xx, cabeceras, CSRF completo contra WireMock) |
+| customer   | 133          | unit + slice + **`CustomerApplicationContextTest`** (smoke de contexto Spring completo) |
+| article    | 42           | unit + slice + **`ArticleApplicationContextTest`** (smoke de contexto) |
 | it         | 11+1         | contract (WireMock) + `InfrastructureSmokeIT` (skip sin `-Ddocker.available=true`) |
 | supplier   | 0            | placeholder |
 

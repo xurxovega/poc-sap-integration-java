@@ -41,7 +41,7 @@ public class IndexCustomerUseCase {
     }
 
     public SyncState execute(String entityId, String payloadHash) {
-        transition(entityId, payloadHash, null, SyncState.INDEXING);
+        beginCycle(entityId, payloadHash, SyncState.INDEXING);
         Optional<Customer> fetched = legacyRepo.fetch(entityId);
         if (fetched.isEmpty()) {
             transition(entityId, payloadHash, SyncState.INDEXING, SyncState.ERROR);
@@ -52,6 +52,13 @@ public class IndexCustomerUseCase {
         historyIndexer.index(c.id(), c, payloadHash);
         transition(entityId, payloadHash, SyncState.INDEXING, SyncState.INDEXED);
         return SyncState.INDEXED;
+    }
+
+    /** Abre un ciclo nuevo (sdd/common/maquina-de-estados.md R-3): legal desde cualquier estado previo. */
+    private void beginCycle(String entityId, String payloadHash, SyncState entry) {
+        stateRepo.beginCycle(DOMAIN, entityId, new SyncStateTransition(
+                entityId, DOMAIN, null, entry, "rest", payloadHash, Instant.now()));
+        metrics.incrementState(DOMAIN, entry.name());
     }
 
     private void transition(String entityId, String payloadHash,

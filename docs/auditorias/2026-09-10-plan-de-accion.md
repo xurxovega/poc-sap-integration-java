@@ -448,7 +448,7 @@ una sesión nueva sepa dónde estamos sin leer el historial de ninguna otra.
 
 | Fase | Estado | Cerrada el | PR / commit | Verificada por |
 |---|---|---|---|---|
-| 0 · Higiene | ⬜ pendiente | | | |
+| 0 · Higiene | ✅ hecha | 2026-09-11 | `b55f889` (.gitattributes) + `00bbbae` | pendiente de verificación por otra sesión |
 | 1 · Inservible | ⬜ pendiente | | | |
 | 2 · Red de seguridad | ⬜ pendiente | | | |
 | 3 · SAP real | ⬜ pendiente | | | |

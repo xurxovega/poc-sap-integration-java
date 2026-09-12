@@ -277,7 +277,7 @@ que el estado de cualquier registro es consultable (imagen actual + histórico).
 
 | from            | to                         |
 |-----------------|----------------------------|
-| *(sin historial)* | RECEIVED (pipeline aggregate), VALIDATING (pipeline por feature) |
+| *(apertura de ciclo — `beginCycle`, desde cualquier estado)* | RECEIVED (agregado), VALIDATING (feature), SENDING_SAP (baja), INDEXING (indexación) |
 | RECEIVED        | FETCHING, ERROR            |
 | FETCHING        | VALIDATING, ERROR, COMMUNICATION_ERROR |
 | VALIDATING      | VALID, INVALID, ERROR       |
@@ -285,17 +285,18 @@ que el estado de cualquier registro es consultable (imagen actual + histórico).
 | INVALID         | RECEIVED (re-sincronización tras corregir datos) |
 | INDEXING        | INDEXED, ERROR              |
 | INDEXED         | SENDING_SAP, ERROR          |
-| SENDING_SAP     | SENT_SAP, SAP_ERROR, INVALID, COMMUNICATION_ERROR |
+| SENDING_SAP     | SENT_SAP, SAP_ERROR, INVALID, COMMUNICATION_ERROR, ERROR |
 | SENT_SAP        | RECEIVED (nuevo evento de la misma entidad) |
 | SAP_ERROR       | SENDING_SAP, ERROR          |
 | COMMUNICATION_ERROR | FETCHING, SENDING_SAP, ERROR |
 | ERROR           | RECEIVED (recover)          |
 
-> `SENT_SAP` e `INVALID` son terminales *del ciclo* (así los reporta
-> `isTerminal`), pero admiten re-entrada a `RECEIVED`: un nuevo evento CDC de
-> la misma entidad reabre el ciclo. Antes eran terminales absolutos y cada
-> entidad solo podía sincronizarse una vez. La idempotencia la garantiza el
-> dedupe por `payloadHash` (`SyncStateRepositoryPort.alreadySent`).
+> Abrir ciclo (`beginCycle`) y avanzar (`advance`) son operaciones distintas.
+> Un evento nuevo abre ciclo **desde cualquier estado** — cerrado, de error o a
+> medias — por el estado de entrada de su pipeline; la tabla solo gobierna el
+> avance. La idempotencia la garantiza el dedupe por `payloadHash`
+> (`SyncStateRepositoryPort.alreadySent`), no el bloqueo de la máquina. Detalle
+> en [`../sdd/common/maquina-de-estados.md`](../sdd/common/maquina-de-estados.md).
 
 ## 6. Vista de deployment
 

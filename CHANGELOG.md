@@ -34,14 +34,31 @@ identifican por fecha.
   afirmaba tres cosas falsas sobre cómo se activan los adaptadores. Corregido:
   ahora describe solo lo que hay, y lo aspiracional va marcado como tal.
 
-#### Pendiente (nuevo, detectado por la auditoría)
+#### Corregido
 
-- **Un cliente cuyo envío a SAP falle una vez no vuelve a sincronizarse nunca**:
-  queda bloqueado. Es el defecto más grave y el primero que se aborda.
-- **La baja de cliente nunca llega a ejecutarse**, y si lo hiciera enviaría un
-  alta vacía en lugar de un borrado.
+- **Un cliente cuyo envío a SAP fallara quedaba bloqueado para siempre.** Ahora
+  el siguiente cambio lo vuelve a sincronizar, igual que si el proceso se hubiera
+  interrumpido a mitad. Es el defecto más grave de la auditoría.
+- **La baja de cliente nunca llegaba a ejecutarse**, y de haberlo hecho habría
+  enviado un alta vacía. Ahora se comunica a SAP como baja y la ficha local
+  queda **bloqueada, no borrada**: el rastro se conserva para auditoría.
+- **Un fallo de infraestructura** (base de datos, buscador, red) a mitad de una
+  sincronización dejaba el registro colgado. Ahora queda marcado en error y se
+  reintenta con el siguiente evento.
+- Con **varias instancias** en marcha, dos procesos ya no pueden pisarse el
+  estado de un mismo registro: una escritura gana y la otra se detecta.
+- Cuando SAP no está disponible y salta la protección de circuito, el envío se
+  **reintenta más tarde** en vez de darse por fallido en silencio.
+- Los mensajes malformados van directos a la cola de descartes, sin tres
+  reintentos inútiles que solo retrasaban su llegada.
+
+#### Pendiente (detectado por la auditoría)
+
 - Cuatro pruebas automáticas existen pero **nunca se ejecutan** por un error de
-  configuración del build.
+  configuración del build (Fase 2).
+- Todo lo anterior está probado contra un **SAP simulado**. El re-envío tras
+  fallo, la recuperación de un registro interrumpido y la baja por CDC se han
+  verificado en vivo sobre el entorno local completo.
 
 
 ### 2026-09-10 — Primera verificación del ciclo completo

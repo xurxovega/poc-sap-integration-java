@@ -5,6 +5,7 @@ import com.poc.sap.common.sap.auth.SapAuthProvider;
 import com.poc.sap.common.sap.odata.CsrfTokenProvider;
 import com.poc.sap.common.sap.odata.S4CsrfTokenProvider;
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
+import io.github.resilience4j.circuitbreaker.CallNotPermittedException;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
 import io.github.resilience4j.retry.Retry;
 import io.github.resilience4j.retry.RetryRegistry;
@@ -120,8 +121,11 @@ public class WebClientSapClient implements SapClient {
                                   String body,
                                   String method) {
         Supplier<SapResponse> attempt = () -> doExchange(destination, path, entityId, payloadHash, body, method);
-        Supplier<SapResponse> resilient = Retry.decorateSupplier(retry,
-                CircuitBreaker.decorateSupplier(circuitBreaker, attempt));
+        // Circuit breaker POR FUERA del retry: con el circuito abierto no hay nada
+        // que reintentar. Antes CallNotPermittedException se reintentaba 3 veces y
+        // se tragaba como SapResponse(0) (auditoria B13 + observacion).
+        Supplier<SapResponse> resilient = CircuitBreaker.decorateSupplier(circuitBreaker,
+                Retry.decorateSupplier(retry, attempt));
         try {
             SapResponse response = resilient.get();
             if (isCsrfRejection(destination, method, response)) {
@@ -130,6 +134,9 @@ public class WebClientSapClient implements SapClient {
                 response = resilient.get();
             }
             return response;
+        } catch (CallNotPermittedException e) {
+            log.warn("Circuito SAP abierto: {} {} entityId={} no se intenta", method, destination, entityId);
+            throw new SapCircuitOpenException(destination, e);
         } catch (SapServerException e) {
             log.error("Error SAP {} {} entityId={} status={} tras reintentos", method, destination, entityId, e.status());
             return new SapResponse(e.status(), e.getMessage(), null);

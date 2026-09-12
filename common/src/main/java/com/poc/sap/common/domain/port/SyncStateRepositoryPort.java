@@ -23,6 +23,17 @@ public interface SyncStateRepositoryPort {
     SyncState transition(String domain, String entityId, SyncStateTransition transition);
 
     /**
+     * Abre un ciclo nuevo para la entidad porque llega un evento. Legal desde
+     * cualquier estado almacenado (incluido ninguno); {@code transition.to()}
+     * debe ser un estado de entrada. Si el ciclo anterior quedo a medias, la
+     * implementacion lo registra (sdd/common/maquina-de-estados.md R-3, R-4).
+     *
+     * @return el estado de entrada registrado
+     * @throws IllegalStateException si {@code to} no es un estado de entrada
+     */
+    SyncState beginCycle(String domain, String entityId, SyncStateTransition transition);
+
+    /**
      * Historial de transiciones de una entidad (para auditoria/trazabilidad).
      */
     java.util.List<SyncStateTransition> history(String domain, String entityId);

@@ -64,10 +64,9 @@ class ValidateBankingUseCaseTest {
 
         useCase.execute(c, "hash-v");
 
-        verify(stateRepo, times(2)).transition(
-                eq("customer"),
-                eq("C-1:BANKING"),
-                any(SyncStateTransition.class));
+        // La entrada abre ciclo; el veredicto avanza dentro de el.
+        verify(stateRepo).beginCycle(eq("customer"), eq("C-1:BANKING"), any(SyncStateTransition.class));
+        verify(stateRepo, times(1)).transition(eq("customer"), eq("C-1:BANKING"), any(SyncStateTransition.class));
         verify(metrics).incrementState("customer", "VALIDATING");
         verify(metrics).incrementState("customer", "INVALID");
     }

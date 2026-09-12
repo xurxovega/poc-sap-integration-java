@@ -32,6 +32,12 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
+import com.poc.sap.customer.application.InMemoryStateRepo;
+import com.poc.sap.common.domain.OperationType;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 
 /**
  * Tests unit del orchestrador general {@link SyncCustomerUseCase}.
@@ -207,5 +213,92 @@ class SyncCustomerUseCaseTest {
         assertThatThrownBy(() ->
                 useCase.execute(CustomerFixtures.ingestionMessage(), null))
                 .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    private SyncCustomerUseCase withRealStateMachine(InMemoryStateRepo repo) {
+        return new SyncCustomerUseCase(
+                legacyRepo, imageStore, historyIndexer, repo, metrics,
+                address, fiscal, contact, banking);
+    }
+
+    private void allFeaturesSucceed() {
+        when(address.execute(any(), any())).thenReturn(SyncState.SENT_SAP);
+        when(fiscal.execute(any(), any())).thenReturn(SyncState.SENT_SAP);
+        when(contact.execute(any(), any())).thenReturn(SyncState.SENT_SAP);
+        when(banking.execute(any(), any())).thenReturn(SyncState.SENT_SAP);
+    }
+
+    /**
+     * AC-4 (sdd/customer/sincronizacion-cliente.md): un cliente cuyo envio a SAP
+     * fallo una vez debe volver a sincronizarse con el siguiente evento. Contra la
+     * maquina de estados REAL: con el puerto mockeado este fallo era invisible
+     * (auditoria B1).
+     */
+    @Test
+    void resyncsCustomerStuckInSapError() {
+        InMemoryStateRepo repo = new InMemoryStateRepo();
+        repo.seed("C-1", SyncState.SAP_ERROR);
+        when(legacyRepo.fetch("C-1")).thenReturn(Optional.of(CustomerFixtures.validCustomer()));
+        allFeaturesSucceed();
+
+        SyncState result = withRealStateMachine(repo)
+                .execute(CustomerFixtures.ingestionMessage("C-1", OperationType.UPDATE, "h-2"));
+
+        assertThat(result).isEqualTo(SyncState.SENT_SAP);
+        assertThat(repo.currentState("customer", "C-1")).contains(SyncState.SENT_SAP);
+    }
+
+    /**
+     * AC-5: un fallo de infraestructura tras VALID (aqui el indexador) deja la
+     * entidad en ERROR y se propaga; antes quedaba colgada en INDEXING para
+     * siempre (auditoria B12/C2).
+     */
+    @Test
+    void infrastructureFailureAfterValidMarksErrorAndPropagates() {
+        InMemoryStateRepo repo = new InMemoryStateRepo();
+        when(legacyRepo.fetch("C-1")).thenReturn(Optional.of(CustomerFixtures.validCustomer()));
+        doThrow(new RuntimeException("Elasticsearch caido"))
+                .when(historyIndexer).index(any(), any(), any());
+        SyncCustomerUseCase real = withRealStateMachine(repo);
+        var msg = CustomerFixtures.ingestionMessage("C-1", OperationType.UPDATE, "h-3");
+
+        assertThatThrownBy(() -> real.execute(msg))
+                .isInstanceOf(RuntimeException.class)
+                .hasMessageContaining("Elasticsearch caido");
+        assertThat(repo.currentState("customer", "C-1")).contains(SyncState.ERROR);
+    }
+
+    /**
+     * AC-6: si el proceso murio a mitad y la entidad quedo en SENDING_SAP, el
+     * siguiente evento abre ciclo en vez de fallar (OPS-1, verificado en vivo con
+     * CUST-001 el 2026-09-09).
+     */
+    @Test
+    void reopensCycleWhenPreviousOneWasLeftInFlight() {
+        InMemoryStateRepo repo = new InMemoryStateRepo();
+        repo.seed("C-1", SyncState.SENDING_SAP);
+        when(legacyRepo.fetch("C-1")).thenReturn(Optional.of(CustomerFixtures.validCustomer()));
+        allFeaturesSucceed();
+
+        SyncState result = withRealStateMachine(repo)
+                .execute(CustomerFixtures.ingestionMessage("C-1", OperationType.UPDATE, "h-4"));
+
+        assertThat(result).isEqualTo(SyncState.SENT_SAP);
+    }
+
+    /**
+     * AC-2 (sdd/customer/sincronizacion-cliente.md): un payloadHash ya enviado a
+     * SAP no se reprocesa: responde SENT_SAP sin leer el legacy ni tocar SAP.
+     */
+    @Test
+    void alreadySentPayloadSkipsPipeline() {
+        when(stateRepo.alreadySent("customer", "C-1", "h-dup")).thenReturn(true);
+
+        SyncState result = useCase.execute(
+                CustomerFixtures.ingestionMessage("C-1", OperationType.UPDATE, "h-dup"));
+
+        assertThat(result).isEqualTo(SyncState.SENT_SAP);
+        verify(legacyRepo, never()).fetch(any());
+        verify(address, never()).execute(any(), any());
     }
 }

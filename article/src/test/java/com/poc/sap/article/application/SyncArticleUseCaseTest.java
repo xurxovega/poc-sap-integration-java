@@ -22,6 +22,9 @@ import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.*;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.ArgumentMatchers.argThat;
 
 @ExtendWith(MockitoExtension.class)
 class SyncArticleUseCaseTest {
@@ -142,5 +145,21 @@ class SyncArticleUseCaseTest {
         SyncState result = useCase.execute(ingestion());
 
         assertThat(result).isEqualTo(SyncState.SAP_ERROR);
+    }
+
+    /**
+     * R-6 del spec del agregado, en article: un fallo de infraestructura tras
+     * VALID deja la entidad en ERROR y se propaga (auditoria B12/C2).
+     */
+    @Test
+    void infrastructureFailureAfterValidMarksErrorAndPropagates() {
+        when(legacyRepo.fetch("A-1")).thenReturn(Optional.of(validArticle()));
+        doThrow(new RuntimeException("Elasticsearch caido"))
+                .when(historyIndexer).index(any(), any(), any());
+
+        assertThatThrownBy(() -> useCase.execute(ingestion()))
+                .hasMessageContaining("Elasticsearch caido");
+        verify(stateRepo).transition(eq("article"), eq("A-1"),
+                argThat(t -> t.to() == SyncState.ERROR));
     }
 }

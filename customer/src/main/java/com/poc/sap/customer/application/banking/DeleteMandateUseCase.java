@@ -37,11 +37,18 @@ public class DeleteMandateUseCase {
     public SyncState execute(String mandateId, String customerId, String payloadHash) {
         BankingData payload = new BankingData(null, null, List.of(mandateId));
         String entityId = customerId + ":" + "BANKING";
-        transition(entityId, payloadHash, null, SyncState.SENDING_SAP);
+        beginCycle(entityId, payloadHash, SyncState.SENDING_SAP);
         var response = sapPort.send(mandateId, payloadHash, payload);
         SyncState target = response.isSuccess() ? SyncState.SENT_SAP : SyncState.SAP_ERROR;
         transition(entityId, payloadHash, SyncState.SENDING_SAP, target);
         return target;
+    }
+
+    /** Abre un ciclo nuevo (sdd/common/maquina-de-estados.md R-3): legal desde cualquier estado previo. */
+    private void beginCycle(String entityId, String payloadHash, SyncState entry) {
+        stateRepo.beginCycle(DOMAIN, entityId, new SyncStateTransition(
+                entityId, DOMAIN, null, entry, STAGE, payloadHash, Instant.now()));
+        metrics.incrementState(DOMAIN, entry.name());
     }
 
     private void transition(String entityId, String payloadHash,

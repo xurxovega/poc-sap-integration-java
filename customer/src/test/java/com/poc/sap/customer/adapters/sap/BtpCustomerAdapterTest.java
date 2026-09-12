@@ -14,6 +14,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.*;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.never;
 
 /**
  * Test unit del {@link BtpCustomerAdapter} (TECH.md §8). Mockea
@@ -53,16 +55,25 @@ class BtpCustomerAdapterTest {
                 .contains("\"Status\":\"ACTIVE\"");
     }
 
+    /**
+     * AC-2 (sdd/customer/baja-cliente.md): la baja emite un DELETE HTTP sobre la
+     * clave de la entidad. Antes mandaba POST {} (auditoria B2).
+     */
     @Test
-    void nullCustomerSendsEmptyObject() {
-        when(sapClient.send(any(), any(), any(), any(), anyString()))
-                .thenReturn(new SapResponse(201, "", null));
+    void deleteIssuesHttpDeleteOnEntityKey() {
+        when(sapClient.delete(SapDestination.BTP, PATH + "('C-1')"))
+                .thenReturn(new SapResponse(204, "", null));
 
-        adapter.send("C-1", "h", null);
+        SapResponse r = adapter.delete("C-1", "h");
 
-        ArgumentCaptor<String> body = ArgumentCaptor.forClass(String.class);
-        verify(sapClient).send(eq(SapDestination.BTP), eq(PATH), eq("C-1"), eq("h"),
-                body.capture());
-        assertThat(body.getValue()).isEqualTo("{}");
+        assertThat(r.httpStatus()).isEqualTo(204);
+        verify(sapClient, never()).send(any(), any(), any(), any(), any());
+    }
+
+    /** AC-6: un Customer nulo ya no es una senal de borrado; se rechaza. */
+    @Test
+    void nullCustomerIsRejected() {
+        assertThatThrownBy(() -> adapter.send("C-1", "h", null))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 }

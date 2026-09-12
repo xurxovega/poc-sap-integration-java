@@ -43,7 +43,7 @@ public class SyncBankingUseCase {
         // registrar la entrada en VALIDATING, que es su estado inicial
         // permitido (OVERVIEW.md §5). El repositorio calcula el 'from' del
         // estado almacenado, no del declarado aqui.
-        transition(featureEntityId, payloadHash, null, SyncState.VALIDATING);
+        beginCycle(featureEntityId, payloadHash, SyncState.VALIDATING);
 
         transition(featureEntityId, payloadHash, SyncState.VALIDATING,
                 v.valid() ? SyncState.VALID : SyncState.INVALID);
@@ -60,6 +60,13 @@ public class SyncBankingUseCase {
 
     public static String featureEntityId(String customerId) {
         return customerId + ":" + CustomerFeature.BANKING.name();
+    }
+
+    /** Abre un ciclo nuevo (sdd/common/maquina-de-estados.md R-3): legal desde cualquier estado previo. */
+    private void beginCycle(String entityId, String payloadHash, SyncState entry) {
+        stateRepo.beginCycle(DOMAIN, entityId, new SyncStateTransition(
+                entityId, DOMAIN, null, entry, STAGE, payloadHash, Instant.now()));
+        metrics.incrementState(DOMAIN, entry.name());
     }
 
     private void transition(String entityId, String payloadHash,

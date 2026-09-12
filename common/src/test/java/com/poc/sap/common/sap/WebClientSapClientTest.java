@@ -17,6 +17,11 @@ import java.util.Map;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.*;
 import static org.assertj.core.api.Assertions.assertThat;
+import io.github.resilience4j.circuitbreaker.CircuitBreakerConfig;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
+import static com.github.tomakehurst.wiremock.client.WireMock.post;
+import static com.github.tomakehurst.wiremock.client.WireMock.urlEqualTo;
 
 /**
  * Test de la semantica de errores y resiliencia del {@link WebClientSapClient}
@@ -164,5 +169,43 @@ class WebClientSapClientTest {
         assertThat(response.httpStatus()).isEqualTo(201);
         wiremock.verify(2, postRequestedFor(urlEqualTo("/api")));
         wiremock.verify(2, getRequestedFor(urlPathEqualTo("/csrf-fetch")));
+    }
+
+    private WebClientSapClient clientWithCircuit(CircuitBreakerRegistry cbs) {
+        RetryRegistry retries = RetryRegistry.of(RetryConfig.custom()
+                .maxAttempts(3)
+                .waitDuration(Duration.ofMillis(10))
+                .ignoreExceptions(IllegalArgumentException.class)
+                .build());
+        Map<SapDestination, SapAuthProvider> auth = Map.of(
+                SapDestination.BTP, STUB_AUTH,
+                SapDestination.S4_NATIVE, STUB_AUTH);
+        return new WebClientSapClient(auth, wiremock.baseUrl(), wiremock.baseUrl(),
+                retries, cbs, null,
+                new WebClientSapClient.SapClientTimeouts(Duration.ofSeconds(2), Duration.ofSeconds(5)),
+                "/csrf-fetch", "user", "pass");
+    }
+
+    /**
+     * B13 (auditoria): con el circuito abierto, el cliente devolvia SapResponse(0)
+     * y el use case marcaba SAP_ERROR "con normalidad": el listener no reintentaba
+     * y nadie veia que el circuito estaba abierto. Debe propagarse como fallo
+     * transitorio para que la ingesta reintente con backoff.
+     */
+    @Test
+    void openCircuitRaisesCircuitOpenExceptionInsteadOfFakeResponse() {
+        CircuitBreakerRegistry cbs = CircuitBreakerRegistry.of(CircuitBreakerConfig.custom()
+                .slidingWindowSize(1)
+                .minimumNumberOfCalls(1)
+                .failureRateThreshold(1f)
+                .waitDurationInOpenState(Duration.ofMinutes(1))
+                .build());
+        WebClientSapClient c = clientWithCircuit(cbs);
+        wiremock.stubFor(post(urlEqualTo("/bp")).willReturn(aResponse().withStatus(500)));
+
+        c.send(SapDestination.BTP, "/bp", "E-1", "h", "{}");   // abre el circuito
+
+        assertThatThrownBy(() -> c.send(SapDestination.BTP, "/bp", "E-1", "h", "{}"))
+                .isInstanceOf(SapCircuitOpenException.class);
     }
 }

@@ -197,11 +197,13 @@ SyncStateMachine (common) — cada transición persistida en Mongo con timestamp
 
 Estados: `RECEIVED → FETCHING → VALIDATING → {VALID|INVALID} → INDEXING →
 INDEXED → SENDING_SAP → {SENT_SAP|SAP_ERROR}`, más `ERROR` y
-`COMMUNICATION_ERROR` recuperables. `SENT_SAP` e `INVALID` cierran el ciclo pero
-admiten re-entrada con un evento nuevo: el **agregado** por `RECEIVED`, una
-**línea de feature** (`<id>:ADDRESS`…) por `VALIDATING`. `SAP_ERROR` hoy solo
-re-entra por `VALIDATING`: un agregado en `SAP_ERROR` **no se re-sincroniza**
-(defecto B1 de la auditoría, Fase 1 del plan).
+`COMMUNICATION_ERROR` recuperables. **Un evento nuevo siempre abre ciclo**
+(`beginCycle`), venga la entidad de `SENT_SAP`, `INVALID`, `SAP_ERROR`, `ERROR` o
+de un ciclo que quedó a medias porque el proceso murió. Cada pipeline entra por
+su estado: agregado `RECEIVED`, feature `VALIDATING`, baja `SENDING_SAP`,
+indexación `INDEXING`. Avanzar dentro del ciclo (`advance`) sigue la tabla. El
+estado actual se resuelve por secuencia (`seq`) y el índice único sobre ella es
+la versión optimista entre instancias (`ConcurrentTransitionException`).
 
 Detalle con nombres de clase en [`docs/architecture/FLOWS.md`](docs/architecture/FLOWS.md);
 esquema completo en [`docs/architecture/OVERVIEW.md`](docs/architecture/OVERVIEW.md) §5.

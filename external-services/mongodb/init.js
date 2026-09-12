@@ -13,6 +13,11 @@ db.createCollection('sync_state');
 // Mongo rechaza la creacion del indice de la app (error 85 IndexOptionsConflict)
 // y la app no arranca.
 db.sync_state.createIndex({ domain: 1, entityId: 1, timestamp: -1 }, { name: 'dom_ent_idx' });
+// Secuencia por entidad: orden canonico y version optimista. Indice PARCIAL (seq
+// existe): los docs anteriores a la secuencia no tienen el campo. Con sparse
+// colisionarian en seq=null (sparse compuesto indexa si hay AL MENOS una clave).
+// Mismo nombre y opciones que declara la app en SyncStateDoc.
+db.sync_state.createIndex({ domain: 1, entityId: 1, seq: 1 }, { name: 'dom_ent_seq_uk', unique: true, partialFilterExpression: { seq: { $exists: true } } });
 
 db = db.getSiblingDB('article');
 db.createCollection('articles_current');
@@ -25,5 +30,10 @@ db.createCollection('sync_state');
 // Mongo rechaza la creacion del indice de la app (error 85 IndexOptionsConflict)
 // y la app no arranca.
 db.sync_state.createIndex({ domain: 1, entityId: 1, timestamp: -1 }, { name: 'dom_ent_idx' });
+// Secuencia por entidad: orden canonico y version optimista. Indice PARCIAL (seq
+// existe): los docs anteriores a la secuencia no tienen el campo. Con sparse
+// colisionarian en seq=null (sparse compuesto indexa si hay AL MENOS una clave).
+// Mismo nombre y opciones que declara la app en SyncStateDoc.
+db.sync_state.createIndex({ domain: 1, entityId: 1, seq: 1 }, { name: 'dom_ent_seq_uk', unique: true, partialFilterExpression: { seq: { $exists: true } } });
 
 print('✅ MongoDB initialized: customer and article databases');

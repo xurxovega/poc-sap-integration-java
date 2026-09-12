@@ -32,10 +32,22 @@ public class BusinessPartnerODataAdapter implements CustomerSapOutboundPort {
     @Override
     public SapResponse send(String entityId, String payloadHash, Customer customer) {
         if (customer == null) {
-            return sapClient.send(SapDestination.S4_NATIVE, path, entityId, payloadHash, "{}");
+            // Un Customer nulo ya no es una senal de borrado (auditoria B2).
+            throw new IllegalArgumentException("customer obligatorio para enviar a SAP; para la baja usa delete()");
         }
         String body = SapJsonMapper.write(toSapPayload(entityId, customer));
         return sapClient.send(SapDestination.S4_NATIVE, path, entityId, payloadHash, body);
+    }
+
+    /**
+     * Baja del Business Partner (sdd/customer/baja-cliente.md R-2). Que operacion
+     * representa la baja en S/4 (flag de bloqueo vs borrado) se valida contra el
+     * tenant de test en la Fase 3 del plan; hoy es el DELETE OData sobre la clave.
+     */
+    @Override
+    public SapResponse delete(String entityId, String payloadHash) {
+        String key = entityId.replace("'", "''");   // literal OData: la comilla se dobla
+        return sapClient.delete(SapDestination.S4_NATIVE, path + "('" + key + "')");
     }
 
     private APIBUSINESSPARTNERABusinessPartnerTypeCreate toSapPayload(String entityId, Customer c) {

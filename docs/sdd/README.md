@@ -83,12 +83,12 @@ con ese nombre la primera vez que se toque la feature.
 
 | Feature | Fichero | Spec | Estado del código |
 |---|---|---|---|
-| Sincronización del cliente (agregado) | `sincronizacion-cliente.md` | ⬜ | ✅ implementado, verificado end-to-end |
+| Sincronización del cliente (agregado) | [`sincronizacion-cliente.md`](customer/sincronizacion-cliente.md) | ✅ | ✅ re-entrada desde cualquier estado (incl. `SAP_ERROR` y ciclo en vuelo) y `ERROR` ante fallo de infra — verificado en vivo el 2026-09-12 |
 | Sincronización de dirección | [`sincronizacion-direccion.md`](customer/sincronizacion-direccion.md) | ✅ | ✅ implementado (BTP + OData), verificado end-to-end |
 | Sincronización de datos fiscales | `sincronizacion-datos-fiscales.md` | ⬜ | ✅ implementado |
 | Sincronización de datos de contacto | `sincronizacion-contacto.md` | ⬜ | ⚠️ no usa el contrato real de S/4 (`A_AddressEmailAddress`/`A_AddressPhoneNumber`) |
 | Sincronización de datos bancarios | `sincronizacion-datos-bancarios.md` | ⬜ | ⚠️ los mandatos no llegan del legacy |
-| Baja de cliente | `baja-cliente.md` | ⬜ | ✅ implementado |
+| Baja de cliente | [`baja-cliente.md`](customer/baja-cliente.md) | ✅ | ✅ ejecutable, `DELETE` HTTP real y modelo de bloqueo — verificado en vivo el 2026-09-12 por CDC |
 | Baja de mandato SEPA | `baja-mandato-sepa.md` | ⬜ | ✅ implementado |
 
 ### `article/` — [ver carpeta](article/)
@@ -135,6 +135,11 @@ Estado de las brechas detectadas sobre el código real.
 | Sin idempotencia de consumo | dedupe por `payloadHash` en `SyncCustomerUseCase` (`stateRepo.alreadySent(...)`) | 2026-07-25 |
 | Elasticsearch 8 contra cliente 9 | `external-services/docker-compose.yml`: el compose levantaba ES/Kibana 8.11.0, pero Spring Boot 4.0 trae `elasticsearch-java` 9.x, que envía `application/vnd.elasticsearch+json;compatible-with=9` y el servidor 8 rechaza (`media_type_header_exception`). Rompía la indexación y dejaba el health en 503. Subido a 9.2.1 | 2026-09-09 |
 | Mongo escribía en la base `test` | `customer`/`article` `application.yml`: Boot 4 movió las propiedades de conexión de `spring.data.mongodb.*` a `spring.mongodb.*`. La propiedad antigua se ignora en silencio y ambas apps caían al default del driver (`mongodb://localhost/test`), compartiendo base. Cubierto por `CustomerMongoDatabaseConfigTest` | 2026-09-09 |
+| **`SAP_ERROR` y estados intermedios eran sumideros** (B1, B12, B14) | Un cliente con un envío fallido, o cuyo proceso murió a mitad, no volvía a sincronizarse: `SAP_ERROR → RECEIVED` no existía y el orquestador siempre entraba por `RECEIVED`. Causa raíz: abrir ciclo y avanzar compartían una tabla. Ahora `beginCycle` es legal desde cualquier estado (test de propiedad) y `advance` sigue la tabla. Además, un fallo de infra tras `VALID` deja `ERROR` y se propaga. Spec: [`common/maquina-de-estados.md`](common/maquina-de-estados.md), [`customer/sincronizacion-cliente.md`](customer/sincronizacion-cliente.md) | 2026-09-11 |
+| **La baja nunca se ejecutaba** (B2) | Entraba por `SENDING_SAP` (no admitido) y de haberlo hecho mandaba `POST {}`. Ahora `SENDING_SAP` es estado de entrada, el puerto tiene `delete()` que emite `DELETE` real, y la imagen se **bloquea** en vez de borrarse. Spec: [`customer/baja-cliente.md`](customer/baja-cliente.md) | 2026-09-11 |
+| Estado actual no determinista y sin versión optimista (B11, A2) | `currentState` ordenaba por `timestamp` en ms (empates en ráfaga) y `transition` era read-then-write. Ahora cada transición lleva `seq` monótona, el orden es por `seq`, y el índice único `dom_ent_seq_uk` hace que una escritura concurrente falle con `ConcurrentTransitionException` en vez de pisar el estado | 2026-09-11 |
+| Circuito abierto tragado como `SapResponse(0)` (B13) | `CallNotPermittedException` caía en `catch (Exception)` y el use case marcaba `SAP_ERROR` sin reintento ni señal. Ahora se propaga como `SapCircuitOpenException` (transitoria) y el circuit breaker envuelve al retry, no al revés | 2026-09-11 |
+| Listeners reintentaban fallos no transitorios (C5) | Tombstone, `operation` en minúsculas y operación desconocida producían 3 reintentos con backoff. Ahora: tombstone ignorado, operación normalizada, e `IllegalState/IllegalArgument/JsonProcessing` declaradas no reintentables en `KafkaErrorHandlingConfig` | 2026-09-11 |
 | Topic DLT documentado ≠ real | Toda la documentación decía `<topic>.DLT`; el `DeadLetterPublishingRecoverer` usa el sufijo por defecto de Spring Kafka y el topic real es **`<topic>-dlt`**. Corregidas las 23 ocurrencias; decisión en `MEJORAS-Y-PROPUESTAS.md` OPS-3 | 2026-09-11 |
 | Re-sync con cambios reales rompía el pipeline | Tras un primer ciclo, cada línea de feature quedaba en `SENT_SAP` y `SENT_SAP → VALIDATING` no era transición permitida: el segundo evento con cambios reales moría en la primera feature y acababa en la DLT. Añadida la **re-entrada de features** por `VALIDATING` desde `SENT_SAP`, `INVALID` y `SAP_ERROR`. Spec: [`common/maquina-de-estados.md`](common/maquina-de-estados.md) AC-4/AC-5 · verificado por CDC en vivo | 2026-09-10 |
 | Pipeline por feature nunca arrancaba | Los cuatro `Sync<Feature>UseCase` no registraban la entrada en `VALIDATING`, así que la máquina evaluaba `null → VALID` y `POST /customers/sync` devolvía 500 siempre. Además `VALID → SENDING_SAP` no era legal: la máquina solo modelaba el pipeline agregado, que pasa por `INDEXING`. Primer ciclo SDD+TDD del proyecto: [`customer/sincronizacion-direccion.md`](customer/sincronizacion-direccion.md) AC-4/AC-5 | 2026-09-09 |
@@ -150,7 +155,6 @@ Estado de las brechas detectadas sobre el código real.
 | Sin transacción distribuida / saga entre features | `SyncCustomerUseCase` (envíos por feature independientes) | fallos parciales dejan SAP a medias, sin compensación |
 | Contactos no usan `A_AddressEmailAddress`/`A_AddressPhoneNumber` | adaptadores de CONTACT | el contrato real de S/4 para email/teléfono es por dirección |
 | Mandatos no llegan desde el legacy | `S4BankingAdapter` (mandates) | BANKING incompleto |
-| Atomicidad Mongo / race condition en estado sync | `MongoSyncStateRepository.transition` | inconsistencias bajo concurrencia |
 | Sin mapeo fino de errores SAP | `WebClientSapClient` | diagnóstico deficiente |
 | `supplier` vacío + MinIO sin uso | `SupplierApplicationPlaceholder`, compose | dominio/infra no operativos |
 | APIs REST sin autenticación | controllers de `customer`/`article` | bloqueante para exponer las APIs a terceros o a un MCP ([`../tools-integrations/MCP.md`](../tools-integrations/MCP.md) §4) |

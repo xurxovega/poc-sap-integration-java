@@ -38,7 +38,7 @@ public class ValidateCustomerUseCase {
 
     public SyncState execute(String entityId, String payloadHash,
                               java.util.Set<com.poc.sap.customer.domain.CustomerFeature> features) {
-        transition(entityId, payloadHash, null, SyncState.VALIDATING);
+        beginCycle(entityId, payloadHash, SyncState.VALIDATING);
         var fetched = legacyRepo.fetch(entityId);
         if (fetched.isEmpty()) {
             transition(entityId, payloadHash, SyncState.VALIDATING, SyncState.ERROR);
@@ -48,6 +48,13 @@ public class ValidateCustomerUseCase {
         SyncState target = r.valid() ? SyncState.VALID : SyncState.INVALID;
         transition(entityId, payloadHash, SyncState.VALIDATING, target);
         return target;
+    }
+
+    /** Abre un ciclo nuevo (sdd/common/maquina-de-estados.md R-3): legal desde cualquier estado previo. */
+    private void beginCycle(String entityId, String payloadHash, SyncState entry) {
+        stateRepo.beginCycle(DOMAIN, entityId, new SyncStateTransition(
+                entityId, DOMAIN, null, entry, "rest", payloadHash, Instant.now()));
+        metrics.incrementState(DOMAIN, entry.name());
     }
 
     private void transition(String entityId, String payloadHash,

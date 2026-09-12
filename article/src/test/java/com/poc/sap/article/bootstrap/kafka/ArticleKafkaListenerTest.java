@@ -17,6 +17,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.verifyNoInteractions;
 
 /**
  * Test unit directo del {@link ArticleKafkaListener} (TECH.md §6). Stub un
@@ -119,5 +120,12 @@ class ArticleKafkaListenerTest {
         assertThatThrownBy(() -> listener.onMessage(record))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessage("boom");
+    }
+
+    /** C5 (auditoria): un tombstone no llega al use case ni se reintenta. */
+    @Test
+    void tombstoneIsIgnored() throws JsonProcessingException {
+        listener.onMessage(new ConsumerRecord<>(TOPIC, 0, 0L, "A-1", null));
+        verifyNoInteractions(syncUseCase);
     }
 }

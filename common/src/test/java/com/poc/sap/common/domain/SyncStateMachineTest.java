@@ -4,6 +4,9 @@ import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 
 class SyncStateMachineTest {
 
@@ -27,10 +30,17 @@ class SyncStateMachineTest {
         assertThat(machine.isTerminal(SyncState.INVALID)).isTrue();
     }
 
+    /**
+     * AC-1 (sdd/common/maquina-de-estados.md): sin historial se abre ciclo por
+     * cualquiera de los cuatro estados de entrada reales: agregado, feature, baja
+     * e indexacion.
+     */
     @Test
-    void initialTransitionAllowsReceivedAndValidating() {
+    void entryStatesOpenACycleWithoutHistory() {
         assertThat(machine.canTransition(null, SyncState.RECEIVED)).isTrue();
         assertThat(machine.canTransition(null, SyncState.VALIDATING)).isTrue();
+        assertThat(machine.canTransition(null, SyncState.SENDING_SAP)).isTrue();
+        assertThat(machine.canTransition(null, SyncState.INDEXING)).isTrue();
     }
 
     /**
@@ -72,7 +82,7 @@ class SyncStateMachineTest {
     @Test
     void initialTransitionRejectsOtherStates() {
         assertThat(machine.canTransition(null, SyncState.SENT_SAP)).isFalse();
-        assertThat(machine.canTransition(null, SyncState.INDEXING)).isFalse();
+        assertThat(machine.canTransition(null, SyncState.FETCHING)).isFalse();
     }
 
     @Test
@@ -122,5 +132,53 @@ class SyncStateMachineTest {
     void syncStateOfCodeUnknownThrows() {
         assertThatThrownBy(() -> SyncState.ofCode(999))
                 .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    /**
+     * AC-7 (sdd/common/maquina-de-estados.md): un evento nuevo siempre puede abrir
+     * ciclo, sea cual sea el estado actual, por cualquier estado de entrada. Test
+     * de propiedad: es lo que impide que un camino nuevo vuelva a descubrir "una
+     * fila que falta" (fingerprint sync-state:reentrada-no-permitida, x3).
+     */
+    @Test
+    void beginCycleOpensFromAnyCurrentStateForEveryEntryState() {
+        List<SyncState> currents = new ArrayList<>(Arrays.asList(SyncState.values()));
+        currents.add(null);
+        for (SyncState current : currents) {
+            for (SyncState entry : SyncStateMachine.ENTRY_STATES) {
+                assertThat(machine.beginCycle(current, entry))
+                        .as("beginCycle(%s, %s)", current, entry)
+                        .isEqualTo(entry);
+            }
+        }
+    }
+
+    /** AC-8: un estado que no es de entrada no abre ciclo. */
+    @Test
+    void beginCycleRejectsStatesThatAreNotEntryPoints() {
+        for (SyncState s : SyncState.values()) {
+            if (SyncStateMachine.ENTRY_STATES.contains(s)) {
+                continue;
+            }
+            assertThatThrownBy(() -> machine.beginCycle(SyncState.SENT_SAP, s))
+                    .as("%s no es estado de entrada", s)
+                    .isInstanceOf(IllegalStateException.class);
+        }
+    }
+
+    /** AC-9: los estados en vuelo son exactamente los intermedios del pipeline. */
+    @Test
+    void inFlightStatesAreTheIntermediateOnes() {
+        assertThat(Arrays.stream(SyncState.values()).filter(machine::isInFlight))
+                .containsExactlyInAnyOrder(
+                        SyncState.RECEIVED, SyncState.FETCHING, SyncState.VALIDATING,
+                        SyncState.VALID, SyncState.INDEXING, SyncState.INDEXED,
+                        SyncState.SENDING_SAP);
+    }
+
+    /** AC-10: un fallo de infraestructura durante el envio cae a ERROR, no se queda colgado. */
+    @Test
+    void sendingSapCanFailToError() {
+        assertThat(machine.canTransition(SyncState.SENDING_SAP, SyncState.ERROR)).isTrue();
     }
 }
