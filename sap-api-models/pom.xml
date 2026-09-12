@@ -90,6 +90,9 @@
                         <configuration>
                             <inputSpec>${project.basedir}/specs/customer/API_APAR_SEPA_MANDATE_SRV.yaml</inputSpec>
                             <outputDirectory>${project.build.directory}/generated-sources/openapi</outputDirectory>
+                            <!-- No borrar la salida: las tres ejecuciones comparten directorio y en
+                                 Windows borrar lo recien generado falla de forma intermitente (DX-7). -->
+                            <deleteOutputDirectory>false</deleteOutputDirectory>
                             <apiPackage>com.poc.sap.integration.api.customer.sepamandate.api</apiPackage>
                             <modelPackage>com.poc.sap.integration.api.customer.sepamandate.model</modelPackage>
                             <apiMaturity>released</apiMaturity>
@@ -105,6 +108,9 @@
                         <configuration>
                             <inputSpec>${project.basedir}/specs/article/API_PRODUCT_SRV.yaml</inputSpec>
                             <outputDirectory>${project.build.directory}/generated-sources/openapi</outputDirectory>
+                            <!-- No borrar la salida: las tres ejecuciones comparten directorio y en
+                                 Windows borrar lo recien generado falla de forma intermitente (DX-7). -->
+                            <deleteOutputDirectory>false</deleteOutputDirectory>
                             <apiPackage>com.poc.sap.integration.api.article.product.api</apiPackage>
                             <modelPackage>com.poc.sap.integration.api.article.product.model</modelPackage>
                             <apiMaturity>released</apiMaturity>

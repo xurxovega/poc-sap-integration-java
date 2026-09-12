@@ -1,27 +1,34 @@
 # SAP Integration — Stack tecnológico
 
 > Stack e implementación concreta de la arquitectura descrita en
-> [`OVERVIEW.md`](OVERVIEW.md). Java 25 LTS + Spring Boot 4.0 + Maven.
+> [`OVERVIEW.md`](OVERVIEW.md). Java 25 LTS + Spring Boot 4.1 + Maven.
 
 ## 1. Plataforma
 
-- **Lenguaje**: Java 25 LTS objetivo; compila también con Java 23 LTS mínimo
-  (records, sealed, pattern matching, virtual threads).
-- **Framework**: Spring Boot 4.0 (baseline Java 17+, soporta Java 25).
+- **Lenguaje**: Java 25 LTS, **mínimo real** (`<maven.compiler.release>25`
+  en el parent, sin perfil; records, sealed, pattern matching, virtual threads).
+- **Framework**: Spring Boot 4.1.1.
 - **Runtime**: JVM con **virtual threads** activados para concurrencia de
-  Kafka/REST.
-- **Profile Maven `jdk25`**: se activa automáticamente cuando `JAVA_HOME`
-  apunta a JDK 25+ y sube `<maven.compiler.release>` a 25. Por defecto el
-  reactor compila con `release 23`.
+  Kafka/REST. Con JDK 25 desaparece el *pinning* sobre `synchronized` (JEP 491),
+  una de las observaciones de la auditoría.
 
 ## 2. Build
 
 - **Maven 3.9+**, reactor multi-módulo con parent `sap-integration-parent`.
 - `spring-boot-dependencies` BOM importado en `dependencyManagement`.
-- Perfiles Maven: **solo `jdk25`** (auto-activado con JDK 25+). No existen
-  perfiles `dev`/`it`/`native`; la configuración por entorno va por variables de
-  entorno (`scripts/env/`). El perfil `jdk25` desaparece al fijar JDK 25 como
-  mínimo (plan, Fase 2).
+- **Sin perfiles Maven**. No existen perfiles `dev`/`it`/`native` ni `jdk25`;
+  la configuración por entorno va por variables de entorno (`scripts/env/`).
+- Plugins fijados en `pluginManagement`: surefire y failsafe 3.5.3 (auditoría
+  B7: sin versión fijada, `SyncCustomerControllerIT` no se ejecutaba nunca).
+- **JaCoCo** en el parent: `prepare-agent`, `report` y `check` en `verify`. El
+  `check` exige **≥ 75 % de líneas en `**/domain/**`** (suelo medido el
+  12-09-2026: common 90 %, customer 78 %, article 88 %).
+- **ArchUnit** 1.5.0: `DomainPurityTest` en `common`, `customer` y `article`
+  prohíbe que `..domain..` dependa de Spring, Jackson, Mongo, Kafka, Micrometer
+  o JPA.
+- **CI**: [`.github/workflows/ci.yml`](../../.github/workflows/ci.yml) con dos
+  jobs: `build` (`mvn verify` sin Docker, sube el informe JaCoCo) y
+  `e2e-docker` (`-pl it verify -Ddocker.available=true`, Testcontainers).
 - Versionado semántico de `common` como librería consumida por cada app.
 
 ## 3. Estructura de módulos
@@ -140,11 +147,12 @@ destino y con qué mapeo; los mapeos son parte del dominio, no del shared kernel
   stubbeado.
 - **Integración**: Testcontainers (Kafka, PostgreSQL, SQL Server, MongoDB,
   Elasticsearch) + WireMock para SAP. Por dominio y en módulo `it/`.
-- **Contrato SAP**: WireMock en `it/` (`*ContractTest`). Hoy esos tests **no
-  ejercitan los adaptadores reales** (auditoría B6; plan Fase 2). Spring Cloud
-  Contract/Pact: visión, no usados.
-- Cobertura: JaCoCo; umbral mínimo en `domain` y `common`. `domain` se cubre al
-  100% en unit sobre validaciones.
+- **Contrato SAP**: WireMock en `it/` (`*ContractTest`, ejecutados por
+  failsafe). Desde la Fase 2 construyen el `WebClientSapClient` **real** contra
+  WireMock y ejercitan cada adaptador de producción (path, método, cabeceras,
+  cuerpo). Spring Cloud Contract/Pact: visión, no usados.
+- Cobertura: JaCoCo con `check` en el parent: **≥ 75 % de líneas en
+  `**/domain/**`** (propiedad `jacoco.domain.line-minimum`, solo sube); por debajo, `mvn verify` falla.
 - **TDD obligatorio**: el test se escribe antes que el código de producción. El
   ciclo, el orden de las capas y la definición de hecho están en
   [`DESARROLLO.md`](DESARROLLO.md).

@@ -64,7 +64,7 @@ leer ni validar.
 | AC | Criterio | Test |
 |---|---|---|
 | AC-1 | Dada una entidad en cualquier estado previo (`SENT_SAP`, `SAP_ERROR`, `SENDING_SAP` o sin historial), cuando llega la baja, entonces el ciclo se abre y termina en `SENT_SAP` contra la máquina de estados **real** | `DeleteCustomerUseCaseTest#deleteOpensCycleFromAnyPriorState` |
-| AC-2 | Cuando se ejecuta la baja, entonces el adaptador emite un `DELETE` HTTP sobre la clave de la entidad y **no** un `POST` | `BtpCustomerAdapterTest#deleteIssuesHttpDeleteOnEntityKey` · `DeleteCustomerUseCaseTest#deleteIssuesDeleteNotSend` |
+| AC-2 | Cuando se ejecuta la baja, entonces el adaptador emite un `DELETE` HTTP sobre la clave de la entidad y **no** un `POST` | `BtpCustomerAdapterTest#deleteIssuesHttpDeleteOnEntityKey` · `DeleteCustomerUseCaseTest#deleteIssuesDeleteNotSend` · `BtpCustomerContractTest#realAdapterIssuesHttpDeleteOnEntityKey` (HTTP real contra WireMock) |
 | AC-3 | Dado que SAP acepta, entonces la imagen local queda con `status = BLOCKED` y no se elimina | `DeleteCustomerUseCaseTest#blocksImageInsteadOfDeleting` |
 | AC-4 | Dado que SAP rechaza, entonces la imagen no cambia y el estado es `SAP_ERROR` | `DeleteCustomerUseCaseTest#keepsImageWhenSapFails` |
 | AC-5 | Dado un mensaje CDC con `operation=DELETE`, entonces se enruta a este use case | `CustomerKafkaListenerTest#deleteOperationInvokesDeleteUseCase` |

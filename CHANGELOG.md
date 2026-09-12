@@ -20,6 +20,41 @@ identifican por fecha.
 
 ## [Sin publicar]
 
+### 2026-09-12 — Red de seguridad antes de tocar SAP (Fase 2 de la auditoría)
+
+#### Añadido
+
+- **Integración continua**: cada cambio se compila y se prueba automáticamente
+  en GitHub, con y sin Docker. Hasta ahora las pruebas solo se lanzaban a mano.
+- **Umbral de calidad que rompe la compilación**: si la lógica de negocio pierde
+  cobertura de pruebas, o si esa lógica empieza a depender de tecnología
+  concreta (Spring, Mongo, Kafka), la compilación falla.
+- Pruebas de contrato que ejercitan el **código real** que llama a SAP: hasta
+  ahora comprobaban el simulador, no nuestra aplicación. Incluye la **baja**
+  (`DELETE`) y el reintento ante un SAP caído.
+- Prueba del registro de estado contra una **base de datos Mongo real** (no
+  simulada): reenvío tras fallo, dos procesos escribiendo a la vez y convivencia
+  con datos antiguos.
+
+#### Corregido
+
+- **Cuatro pruebas que existían pero nunca se ejecutaban** por un error de
+  configuración del build (detectado por la auditoría). Ya corren en cada build.
+- Una prueba de infraestructura que nunca arrancaba Kafka por un nombre de
+  imagen duplicado.
+- La cifra de pruebas era distinta en cada documento (211, 240, 264 según el
+  fichero). Ahora hay una sola, **270 pruebas declaradas**, y un test falla si un
+  documento se queda atrás.
+- La generación de modelos SAP fallaba de forma intermitente en Windows.
+
+#### Cambiado
+
+- **Salto de versión**: Spring Boot 4.1.1 y **Java 25 como mínimo** (antes se
+  aceptaban Java 21 y 23). Se retira Spring Cloud, que era incompatible con
+  Boot 4 y nada lo usaba.
+- Todo lo anterior sigue probado contra un **SAP simulado**. La siguiente fase
+  cambia el transporte HTTP y valida el contrato contra el tenant SAP de test.
+
 ### 2026-09-11 — Auditoría externa y cambio de naturaleza del proyecto
 
 #### Cambiado

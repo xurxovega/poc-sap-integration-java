@@ -1,48 +1,37 @@
 package com.poc.sap.it.contract;
 
+import com.poc.sap.article.adapters.sap.S4ArticleAdapter;
+import com.poc.sap.article.domain.Article;
+import com.poc.sap.common.domain.port.SapOutboundPort.SapResponse;
 import org.junit.jupiter.api.Test;
 
-import java.net.http.HttpResponse;
-
-import static com.github.tomakehurst.wiremock.client.WireMock.*;
+import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
+import static com.github.tomakehurst.wiremock.client.WireMock.equalTo;
+import static com.github.tomakehurst.wiremock.client.WireMock.matchingJsonPath;
+import static com.github.tomakehurst.wiremock.client.WireMock.post;
+import static com.github.tomakehurst.wiremock.client.WireMock.postRequestedFor;
+import static com.github.tomakehurst.wiremock.client.WireMock.urlPathEqualTo;
 import static org.assertj.core.api.Assertions.assertThat;
 
-/**
- * Test de contrato SAP S/4 nativo para Article / API_PRODUCT (TECH.md §8;
- * TECH.md §10). Patron paralelo a {@link S4BankingContractTest} pero para el
- * dominio Article.
- */
+/** Contrato S/4 nativo del articulo, ejercitando el adaptador REAL (auditoria B6). */
 class S4ArticleContractTest extends AbstractSapContractTest {
 
-    @Test
-    void articleEndpointAccepted() throws Exception {
-        sap.stubFor(post(urlPathEqualTo("/sap/opu/odata/sap/API_PRODUCT"))
-                .willReturn(aResponse()
-                        .withStatus(201)
-                        .withHeader("Location", "https://s4/Product('SKU-001')")
-                        .withBody("{\"Product\":\"SKU-001\"}")));
-
-        HttpResponse<String> resp = postJson(
-                "/sap/opu/odata/sap/API_PRODUCT",
-                """
-                {"Product":"SKU-001","Description":"Tornillo M6","Category":"Hardware","BaseUnit":"UN","Status":"ACTIVE"}""");
-
-        assertThat(resp.statusCode()).isEqualTo(201);
-        assertThat(resp.headers().firstValue("Location")).isPresent();
-        assertThat(resp.body()).contains("SKU-001");
-        sap.verify(postRequestedFor(urlPathEqualTo("/sap/opu/odata/sap/API_PRODUCT")));
-    }
+    private static final String PATH = "/sap/opu/odata/sap/API_PRODUCT";
 
     @Test
-    void s4ReturnsErrorOnInvalidAuth() throws Exception {
-        sap.stubFor(post(urlPathEqualTo("/sap/opu/odata/sap/API_PRODUCT"))
-                .willReturn(aResponse().withStatus(401).withBody("Unauthorized")));
+    void realAdapterPostsMappedProduct() {
+        sap.stubFor(post(urlPathEqualTo(PATH)).willReturn(aResponse().withStatus(201).withBody("{}")));
 
-        HttpResponse<String> resp = postJson(
-                "/sap/opu/odata/sap/API_PRODUCT",
-                """
-                {"Product":"SKU-001"}""");
+        SapResponse r = new S4ArticleAdapter(sapClient, PATH).send("A-1", "h-1",
+                new Article("A-1", "SKU-001", "Tornillo M6", "Hardware", "UN", Article.Status.ACTIVE));
 
-        assertThat(resp.statusCode()).isEqualTo(401);
+        assertThat(r.httpStatus()).isEqualTo(201);
+        sap.verify(postRequestedFor(urlPathEqualTo(PATH))
+                .withHeader("Authorization", equalTo("Bearer " + TOKEN))
+                .withHeader("Idempotency-Key", equalTo("h-1"))
+                .withRequestBody(matchingJsonPath("$.Product", equalTo("SKU-001")))
+                .withRequestBody(matchingJsonPath("$.Description", equalTo("Tornillo M6")))
+                .withRequestBody(matchingJsonPath("$.BaseUnit", equalTo("UN")))
+                .withRequestBody(matchingJsonPath("$.Status", equalTo("ACTIVE"))));
     }
 }

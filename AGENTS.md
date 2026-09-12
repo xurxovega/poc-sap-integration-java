@@ -9,7 +9,7 @@ Sincronización de datos maestros (`customer`, `article`, `supplier`) desde
 sistemas legacy hacia **SAP S/4 Public Cloud**. Nació como prueba de concepto y
 **es la aplicación final**: seguridad, retención de datos, alta disponibilidad
 y despliegue se deciden con ese criterio. Migración del POC Python
-(`../poc-sap-integration`) a **Java 25 + Spring Boot 4.0 + Maven**.
+(`../poc-sap-integration`) a **Java 25 + Spring Boot 4.1 + Maven**.
 
 ---
 
@@ -122,7 +122,8 @@ re-desplegar los dominios: ver el criterio en
 - [ ] El spec existe y refleja el comportamiento final.
 - [ ] Cada `AC-n` tiene al menos un test que lo cita en su Javadoc.
 - [ ] Los tests nuevos se escribieron **antes** que su código.
-- [ ] `mvn verify` en verde.
+- [ ] `mvn verify` en verde: incluye JaCoCo `check` (≥ 75 % líneas en `domain`), ArchUnit y los contract tests reales.
+- [ ] Si has añadido o quitado un `@Test`, la cifra de `docs/testing/TESTING.md` §1 (y QUICK_START/GUIA-PRUEBAS) está al día: `TestCountMatchesDocsTest` rompe el build si no.
 - [ ] Estado e índice de `docs/sdd/README.md` al día.
 - [ ] `CHANGELOG.md` del subproyecto y evento en `feature_evento` registrados.
 - [ ] `CHANGELOG.md` raíz actualizado si el cambio se percibe en negocio.
@@ -284,9 +285,11 @@ confundir con el Shared Kernel, que es `common`. Catálogo en
 
 ## 2.7 Stack
 
-- **Java** 23 mínimo, objetivo **25 LTS** (records, sealed, pattern matching,
-  virtual threads). Profile Maven `jdk25` auto-activado con JDK 25+.
-- **Spring Boot 4.0**. Cuidado con sus rupturas ya resueltas: usar
+- **Java 25 LTS, mínimo real** (`release 25` en el parent, sin perfil; records,
+  sealed, pattern matching, virtual threads sin *pinning* sobre `synchronized`
+  por JEP 491).
+- **Spring Boot 4.1** (sin BOM de Spring Cloud: nada lo usa). Cuidado con sus
+  rupturas ya resueltas: usar
   `spring-boot-starter-kafka` (el `spring-kafka` suelto no autoconfigura),
   Jackson 3 por defecto, **sin** starter OTel (incompatible — se usa el
   javaagent), y `@WebMvcTest` eliminado (slice web con
@@ -302,11 +305,12 @@ confundir con el Shared Kernel, que es `common`. Catálogo en
 ./scripts/stop-all.sh                 # parar todo
 mvn validate                          # validar reactor
 mvn test                              # unit + slice (sin Docker)
-mvn verify                            # + integración
+mvn verify                            # + contract reales (failsafe) + JaCoCo check + ArchUnit; sin Docker
 mvn -pl common install -DskipTests    # publicar shared kernel local
 mvn -pl customer test                 # un dominio
 mvn -pl customer test -Dtest=AddressValidatorTest#missingCityFails
-mvn -pl it verify                     # cross-dominio + contratos SAP
+mvn -pl it verify                     # contratos SAP contra adaptadores reales + recuento de tests
+mvn -pl it verify -Ddocker.available=true   # + IT con Testcontainers (Mongo real). Es lo que corre la CI (.github/workflows/ci.yml)
 mvn generate-sources -pl sap-api-models   # regenerar modelos SAP
 ```
 

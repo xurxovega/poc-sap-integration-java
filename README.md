@@ -2,7 +2,7 @@
 
 Integración de datos maestros (customer, article, supplier) desde sistemas
 legacy hacia **SAP S/4 Public Cloud**. Migración del POC Python a
-**Java 25 + Spring Boot 4.0 + Maven**.
+**Java 25 + Spring Boot 4.1 + Maven**.
 
 Nació como prueba de concepto y **es la aplicación final**: seguridad,
 retención de datos, alta disponibilidad y despliegue se deciden con ese
@@ -31,7 +31,7 @@ La documentación está organizada por **para qué sirve cada cosa**:
 ### Cómo está construido — arquitectura
 
 - [`docs/architecture/OVERVIEW.md`](docs/architecture/OVERVIEW.md) — objetivo y alcance, módulos, dominios y aggregate Customer, flujos CDC/REST/feature, puertos y adaptadores, máquina de estados, deployment y versionado, requisitos no funcionales, convención de paquetes.
-- [`docs/architecture/TECH.md`](docs/architecture/TECH.md) — stack tecnológico: Java 25 + Spring Boot 4.0 + Maven, capas hexagonales, entradas, persistencia, clientes SAP, observabilidad, testing.
+- [`docs/architecture/TECH.md`](docs/architecture/TECH.md) — stack tecnológico: Java 25 + Spring Boot 4.1 + Maven, capas hexagonales, entradas, persistencia, clientes SAP, observabilidad, testing.
 - [`docs/architecture/FLOWS.md`](docs/architecture/FLOWS.md) — flujos **implementados** con nombres de clase para navegar el código: CDC completo de punta a punta y mapa de rutas BTP vs OData directo.
 - [`docs/architecture/INTEGRATION-PATTERNS.md`](docs/architecture/INTEGRATION-PATTERNS.md) — esquemas visuales (Mermaid) de los patrones de integración con SAP: CDC→OData S/4 y CDC→BTP (implementados); pull desde BTP, batch disparado por topic Kafka y eventos S/4 (stock) como implementación futura.
 - [`docs/architecture/MAPA-FUNCIONAL.html`](docs/architecture/MAPA-FUNCIONAL.html) — mapa funcional navegable en un solo fichero HTML (ábrelo con doble clic): mapa clicable de todas las piezas y cómo se conectan, 16 diagramas de secuencia Mermaid por dominio con sus subentidades, tablas de referencia (puertos, topics, almacenes, endpoints, configuración) y la lista de brechas verificadas contra el código.
@@ -75,14 +75,11 @@ Cada dominio sigue capas por paquete:
 
 ## Requisitos
 
-- **JDK 25 LTS recomendado** (es el target del proyecto; el profile `jdk25`
-  se activa automáticamente y compila con `release 25`).
-  - Con JDK 23: compila con `<release>23` (por defecto del parent).
-  - Con JDK 21: funciona forzando `-Dmaven.compiler.release=21` (el código no
-    usa features de lenguaje posteriores a 21).
+- **JDK 25 LTS, mínimo** (el parent compila con `release 25`; no hay perfil
+  ni fallback a un JDK anterior desde la Fase 2 de la auditoría).
   - En WSL sin JDK 25 del sistema: descomprimir Temurin 25 en `~/.jdks` y usar
     `JAVA_HOME=$HOME/.jdks/jdk-25.0.3+9 mvn ...`.
-- Maven 3.9+ (o usar el wrapper incluido).
+- Maven 3.9+ (no hay wrapper en el repo; se añadirá en la Fase 8).
 - Docker (para Testcontainers en tests de integración y para la
   infraestructura local de `external-services/`, incluido Debezium/Kafka Connect).
 
@@ -95,20 +92,12 @@ mvn -pl customer package                  # empaquetar SOLO customer (jar ejecut
 mvn -pl customer spring-boot:run          # arrancar customer en :8081
 mvn compile                               # compilar todos los módulos
 mvn test                                  # tests unitarios de todos los módulos
-mvn verify                                # unit + slice + integración (con Testcontainers)
-mvn -pl it verify                         # solo pruebas de integración cross-dominio
+mvn verify                                # unit + slice + contract reales + JaCoCo check (sin Docker)
+mvn -pl it verify -Ddocker.available=true # además los IT con Testcontainers (Mongo real)
 ```
 
-### Compilar con un JDK distinto
-
-El parent fija por defecto `<maven.compiler.release>23</m.compiler.release>`.
-Si tienes JDK 25 en `JAVA_HOME`, el profile `jdk25` se activa solo y sube a 25.
-Para forzar un release concreto sin tocar POMs:
-
-```bash
-mvn compile -Dmaven.compiler.release=21    # con JDK 21
-mvn compile -Dmaven.compiler.release=25     # forzar JDK 25 (requiere tenerlo)
-```
+Es lo mismo que ejecuta la CI ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)):
+un job `build` sin Docker y un job `e2e-docker` con él.
 
 ## Arrancar en local (per-dominio)
 

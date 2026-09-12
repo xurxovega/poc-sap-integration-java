@@ -9,7 +9,7 @@
 
 - **JDK 25** (recomendado; ver README). En WSL sin JDK 25 del sistema:
   `export JAVA_HOME=$HOME/.jdks/jdk-25.0.3+9` (o compilar con
-  `-Dmaven.compiler.release=21` si solo tienes JDK 21).
+  el JDK 25 es el mínimo del proyecto; no hay fallback a 21/23).
 - **Docker** con ~6 GB libres (Kafka, Connect, SQL Server, Postgres, Mongo, ES).
 - `curl` y opcionalmente `jq`.
 
@@ -18,7 +18,7 @@
 ## Nivel 1 — Suite automática (sin Docker)
 
 ```bash
-mvn clean test          # 264 tests: unit + slice + resiliencia + smoke de contexto
+mvn clean test          # 270 tests: unit + slice + resiliencia + smoke de contexto
 ```
 
 Qué valida cada bloque y dónde mirar si falla:

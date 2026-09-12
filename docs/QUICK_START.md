@@ -78,14 +78,14 @@ después las bases de datos, y así sucesivamente.
 
 | Requisito | Versión | Notas |
 |---|---|---|
-| JDK | **25 LTS** (recomendado) | Con 23 compila por defecto; con 21 usar `-Dmaven.compiler.release=21` |
+| JDK | **25 LTS** (mínimo) | El reactor compila con `release 25`; no hay perfil ni forma soportada de usar un JDK anterior |
 | Maven | 3.9+ | No hay wrapper en el repo: usa el `mvn` del sistema |
 | Docker | con ~6 GB libres | Solo en modo `local` |
 | `curl` | — | `jq` opcional pero muy recomendable |
 | Bash | — | En Windows, **Git Bash** o WSL: los scripts y los ejemplos son POSIX |
 
 ```bash
-java -version    # openjdk 25.x  (o 23/21, ver arriba)
+java -version    # openjdk 25.x  (minimo; ver arriba)
 mvn -v
 docker info | head -5
 ```
@@ -121,7 +121,7 @@ mvn -pl common install -DskipTests
 Recomendable antes de arrancar nada — la suite no necesita Docker:
 
 ```bash
-mvn clean test                        # 264 tests (unit, slice, resiliencia, smoke de contexto)
+mvn clean test                        # 270 tests (unit, slice, resiliencia, smoke de contexto)
 ```
 
 Los smoke `CustomerApplicationContextTest` / `ArticleApplicationContextTest`
@@ -539,7 +539,7 @@ A mano: `Ctrl+C` en cada terminal de `spring-boot:run`, `docker stop mock-sap` y
 | `customer-app` falla al arrancar con error de esquema JPA | SQL Server aún no ha ejecutado el DDL. `docker compose ps` → espera a `sqlserver-source` healthy y a que `sqlserver-init` termine |
 | `elasticsearch` se reinicia en bucle | `sudo sysctl -w vm.max_map_count=262144` |
 | Puerto `8083` ocupado | Lo usa Kafka Connect. Es también el default de `supplier` (no desplegable); si necesitas ese puerto, para el compose o cambia el mapeo |
-| Error de compilación por versión de Java | `mvn compile -Dmaven.compiler.release=21` (o instala JDK 25) |
+| Error de compilación por versión de Java | Instala JDK 25: es el mínimo del proyecto desde la Fase 2 de la auditoría |
 | `SENT_SAP` inmediato sin llamadas al mock | Dedupe por `payloadHash` idéntico: usa un hash distinto |
 | Estado `SAP_ERROR` | El mock no responde 2xx o no está levantado: revisa el stub y `SAP_*_BASE_URL` |
 | `401` contra SAP de test | Faltan credenciales OAuth2 → se usó el token stub. Rellena `SAP_S4_CLIENT_ID`/`SECRET`/`TOKEN_URL` en `test.env` |

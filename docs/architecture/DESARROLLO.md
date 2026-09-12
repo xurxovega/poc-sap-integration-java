@@ -79,7 +79,7 @@ mvn -pl customer test                     # un dominio
 mvn -pl customer test -Dtest=AddressValidatorTest   # una clase
 mvn -pl customer test -Dtest='AddressValidatorTest#rechaza_iban_invalido'
 mvn test                                  # toda la suite unit + slice
-mvn verify                                # + integración
+mvn verify                                # + contract reales + JaCoCo check (domain >= 75 %) + ArchUnit; sin Docker
 mvn -pl it verify                         # cross-dominio + contrato SAP
 ```
 
@@ -120,7 +120,8 @@ Un cambio está terminado cuando:
 - [ ] El spec de la feature existe y refleja el comportamiento final (§9 y §10 actualizados).
 - [ ] Cada AC del spec tiene al menos un test que lo cita.
 - [ ] Todos los tests nuevos fueron escritos **antes** que su código.
-- [ ] `mvn verify` en verde.
+- [ ] `mvn verify` en verde (JaCoCo `check`, ArchUnit y contract tests incluidos).
+- [ ] Cifra de tests de `docs/testing/TESTING.md` §1 al día si tocaste `@Test` (la vigila `TestCountMatchesDocsTest`).
 - [ ] El estado en [`../sdd/README.md`](../sdd/README.md) §5 está al día; si se cierra o abre una brecha, el changelog §6 también.
 - [ ] Ningún documento nuevo duplica algo que ya esté en `architecture/` o `sdd/`.
 

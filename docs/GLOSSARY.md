@@ -17,6 +17,10 @@ Las dos intenciones de la máquina de estados, separadas desde la Fase 1 de la a
 
 Portal oficial de SAP para descubrir APIs y especificaciones OData/OpenAPI de SAP. [api.sap.com](https://api.sap.com/)
 
+### ArchUnit
+
+Librería de tests que verifica reglas de arquitectura sobre el bytecode. En el repo, `DomainPurityTest` (common, customer, article) prohíbe que `..domain..` dependa de Spring, Jackson, Mongo, Kafka, Micrometer o JPA. La misma regla sobre `application` está en el backlog (TEST-7, Fase 7). Ver [`TESTING.md`](testing/TESTING.md) §6.
+
 ## B
 
 ### BAPI (Business Application Programming Interface)
@@ -68,6 +72,10 @@ Configuración en S/4HANA Public Cloud que habilita un escenario de API (p. ej. 
 ### `ConcurrentTransitionException`
 
 Dos instancias intentaron escribir la misma secuencia de estado para la misma entidad; la primera gana y la segunda recibe esta excepción en lugar de pisar el estado. La produce el índice único `dom_ent_seq_uk` sobre `(domain, entityId, seq)`. Es transitoria: se reintenta releyendo. Ver **Secuencia de estado**.
+
+### Contract test (test de contrato)
+
+Test que fija **lo que enviamos** a un sistema externo: método, path, cabeceras y cuerpo. En el repo viven en `it/…/contract/*ContractTest`, los ejecuta failsafe y, desde la Fase 2 de la auditoría, construyen el `WebClientSapClient` real contra WireMock y ejercitan el **adaptador de producción**, no el stub. No validan lo que SAP acepta: eso es la validación contra el tenant de test. Ver [`TESTING.md`](testing/TESTING.md) §7.
 
 ### Criterio de aceptación (AC-n)
 
@@ -144,6 +152,10 @@ Servicio de autenticación de SAP BTP, alternativa a XSUAA.
 Integration Suite es el iPaaS de SAP BTP; un *iFlow* es un flujo de integración configurado en él (mapeos, orquestación, planificación). Alternativa a una app CAP como intermediario del patrón 2 y como iniciador del patrón 3 de [`INTEGRATION-PATTERNS.md`](architecture/INTEGRATION-PATTERNS.md).
 
 ## J
+
+### JaCoCo / umbral de cobertura
+
+Herramienta de cobertura de tests. El parent Maven declara `prepare-agent`, `report` y **`check`** en `verify`: el build falla si `**/domain/**` baja del **75 % de líneas** (suelo medido el 12-09-2026: common 90 %, customer 78 %, article 88 %). El umbral solo se mueve hacia arriba. Informe en `<módulo>/target/site/jacoco/`.
 
 ### JCo (SAP Java Connector)
 
@@ -297,6 +309,10 @@ Máquina de estados de sincronización (`common/domain/SyncStateMachine.java`):
 `RECEIVED → FETCHING → VALIDATING → VALID | INVALID`; `VALID → INDEXING → INDEXED → SENDING_SAP → SENT_SAP | SAP_ERROR`.
 Estados de error: `ERROR`, `SAP_ERROR` y `COMMUNICATION_ERROR`. Re-entrada: `SENT_SAP → RECEIVED` e `INVALID → RECEIVED` cuando llega un nuevo evento de la entidad. Ver [`OVERVIEW.md`](architecture/OVERVIEW.md#5-máquina-de-estados-de-sincronización).
 
+### Surefire / Failsafe
+
+Plugins Maven que ejecutan tests: surefire en `test` (`*Test`), failsafe en `integration-test`/`verify` (`*IT`, y en el módulo `it` también `*ContractTest`). Ambos fijados a 3.5.3 en el `pluginManagement` del parent tras la auditoría B7: sin versión ni failsafe, `SyncCustomerControllerIT` no se ejecutó nunca.
+
 ## T
 
 ### TDD (Test-Driven Development)
@@ -306,6 +322,10 @@ Técnica obligatoria en el repositorio: ningún código de producción se escrib
 ### Testcontainers
 
 Librería para levantar contenedores Docker en tests de integración. Ver [`TESTING.md`](testing/TESTING.md).
+
+### Tests declarados vs ejecutados
+
+**Declarados**: métodos `@Test` en `src/test/java` de todos los módulos, gateados o no. **Ejecutados**: los que corren en un `mvn` concreto (sin Docker se saltan los `*IT`). La cifra de [`TESTING.md`](testing/TESTING.md) §1 es la de declarados y la vigila `TestCountMatchesDocsTest`: el build falla si un documento se queda atrás.
 
 ### Thread Context
 

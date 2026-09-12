@@ -1,45 +1,42 @@
 package com.poc.sap.it.contract;
 
+import com.poc.sap.common.domain.port.SapOutboundPort.SapResponse;
+import com.poc.sap.customer.adapters.sap.S4BankingAdapter;
+import com.poc.sap.customer.domain.feature.banking.BankingData;
 import org.junit.jupiter.api.Test;
 
-import java.net.http.HttpResponse;
+import java.util.List;
 
-import static com.github.tomakehurst.wiremock.client.WireMock.*;
+import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
+import static com.github.tomakehurst.wiremock.client.WireMock.equalTo;
+import static com.github.tomakehurst.wiremock.client.WireMock.matchingJsonPath;
+import static com.github.tomakehurst.wiremock.client.WireMock.post;
+import static com.github.tomakehurst.wiremock.client.WireMock.postRequestedFor;
+import static com.github.tomakehurst.wiremock.client.WireMock.urlPathEqualTo;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Test de contrato SAP S/4 nativo para la feature BANKING / mandates
- * (TECH.md §8, §10). Reemplaza al antiguo S4MandateAdapter.
+ * Contrato S/4 nativo de los datos bancarios, ejercitando el adaptador REAL
+ * (auditoria B6). El path apunta a una API que la auditoria senala como
+ * inexistente en S/4 (B3, Fase 3): este test fija lo que hoy se envia, no lo
+ * que S/4 espera.
  */
 class S4BankingContractTest extends AbstractSapContractTest {
 
-    @Test
-    void bankingEndpointAccepted() throws Exception {
-        sap.stubFor(post(urlPathEqualTo("/sap/opu/odata/sap/API_CUSTOMER_MANDATE"))
-                .willReturn(aResponse()
-                        .withStatus(202)
-                        .withBody("{\"CustomerID\":\"C-1\",\"IBAN\":\"ES76...\"}")));
-
-        HttpResponse<String> resp = postJson(
-                "/sap/opu/odata/sap/API_CUSTOMER_MANDATE",
-                """
-                {"CustomerID":"C-1","IBAN":"ES7621000418401234567890","BIC":"BBVAESMM","Mandates":"M-1,M-2"}""");
-
-        assertThat(resp.statusCode()).isEqualTo(202);
-        assertThat(resp.body()).contains("IBAN");
-        sap.verify(postRequestedFor(urlPathEqualTo("/sap/opu/odata/sap/API_CUSTOMER_MANDATE")));
-    }
+    private static final String PATH = "/sap/opu/odata/sap/API_CUSTOMER_MANDATE";
 
     @Test
-    void s4ReturnsErrorOnInvalidAuth() throws Exception {
-        sap.stubFor(post(urlPathEqualTo("/sap/opu/odata/sap/API_CUSTOMER_MANDATE"))
-                .willReturn(aResponse().withStatus(401).withBody("Unauthorized")));
+    void realAdapterPostsMappedBankingData() {
+        sap.stubFor(post(urlPathEqualTo(PATH)).willReturn(aResponse().withStatus(201).withBody("{}")));
 
-        HttpResponse<String> resp = postJson(
-                "/sap/opu/odata/sap/API_CUSTOMER_MANDATE",
-                """
-                {"CustomerID":"C-1","IBAN":"bad","BIC":"x"}""");
+        SapResponse r = new S4BankingAdapter(sapClient, PATH).send("C-1", "h-1",
+                new BankingData("ES7621000418401234567890", "BBVAESMM", List.of("M-1")));
 
-        assertThat(resp.statusCode()).isEqualTo(401);
+        assertThat(r.httpStatus()).isEqualTo(201);
+        sap.verify(postRequestedFor(urlPathEqualTo(PATH))
+                .withHeader("Idempotency-Key", equalTo("h-1"))
+                .withRequestBody(matchingJsonPath("$.CustomerID", equalTo("C-1")))
+                .withRequestBody(matchingJsonPath("$.IBAN", equalTo("ES7621000418401234567890")))
+                .withRequestBody(matchingJsonPath("$.BIC", equalTo("BBVAESMM"))));
     }
 }

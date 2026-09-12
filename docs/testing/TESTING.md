@@ -8,15 +8,19 @@
 
 ## 1. Resumen ejecutivo
 
-Total: **264 tests** en verde (medido el 12-09-2026 con JDK 25, `mvn clean test`).
+Total: **270 tests** declarados (medido el 12-09-2026 con JDK 25, `mvn clean test`).
+
+La cifra es de `@Test` **declarados** en `src/test/java` de todos los módulos; la vigila
+`TestCountMatchesDocsTest` (módulo `it`) y el build falla si diverge. Los IT gateados
+por Docker y los contract tests de failsafe cuentan aunque `mvn test` no los ejecute.
 El módulo `it` sigue ejecutando los contract dos veces — ver §8 issue 3.
 
 | Módulo     | Tests aprox. | Contenido principal |
 |------------|--------------|---------------------|
 | common     | 78           | dominio (máquina de estados con estado inicial/re-sync, ValidationResult acumulativo), Mongo repo (dedupe `alreadySent`), auth providers, **`WebClientSapClientTest`** (retry 5xx, no-retry 4xx, cabeceras, CSRF completo contra WireMock) |
-| customer   | 133          | unit + slice + **`CustomerApplicationContextTest`** (smoke de contexto Spring completo) |
+| customer   | 137          | unit + slice + **`CustomerApplicationContextTest`** (smoke de contexto Spring completo) |
 | article    | 42           | unit + slice + **`ArticleApplicationContextTest`** (smoke de contexto) |
-| it         | 11+1         | contract (WireMock) + `InfrastructureSmokeIT` (skip sin `-Ddocker.available=true`) |
+| it         | 13           | contract (WireMock, adaptadores **reales**, failsafe) + `TestCountMatchesDocsTest` + `SyncStateMongoIT`/`InfrastructureSmokeIT` (skip sin `-Ddocker.available=true`) |
 | supplier   | 0            | placeholder |
 
 Los smoke tests de contexto levantan cada app sin infraestructura externa
@@ -35,7 +39,7 @@ incompatible, Jackson 3, `spring-kafka` sin autoconfiguración).
 | **contract**    | Contratos SAP BTP/S4 (WireMock stubs).                    | WireMock, JDK HttpClient     |
 | **integration** | Infraestructura real (Kafka, Mongo, ES).                   | Testcontainers, gateado      |
 
-**Spring Boot 4.0** eliminó `@MockBean` y `@WebMvcTest`. Las slices web se hacen con `MockMvcBuilders.standaloneSetup(...)` y mocks de Mockito.
+**Spring Boot 4.x** (4.0 eliminó `@MockBean` y `@WebMvcTest`; el proyecto está en 4.1.1). Las slices web se hacen con `MockMvcBuilders.standaloneSetup(...)` y mocks de Mockito.
 
 ## 3. Estructura por módulo
 
@@ -184,53 +188,73 @@ mvn -pl it test -Dtest=BtpCustomerContractTest,S4BankingContractTest
 mvn clean install -DskipTests
 ```
 
-JDK 25 (`C:\Program Files\Java\jdk-25.0.3`). Si `JAVA_HOME` apunta a JDK 23, el reactor usa automáticamente ese JDK (release 23). Con JDK 25, el profile `jdk25` sube a release 25.
+JDK 25 (`C:\Program Files\Java\jdk-25.0.3`). **JDK 25 es el mínimo**: el reactor compila con `release 25` y ya no hay perfil `jdk25`; con un JDK anterior la compilación falla.
 
 ## 6. Cobertura y gaps conocidos
 
-- **WebClientSapClient** (common): sin test directo. Es reactivo (WebClient + Resilience4j Retry/CircuitBreaker) — requiere `MockWebServer` o WireMock con base-url inyectada. Pendiente.
-- **`@SpringBootTest` wiring**: `CustomerApplication`/`ArticleApplication` no tienen test de contexto (necesitan datasource/Kafka/ES live o sustitutos). Pendiente.
-- **Testcontainers IT**: gateados por `-Ddocker.available=true`. Solo `InfrastructureSmokeIT` (Kafka + Mongo). Faltan IT de Postgres, SQL Server, ES, SAP end-to-end.
-- **JaCoCo**: configurado en parent pero sin umbral exigido. Pendiente reporte de cobertura.
+- **JaCoCo con umbral forzado** (Fase 2 de la auditoría): el parent declara
+  `prepare-agent`, `report` y `check` en `verify`. El `check` exige **≥ 75 % de
+  líneas en `**/domain/**`** de cada módulo. Suelo medido el 12-09-2026: common
+  90 %, customer 78 %, article 88 %. Si `domain` baja del umbral, `mvn verify`
+  falla (comprobado forzando `-Djacoco.domain.line-minimum=0.95`). El dominio lo
+  cubren también los tests de use case, así que protege la cobertura agregada, no
+  cada test por separado. Informe HTML en `<módulo>/target/site/jacoco/index.html`.
+- **ArchUnit** (`DomainPurityTest` en common, customer y article): `..domain..` no
+  puede depender de Spring, Jackson, Mongo, Kafka, Micrometer ni JPA. La misma
+  regla para `application` (auditoría A4: 16/16 use cases llevan `@Service`)
+  queda para la Fase 7 del plan.
+- **Recuento de tests vigilado**: `TestCountMatchesDocsTest` (módulo `it`) cuenta
+  los `@Test` declarados y falla si §1 de este documento no coincide.
+- **IT con Docker** (`-Ddocker.available=true`): `SyncStateMongoIT` (Mongo 7 real:
+  re-sync tras `SAP_ERROR`, escritores concurrentes, documentos legacy sin `seq`)
+  e `InfrastructureSmokeIT` (Kafka + Mongo arrancan). Falta el e2e completo
+  outbox → Debezium → app → WireMock → Mongo (backlog TEST-1/TEST-4).
+- **`*HistoryDoc.toDomain()`** pierde datos (`unit`/`banking` a null): §8.4, pendiente.
 
 ## 7. Contratos SAP — patrón y cobertura
 
 ### Patrón `AbstractSapContractTest`
 
-Base en `it/src/test/java/com/poc/sap/it/contract/AbstractSapContractTest.java`. Provee:
-- `WireMockExtension` (puerto dinámico por test).
-- `HttpClient` JDK.
-- Helper `postJson(path, body)`.
+Base en `it/src/test/java/com/poc/sap/it/contract/AbstractSapContractTest.java`.
+Desde la Fase 2 (auditoría B6) construye el **`WebClientSapClient` real** con la
+URL de WireMock como destino BTP y S/4, un `AuthProvider` fijo
+(`Bearer contract-token`), retry de 3 intentos con 10 ms y circuit breaker por
+defecto. Cada test instancia el **adaptador de producción** y verifica en
+WireMock método, path, `Authorization`, `Idempotency-Key` y cuerpo JSON
+(`matchingJsonPath`). Los ejecuta **failsafe** (`mvn verify`); surefire los excluye.
 
 ### Contratos cubiertos
 
-| Destino SAP | Endpoint (path) | Casos testeados |
-|-------------|-----------------|-----------------|
-| BTP Customer | `/sap/btp/odata/Customer` | 201 Created + Location, 400 bad |
-| BTP Address | `/sap/btp/odata/CustomerAddress` | 201 + Location, header Idempotency-Key |
-| BTP Fiscal | `/sap/btp/odata/CustomerFiscal` | 202 Accepted, 409 conflict |
-| BTP Contact | `/sap/btp/odata/CustomerContact` | 201, 400 bad request |
-| S4 Banking | `/sap/opu/odata/sap/API_CUSTOMER_MANDATE` | 202 Accepted, 401 Unauthorized |
-| S4 Article | `/sap/opu/odata/sap/API_PRODUCT` | 201 Created, 400 bad request |
+| Adaptador real | Endpoint (path) | Casos |
+|---|---|---|
+| `BtpCustomerAdapter` | `/sap/btp/odata/Customer` | POST cabecera del cliente · **`DELETE …('C-1')`** en la baja, sin POST (spec baja-cliente AC-2) |
+| `BtpAddressAdapter` | `/sap/btp/odata/CustomerAddress` | POST mapeado · 503 reintentado 3 veces |
+| `BtpFiscalAdapter` | `/sap/btp/odata/CustomerFiscal` | POST mapeado (NIF, IVA, razón social, residencia) |
+| `BtpContactAdapter` | `/sap/btp/odata/CustomerContact` | POST mapeado |
+| `S4BankingAdapter` | `/sap/opu/odata/sap/API_CUSTOMER_MANDATE` | POST mapeado (IBAN, BIC). El path es el que **hoy** se envía; la auditoría lo señala como API inexistente (B3, Fase 3) |
+| `S4ArticleAdapter` | `/sap/opu/odata/sap/API_PRODUCT` | POST mapeado (Product, Description, BaseUnit, Status) |
 
-Cada contrato fija la firma del endpoint SAP para detectar breaking changes antes de re-desplegar la app correspondiente.
+WireMock sigue respondiendo lo que se le pide: estos tests fijan **lo que nosotros
+enviamos**, no lo que SAP acepta. Eso se valida contra el tenant de test (Fase 3;
+backlog TEST-5).
 
 ## 8. Issues conocidos
 
 | # | Issue | Estado |
 |---|-------|--------|
 | 1 | `MongoSyncStateRepository.transition` rechazaba la primera transición `null → RECEIVED` | **Resuelto (25-07-2026)**: `SyncStateMachine` admite estados iniciales (`RECEIVED`, `VALIDATING`) y re-entrada desde `SENT_SAP`/`INVALID`. Cubierto por tests de common. |
-| 2 | `SyncCustomerControllerIT` no se ejecuta (nombrado `*IT.java` sin failsafe en `customer/pom.xml`) | Pendiente: renombrar a `*Test.java` o añadir failsafe. |
-| 3 | Contract tests del módulo `it` corren dos veces (surefire + failsafe) | Pendiente: excluir `**/*ContractTest.java` de surefire en `it/pom.xml`. |
+| 2 | `SyncCustomerControllerIT` no se ejecuta (nombrado `*IT.java` sin failsafe en `customer/pom.xml`) | **Resuelto (12-09-2026, Fase 2)**: renombrado a `SyncCustomerControllerTest` (es un slice MockMvc, no necesita Docker); surefire fijado a 3.5.3 en el parent. |
+| 3 | Contract tests del módulo `it` corren dos veces (surefire + failsafe) | **Resuelto (12-09-2026, Fase 2)**: `**/*ContractTest.java` y `**/*IT.java` excluidos de surefire en `it/pom.xml`. |
 | 4 | `*HistoryDoc.toDomain()` pierde datos (`unit`/`banking` a null) | Pendiente fix de mapeo. |
 | 5 | Adapters BTP/S4 escribían `BusinessPartner:""` | **Resuelto (25-07-2026)**: los adaptadores rellenan `BusinessPartner`/`CustomerID` con el `entityId` real; aserciones añadidas en sus tests. |
-| 6 | Contract tests de `it/` no pasan por el código de producción (stubbean WireMock y verifican el propio stub) | Pendiente: apuntar los adaptadores reales inyectando la base-url de WireMock. |
+| 6 | Contract tests de `it/` no pasan por el código de producción (stubbean WireMock y verifican el propio stub) | **Resuelto (12-09-2026, Fase 2, auditoría B6)**: `AbstractSapContractTest` construye el `WebClientSapClient` real contra WireMock y cada test ejercita el adaptador real (path, método, `Authorization`, `Idempotency-Key`, cuerpo). |
 
 ## 9. Próximos pasos
 
-1. **Fix issue §8.2**: renombrar `SyncCustomerControllerIT` a `SyncCustomerControllerTest` para que surefire lo ejecute.
-2. **Fix issue §8.3**: excluir `*ContractTest` de surefire en `it/pom.xml`.
-3. **Fix issue §8.6**: reescribir los contract tests para ejercitar los adaptadores de producción y el contrato OData V2 real (envoltura `d` en respuestas, CSRF, errores SAP).
-4. **IT con Testcontainers**: Postgres, SQL Server, ES, SAP end-to-end (gatear con `-Ddocker.available=true`), incluyendo el flujo CDC con Debezium de `external-services/`.
-5. **JaCoCo** report + umbral mínimo en `domain` (100%) y `common` (>80%).
-6. **Validación contra tenant real**: escrituras OData (`API_BUSINESS_PARTNER`) contra sandbox/tenant S/4 cuando esté disponible.
+1. **Fix issue §8.4**: mapeo completo en `*HistoryDoc.toDomain()`.
+2. **E2E con Testcontainers** por dominio: outbox → Debezium → app → WireMock →
+   Mongo, gateado con `-Ddocker.available=true` (backlog TEST-1/TEST-4).
+3. **ArchUnit sobre `application`** (sin Spring/Micrometer/Jackson) cuando la
+   Fase 7 introduzca `MetricsPort`/`DiffPort`.
+4. **Validación contra tenant real**: escrituras OData (`API_BUSINESS_PARTNER`)
+   contra el tenant S/4 de test (Fase 3; backlog TEST-5).

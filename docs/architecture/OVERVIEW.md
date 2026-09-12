@@ -1,6 +1,6 @@
 # Arquitectura — Visión general
 
-> Mapa y esquemas del aplicativo `poc-sap-integration-java` (Java 25 + Spring Boot 4.0 + Maven).
+> Mapa y esquemas del aplicativo `poc-sap-integration-java` (Java 25 + Spring Boot 4.1 + Maven).
 
 ## Objetivo y alcance
 
@@ -368,7 +368,7 @@ que el estado de cualquier registro es consultable (imagen actual + histórico).
 
 Detalle completo (plataforma, build, persistencia, clientes SAP, observabilidad,
 testing, empaquetado) en [`TECH.md`](TECH.md). Resumen: Java 25 LTS +
-Spring Boot 4.0 + Maven 3.9 multi-módulo, Kafka (CDC Debezium) con DLT,
+Spring Boot 4.1 + Maven 3.9 multi-módulo, Kafka (CDC Debezium) con DLT,
 JPA (SQL Server/Postgres) + MongoDB + Elasticsearch, WebClient + OAuth2 hacia
 SAP con Resilience4j, Micrometer/Prometheus + OTel javaagent.
 

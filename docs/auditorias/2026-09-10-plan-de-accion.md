@@ -212,6 +212,21 @@ refactorizar sin red extremo a extremo es el mayor riesgo del plan.
 | 2.7 | **Salto de versión (D-6)**: Boot 4.1, Spring Cloud 2025.1.x — o quitar el BOM, ya que solo lo usa `spring-cloud-contract-wiremock` y ningún test lo referencia — y `release 25` sin perfil `jdk25` | `verify` verde; `grep jdk25 pom.xml` vacío |
 | 2.8 | ArchUnit: `domain` sin Spring/Jackson/Mongo (activa) | 0 violaciones |
 
+**Resultado (12-09-2026).** 2.1, 2.2, 2.3, 2.4, 2.6, 2.7 y 2.8 hechas tal cual.
+2.5 **parcial**: `SyncStateMongoIT` ejercita el repositorio de estado contra un
+Mongo 7 real (re-sync tras `SAP_ERROR`, dos escritores concurrentes, documentos
+legacy sin `seq`); el e2e completo outbox → Debezium → app → WireMock → Mongo
+queda en el backlog (TEST-1/TEST-4) porque necesita el compose entero dentro de
+Testcontainers y no bloquea la Fase 3. Umbral JaCoCo: 0,75 de líneas en
+`**/domain/**` (medido: common 90 %, customer 78 %, article 88 %; propiedad
+`jacoco.domain.line-minimum`). Matiz sobre el criterio «comentar un test de
+dominio rompe `verify`»: el dominio lo cubren también los tests de use case y
+repositorio, así que excluir `SyncStateMachineTest` entero deja common en el mismo
+90 %. El check protege la cobertura agregada; se comprobó que falla forzando el
+mínimo a 0,95. Recuento:
+**270 `@Test` declarados**. Hallazgo colateral: `InfrastructureSmokeIT` nunca
+arrancaba Kafka (`KafkaContainer(String)` duplicaba el nombre de imagen).
+
 ---
 
 ## Fase 3 · Que funcione contra un SAP real
@@ -450,12 +465,12 @@ una sesión nueva sepa dónde estamos sin leer el historial de ninguna otra.
 |---|---|---|---|---|
 | 0 · Higiene | ✅ hecha | 2026-09-11 | `b55f889` (.gitattributes) + `00bbbae` | pendiente de verificación por otra sesión |
 | 1 · Inservible | ✅ hecha | 2026-09-12 | `84a9da4` | pendiente de verificación por otra sesión (verificación en vivo: 3/3 en esta sesión) |
-| 2 · Red de seguridad | ⬜ pendiente | | | |
+| 2 · Red de seguridad | ✅ hecha | 2026-09-12 | commit de cierre de la Fase 2 (ver `git log`) | pendiente de verificación por otra sesión (`mvn verify` y `-pl it verify -Ddocker.available=true` en verde en esta sesión) |
 | 3 · SAP real | ⬜ pendiente | | | |
 | 4 · Seguridad | ⬜ pendiente | | | |
 | 5 · Observabilidad | ⬜ pendiente | | | |
 | 6 · Consistencia | ⬜ pendiente | | | |
-| 7 · Refactor | ⬜ bloqueada por Fase 2 | | | |
+| 7 · Refactor | ⬜ pendiente (desbloqueada: Fase 2 cerrada) | | | |
 | 8 · Supply chain | ⬜ pendiente | | | |
 | 9 · Documentación | ⬜ pendiente | | | |
 

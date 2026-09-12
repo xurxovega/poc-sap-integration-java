@@ -23,7 +23,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 * elimino {@code @WebMvcTest} en favor de la API de Spring Framework 7.
  * Los use cases van mockados con Mockito.
  */
-class SyncCustomerControllerIT {
+class SyncCustomerControllerTest {
 
     private MockMvc mvc;
     private final SyncCustomerUseCase syncUseCase = mock(SyncCustomerUseCase.class);

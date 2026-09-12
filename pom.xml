@@ -22,20 +22,23 @@
     </modules>
 
     <properties>
-        <java.version>23</java.version>
-        <maven.compiler.release>23</maven.compiler.release>
+        <java.version>25</java.version>
+        <maven.compiler.release>25</maven.compiler.release>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
 
-        <spring-boot.version>4.0.0</spring-boot.version>
-        <spring-cloud.version>2025.0.0</spring-cloud.version>
+        <spring-boot.version>4.1.1</spring-boot.version>
         <resilience4j.version>2.3.0</resilience4j.version>
         <testcontainers.version>1.21.1</testcontainers.version>
         <wiremock.version>3.13.0</wiremock.version>
         <jacoco.version>0.8.13</jacoco.version>
         <otel.version>1.44.0</otel.version>
         <otel-instrumentation.version>2.13.3</otel-instrumentation.version>
-        <failsafe.version>3.5.2</failsafe.version>
+        <failsafe.version>3.5.3</failsafe.version>
+        <surefire.version>3.5.3</surefire.version>
+        <archunit.version>1.5.0</archunit.version>
+        <!-- Suelo de cobertura de lineas en **/domain/** (JaCoCo check). Solo sube. -->
+        <jacoco.domain.line-minimum>0.75</jacoco.domain.line-minimum>
         <sap-cloud-sdk.version>5.32.0</sap-cloud-sdk.version>
     </properties>
 
@@ -74,14 +77,6 @@
             </dependency>
 
             <dependency>
-                <groupId>org.springframework.cloud</groupId>
-                <artifactId>spring-cloud-dependencies</artifactId>
-                <version>${spring-cloud.version}</version>
-                <type>pom</type>
-                <scope>import</scope>
-            </dependency>
-
-            <dependency>
                 <groupId>io.github.resilience4j</groupId>
                 <artifactId>resilience4j-bom</artifactId>
                 <version>${resilience4j.version}</version>
@@ -97,6 +92,12 @@
                 <scope>import</scope>
             </dependency>
 
+            <dependency>
+                <groupId>com.tngtech.archunit</groupId>
+                <artifactId>archunit-junit5</artifactId>
+                <version>${archunit.version}</version>
+                <scope>test</scope>
+            </dependency>
             <dependency>
                 <groupId>org.wiremock</groupId>
                 <artifactId>wiremock-standalone</artifactId>
@@ -121,8 +122,67 @@
     </dependencyManagement>
 
     <build>
+        <plugins>
+            <!-- JaCoCo: agente en todos los modulos, report y check en verify
+                 (auditoria B7 / plan Fase 2.3). El check solo mira domain/**:
+                 medido el 12-09-2026 -> common 90 %, customer 78 %, article 88 %
+                 de lineas; el umbral 0.75 es el suelo medido con margen y solo
+                 sube. Si domain baja de ahi, `mvn verify` falla (probado con
+                 -Djacoco.domain.line-minimum=0.95). El dominio lo cubren tambien
+                 los tests de use case, asi que un unico test comentado no lo
+                 tumba: el check protege la cobertura agregada, no test a test.
+                 Los modulos sin clases de dominio (it, sap-api-models) quedan
+                 fuera por el include. -->
+            <plugin>
+                <groupId>org.jacoco</groupId>
+                <artifactId>jacoco-maven-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>prepare-agent</id>
+                        <goals><goal>prepare-agent</goal></goals>
+                    </execution>
+                    <execution>
+                        <id>report</id>
+                        <phase>verify</phase>
+                        <goals><goal>report</goal></goals>
+                    </execution>
+                    <execution>
+                        <id>check-domain</id>
+                        <phase>verify</phase>
+                        <goals><goal>check</goal></goals>
+                        <configuration>
+                            <includes>
+                                <include>com/poc/sap/**/domain/**</include>
+                            </includes>
+                            <rules>
+                                <rule>
+                                    <element>BUNDLE</element>
+                                    <limits>
+                                        <limit>
+                                            <counter>LINE</counter>
+                                            <value>COVEREDRATIO</value>
+                                            <minimum>${jacoco.domain.line-minimum}</minimum>
+                                        </limit>
+                                    </limits>
+                                </rule>
+                            </rules>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
         <pluginManagement>
             <plugins>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-surefire-plugin</artifactId>
+                    <version>${surefire.version}</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-failsafe-plugin</artifactId>
+                    <version>${failsafe.version}</version>
+                </plugin>
                 <plugin>
                     <groupId>org.springframework.boot</groupId>
                     <artifactId>spring-boot-maven-plugin</artifactId>
@@ -147,22 +207,5 @@
         </pluginManagement>
     </build>
 
-    <profiles>
-        <!--
-            Se activa automaticamente cuando el JDK en ejecucion es 25+.
-            Sube el release del compilador a 25 (LTS objetivo del proyecto).
-            Mientras tanto, el reactor compila con el JDK instalado (23 LTS).
-        -->
-        <profile>
-            <id>jdk25</id>
-            <activation>
-                <jdk>[25,)</jdk>
-            </activation>
-            <properties>
-                <java.version>25</java.version>
-                <maven.compiler.release>25</maven.compiler.release>
-            </properties>
-        </profile>
-    </profiles>
 
 </project>

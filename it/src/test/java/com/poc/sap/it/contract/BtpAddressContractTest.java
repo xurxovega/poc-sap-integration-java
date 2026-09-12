@@ -1,57 +1,60 @@
 package com.poc.sap.it.contract;
 
+import com.poc.sap.common.domain.port.SapOutboundPort.SapResponse;
+import com.poc.sap.customer.adapters.sap.BtpAddressAdapter;
+import com.poc.sap.customer.domain.feature.address.AddressData;
 import org.junit.jupiter.api.Test;
 
-import java.net.http.HttpResponse;
-
-import static com.github.tomakehurst.wiremock.client.WireMock.*;
+import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
+import static com.github.tomakehurst.wiremock.client.WireMock.equalTo;
+import static com.github.tomakehurst.wiremock.client.WireMock.matchingJsonPath;
+import static com.github.tomakehurst.wiremock.client.WireMock.post;
+import static com.github.tomakehurst.wiremock.client.WireMock.postRequestedFor;
+import static com.github.tomakehurst.wiremock.client.WireMock.urlPathEqualTo;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Test de contrato SAP BTP para la feature ADDRESS (TECH.md §8, §10).
+ * Contrato BTP de la direccion, ejercitando el adaptador REAL
+ * (sdd/customer/sincronizacion-direccion.md §5 mapeo; auditoria B6).
  */
 class BtpAddressContractTest extends AbstractSapContractTest {
 
-    @Test
-    void addressEndpointRespondsCreated() throws Exception {
-        sap.stubFor(post(urlPathEqualTo("/sap/btp/odata/CustomerAddress"))
-                .willReturn(aResponse()
-                        .withStatus(201)
-                        .withHeader("Location", "https://btp/Customer('C-1')/Address")
-                        .withBody("{\"BusinessPartner\":\"C-1\"}")));
-
-        HttpResponse<String> resp = postJson(
-                "/sap/btp/odata/CustomerAddress",
-                """
-                {"BusinessPartner":"C-1","Street":"Calle 1","City":"Madrid","PostalCode":"28001","Country":"ES","Region":"M"}""");
-
-        assertThat(resp.statusCode()).isEqualTo(201);
-        assertThat(resp.headers().firstValue("Location")).isPresent();
-        sap.verify(postRequestedFor(urlPathEqualTo("/sap/btp/odata/CustomerAddress")));
-    }
+    private static final String PATH = "/sap/btp/odata/CustomerAddress";
 
     @Test
-    void requiresIdempotencyKeyHeaderOnSubsequentCalls() throws Exception {
-        sap.stubFor(post(urlPathEqualTo("/sap/btp/odata/CustomerAddress"))
-                .withHeader("Idempotency-Key", matching("h-[0-9]+"))
-                .willReturn(aResponse().withStatus(201).withBody("{}")));
+    void realAdapterPostsMappedAddressWithAuthAndIdempotencyKey() {
+        sap.stubFor(post(urlPathEqualTo(PATH)).willReturn(aResponse()
+                .withStatus(201)
+                .withHeader("Location", "https://btp/Customer('C-1')/Address")
+                .withBody("{\"BusinessPartner\":\"C-1\"}")));
 
-        HttpResponse<String> resp = postJsonWithHeader(
-                "/sap/btp/odata/CustomerAddress",
-                """
-                {"BusinessPartner":"C-1"}""","Idempotency-Key","h-1");
+        SapResponse r = new BtpAddressAdapter(sapClient, PATH)
+                .send("C-1", "h-1", new AddressData("Calle 1", "Madrid", "28001", "ES", "M"));
 
-        assertThat(resp.statusCode()).isEqualTo(201);
+        assertThat(r.httpStatus()).isEqualTo(201);
+        assertThat(r.location()).isEqualTo("https://btp/Customer('C-1')/Address");
+        sap.verify(postRequestedFor(urlPathEqualTo(PATH))
+                .withHeader("Authorization", equalTo("Bearer " + TOKEN))
+                .withHeader("Idempotency-Key", equalTo("h-1"))
+                .withHeader("Content-Type", equalTo("application/json"))
+                .withRequestBody(matchingJsonPath("$.BusinessPartner", equalTo("C-1")))
+                .withRequestBody(matchingJsonPath("$.Street", equalTo("Calle 1")))
+                .withRequestBody(matchingJsonPath("$.City", equalTo("Madrid")))
+                .withRequestBody(matchingJsonPath("$.PostalCode", equalTo("28001")))
+                .withRequestBody(matchingJsonPath("$.Country", equalTo("ES")))
+                .withRequestBody(matchingJsonPath("$.Region", equalTo("M"))));
     }
 
-    private HttpResponse<String> postJsonWithHeader(String path, String body,
-                                                     String hName, String hValue) throws Exception {
-        java.net.http.HttpRequest req = java.net.http.HttpRequest.newBuilder()
-                .uri(java.net.URI.create(sap.baseUrl() + path))
-                .header("Content-Type", "application/json")
-                .header(hName, hValue)
-                .POST(java.net.http.HttpRequest.BodyPublishers.ofString(body))
-                .build();
-        return http.send(req, HttpResponse.BodyHandlers.ofString());
+    /** El retry del cliente real: un 5xx se reintenta 3 veces y se reporta como fallo. */
+    @Test
+    void serverErrorIsRetriedThreeTimesThenReported() {
+        sap.stubFor(post(urlPathEqualTo(PATH)).willReturn(aResponse().withStatus(503)));
+
+        SapResponse r = new BtpAddressAdapter(sapClient, PATH)
+                .send("C-1", "h-2", new AddressData("Calle 1", "Madrid", "28001", "ES", "M"));
+
+        assertThat(r.isSuccess()).isFalse();
+        assertThat(r.httpStatus()).isEqualTo(503);
+        sap.verify(3, postRequestedFor(urlPathEqualTo(PATH)));
     }
 }

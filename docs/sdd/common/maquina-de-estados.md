@@ -115,6 +115,7 @@ La feature no indexa: la imagen y el histórico son del agregado.
 | AC-11 | El estado actual se resuelve por **secuencia**, no por `timestamp`: dos transiciones en el mismo milisegundo no empatan | `MongoSyncStateRepositoryTest#currentStateIsResolvedBySequenceNotTimestamp` |
 | AC-12 | Dadas dos escrituras concurrentes sobre la misma entidad, una gana y la otra recibe `ConcurrentTransitionException`; nunca se pisa el estado en silencio | `MongoSyncStateRepositoryTest#concurrentWriteIsRejectedNotSilentlyOverwritten` |
 | AC-13 | Al abrir ciclo, la nueva transición recibe la secuencia siguiente a la última almacenada | `MongoSyncStateRepositoryTest#beginCycleAssignsNextSequence` |
+| AC-14 | Contra un **Mongo real** (no el fake en memoria): una entidad en `SAP_ERROR` vuelve a `SENT_SAP` con el siguiente evento; N escritores concurrentes nunca se pisan (cada `seq` aparece una vez); los documentos legacy sin `seq` conviven con el índice único parcial | `SyncStateMongoIT#resyncsAfterSapErrorAgainstRealMongo` · `#concurrentWritersNeverOverwriteEachOther` · `#legacyDocumentsWithoutSeqCoexistWithTheUniqueIndex` (módulo `it`, `-Ddocker.available=true`) |
 
 Aplican además los [criterios globales](../README.md#4-criterios-de-aceptación-globales).
 
@@ -132,6 +133,7 @@ reintentos.
 | §6 tabla de transiciones (`advance`) | `common/domain/SyncStateMachine.java` | `SyncStateMachineTest` |
 | R-1/R-3 `beginCycle` y `ENTRY_STATES` | `SyncStateMachine.beginCycle` · `SyncStateRepositoryPort.beginCycle` | `SyncStateMachineTest#beginCycleOpensFromAnyCurrentStateForEveryEntryState` |
 | AC-11/12/13 secuencia y concurrencia | `common/adapters/persistence/MongoSyncStateRepository.java` (`seq`, índice único) | `MongoSyncStateRepositoryTest` |
+| AC-14 lo mismo contra Mongo real | `MongoSyncStateRepository` + `SyncStateDoc` (índice parcial `dom_ent_seq_uk`) | `SyncStateMongoIT` (Testcontainers `mongo:7.0`) |
 | §3 el `from` se lee del almacén | `common/adapters/persistence/MongoSyncStateRepository.java` | `MongoSyncStateRepositoryTest` |
 | R-5 recuperación de errores | `SyncStateMachine` | `ErrorStateRecoveryTest` |
 
@@ -139,6 +141,7 @@ reintentos.
 
 | Fecha | Cambio | PR |
 |---|---|---|
+| 2026-09-12 | AC-14: la secuencia, la versión optimista y la convivencia con documentos legacy se prueban también contra un **Mongo real** con Testcontainers (`SyncStateMongoIT`), no solo contra el fake en memoria (Fase 2 de la auditoría, TEST-1 parcial) | — |
 | 2026-09-12 | Verificado en vivo el 2026-09-12: apertura desde `SAP_ERROR` y desde `SENDING_SAP` en vuelo; `seq` monótona entre escritores CDC y REST (1→24). El índice único tuvo que ser **parcial**, no `sparse`: sparse compuesto indexa si hay al menos una clave y los docs antiguos colisionaban en `seq=null` (E11000 al arrancar) | — |
 | 2026-09-11 | **Rediseño de raíz** (auditoría B1/B11/B14): se separa **abrir ciclo** (`beginCycle`, legal desde cualquier estado, por cuatro estados de entrada) de **avanzar** (`advance`, la tabla). Cierra el *fingerprint* `sync-state:reentrada-no-permitida` en su tercera recurrencia: `SAP_ERROR` y los estados intermedios eran sumideros, y la baja/indexación abrían por estados que la tabla no admitía. Test de propiedad estados × entradas. `SENDING_SAP → ERROR`. En el repositorio Mongo, orden por **secuencia** en vez de `timestamp` y **versión optimista** por índice único (`seq`) para varias instancias | — |
 | 2026-09-10 | Spec inicial. Se añade la **re-entrada de las líneas de feature** por `VALIDATING` desde `SENT_SAP`, `INVALID` y `SAP_ERROR` (AC-4/AC-5): sin ella, un segundo evento con cambios reales rompía el pipeline por feature y el mensaje acababa en la DLT | — |
