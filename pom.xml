@@ -46,6 +46,8 @@
              solo lo habria cazado el e2e con Docker, TEST-1). Visto en vivo el 12-09-2026. -->
         <opentelemetry-semconv.version>1.34.0</opentelemetry-semconv.version>
         <enforcer.version>3.5.0</enforcer.version>
+        <project.image.registry>poc-sap</project.image.registry>
+        <project.image.tag>${project.version}</project.image.tag>
         <cyclonedx.version>2.9.1</cyclonedx.version>
         <dependency-plugin.version>3.8.1</dependency-plugin.version>
         <sap-cloud-sdk.version>5.32.0</sap-cloud-sdk.version>
@@ -260,7 +262,8 @@
                          esta por decidir (plan Fase 8, D-9). -->
                     <configuration>
                         <image>
-                            <name>poc-sap/${project.artifactId}:${project.version}</name>
+                            <!-- registro y tag sobreescribibles desde la CI (-Dproject.image.registry/.tag) -->
+                            <name>${project.image.registry}/poc-sap-${project.artifactId}:${project.image.tag}</name>
                         </image>
                     </configuration>
                     <version>${spring-boot.version}</version>

@@ -1,0 +1,26 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: sap-integration
+resources:
+  - ../../base
+images:
+  - name: REGISTRY/poc-sap/customer
+    newName: ghcr.io/<organizacion>/poc-sap-customer   # cambiar al registro corporativo
+    newTag: "0.1.0"
+  - name: REGISTRY/poc-sap/article
+    newName: ghcr.io/<organizacion>/poc-sap-article
+    newTag: "0.1.0"
+replicas:
+  - name: customer-app
+    count: 2
+  - name: article-app
+    count: 2
+configMapGenerator:
+  - name: sap-integration-config
+    behavior: merge
+    literals:
+      - KEYCLOAK_ISSUER_URI=https://keycloak.interno/realms/<realm>
+      - SAP_S4_BASE_URL=https://<tenant-prod>.s4hana.cloud.sap
+      - SAP_S4_AUTH_TYPE=oauth2
+      - SAP_CLIENT_RESPONSE_TIMEOUT_MS=30000
+      - SAP_CLIENT_CONNECT_TIMEOUT_MS=5000

@@ -1,0 +1,30 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: sap-integration
+---
+# Valores comunes NO secretos. Los secretos (SAP_*_CLIENT_SECRET, SAP_S4_PASSWORD,
+# SAP_SEPA_CREDITOR_ID, SQLSERVER_PASSWORD, POSTGRES_PASSWORD...) van en los Secret
+# `sap-integration-secrets` y `<app>-secrets`, gestionados FUERA de este repo
+# (sealed-secrets, External Secrets Operator o Vault; decision pendiente).
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: sap-integration-config
+data:
+  KAFKA_BOOTSTRAP: "kafka.messaging.svc:9092"
+  ES_URL: "http://elasticsearch.data.svc:9200"
+  SAP_AUTH_ALLOW_STUB: "false"          # nunca true fuera del mock local
+  APP_SECURITY_ENABLED: "true"           # JWT de Keycloak obligatorio
+  KEYCLOAK_CLIENT_ID: "sap-integration"
+  SAP_S4_CSRF_ENABLED: "true"
+  SAP_ODATA_ADDRESS_ENABLED: "true"      # ruta OData nativa (la familia BTP no tiene servicio detras)
+  SAP_ODATA_FISCAL_ENABLED: "true"
+  SAP_ODATA_CONTACT_ENABLED: "true"
+  SAP_ODATA_BANKING_ENABLED: "true"
+  SAP_ODATA_CUSTOMER_ENABLED: "true"
+  SAP_ODATA_READ_ENABLED: "true"
+  LOGGING_STRUCTURED_FORMAT_CONSOLE: "ecs"   # Loki/Alloy leen JSON de stdout
+  KAFKA_MAX_POLL_INTERVAL_MS: "900000"
+  SHUTDOWN_TIMEOUT: "30s"
+  TRACING_ENABLED: "false"               # true cuando exista Tempo/colector OTLP (ADR-0009)

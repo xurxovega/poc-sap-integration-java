@@ -20,6 +20,21 @@ identifican por fecha.
 
 ## [Sin publicar]
 
+### 2026-09-12 — Las APIs exigen identidad; camino al despliegue (Fase 4 y decisiones D-7/D-9)
+
+#### Añadido
+
+- **Control de acceso** a las APIs con la identidad corporativa (Keycloak):
+  nadie sin token puede consultar ni disparar envíos a SAP; cada operación
+  exige un rol (lectura, escritura, administración) y los **clientes externos**
+  ven el histórico con los datos personales enmascarados y sin comparación de
+  versiones. En el entorno local de desarrollo sigue abierto, avisándolo.
+- **Despliegue en Kubernetes**: manifiestos para los dos clústeres (test y
+  producción), imagen construida y publicada por la integración continua al
+  publicar una versión. Los secretos nunca viajan en el repositorio.
+- Trazas distribuidas listas para activarse cuando exista un destino (Tempo);
+  métricas y logs siguen llegando a Prometheus y Loki, que ya existen.
+
 ### 2026-09-12 — Limpieza interna (Fase 7 de la auditoría)
 
 #### Cambiado

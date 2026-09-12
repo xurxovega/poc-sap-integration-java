@@ -22,8 +22,8 @@ Estado a 2026-09-12: ✅ hecho · 🚧 en curso · ⬜ pendiente · 🧭 decisi�
 | Criterio | Estado | Evidencia / quién |
 |---|---|---|
 | Sin credenciales, la app no arranca; sin secretos en el paquete | ✅ | [`../sdd/common/autenticacion-sap.md`](../sdd/common/autenticacion-sap.md) |
-| Autenticación en las APIs REST y actuator | ⬜ | B4 / SEC-1; mecanismo por decidir |
-| TLS en tránsito y enmascarado de PII en logs y respuestas | ⬜ | SEC-3 |
+| Autenticación en las APIs REST y actuator | ✅ (probar contra el Keycloak corporativo) | [`../sdd/common/seguridad-api.md`](../sdd/common/seguridad-api.md), ADR-0007 |
+| TLS en tránsito (ingress) y enmascarado de PII en logs | ⬜ | SEC-3; en respuestas a externos ya se enmascara |
 | Plazo de **retención** del histórico y de los topics con PII | 🧭 negocio + legal | plan de acción (RGPD art. 5.1.e) |
 | Base legal y DPA con SAP | 🧭 cliente + legal | antes de tratar datos reales |
 | Si el tenant de test lleva datos reales, la Fase 4 va antes que la 3 | regla | plan de acción |
@@ -34,8 +34,8 @@ Estado a 2026-09-12: ✅ hecho · 🚧 en curso · ⬜ pendiente · 🧭 decisi�
 |---|---|---|
 | Runbooks de las incidencias conocidas | ✅ | [`RUNBOOKS.md`](RUNBOOKS.md) |
 | Métricas de estado, etapa, SAP y circuito | ✅ | [`../sdd/common/observabilidad.md`](../sdd/common/observabilidad.md) |
-| Recolección y paneles (Prometheus/Grafana) y alertas | ⬜ | OBS-1, OBS-3 (aplazado por el usuario) |
-| Trazas distribuidas | 🧭 | D-7 |
+| Recolección y paneles (Prometheus/Grafana/Loki) | ✅ plataforma | ya operativos en la empresa; alertas y panel del pipeline pendientes (OBS-3) |
+| Trazas distribuidas | ⬜ | ADR-0009: código listo, falta Tempo/colector y activar `TRACING_ENABLED` |
 | **Quién opera** (equipo, horario, escalado) | 🧭 negocio | sin definir; la auditoría lo señala como la restricción que más recomendaciones tumba |
 | Reproceso desde la DLT | ⬜ | OPS-2 |
 
@@ -52,7 +52,7 @@ Estado a 2026-09-12: ✅ hecho · 🚧 en curso · ⬜ pendiente · 🧭 decisi�
 
 | Criterio | Estado | Evidencia / quién |
 |---|---|---|
-| Copia de seguridad de Mongo (imagen + estado) y ES (histórico) | ⬜ | plataforma de despliegue (D-9) |
+| Copia de seguridad de Mongo (imagen + estado) y ES (histórico) | ⬜ | plataforma Kubernetes (ADR-0008) |
 | Restauración probada, con **RTO** y **RPO** acordados | 🧭 negocio (cifras) + equipo (prueba) | |
 | Reconstrucción del estado desde el legacy si se pierde Mongo | ⬜ | posible por diseño (el use case re-lee el legacy), no probado |
 | Parada ordenada | ✅ | `server.shutdown=graceful` |
@@ -62,6 +62,6 @@ Estado a 2026-09-12: ✅ hecho · 🚧 en curso · ⬜ pendiente · 🧭 decisi�
 | Criterio | Estado | Evidencia / quién |
 |---|---|---|
 | Build reproducible (wrapper, enforcer, SBOM, CI) | ✅ | Fase 8 |
-| Artefacto de despliegue (imagen OCI, Helm, mta) y entornos test/prod | 🧭 | D-9 |
+| Artefacto de despliegue y entornos test/prod | ✅ | `deploy/k8s` (Kustomize, dos clústeres), imagen con buildpacks en la CI. Pendiente: cómo llegan los secretos al clúster |
 | Versionado y tags de release | ✅ norma | [`../../AGENTS.md`](../../AGENTS.md) |
 | Auditoría de cierre de bloqueantes | ✅ | [`../auditorias/2026-09-12-cierre-bloqueantes.md`](../auditorias/2026-09-12-cierre-bloqueantes.md) |

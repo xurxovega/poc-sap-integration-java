@@ -24,8 +24,8 @@
 
 | # | Mejora | Ámbito | Estado | Notas |
 |---|---|---|---|---|
-| OBS-1 | **Stack Prometheus + Grafana** en `external-services` | proyecto | 📋 | Las apps ya exponen `/actuator/prometheus`, pero no hay quien lo recoja ni dashboards. Aplazado a propósito en la sesión del 2026-09-09 |
-| OBS-2 | **Trazas distribuidas**: colector OTLP + starter oficial de OTel para Boot 4 o javaagent | proyecto | 📋 | Bloqueado por la decisión D-7 del plan (qué integración usar). Sin esto no hay trazas ni `traceId` en los logs. Todo lo demás de la Fase 5 (métricas, parada ordenada, presupuesto de reintentos) está hecho el 2026-09-12 |
+| OBS-1 | **Stack Prometheus + Grafana** en `external-services` | proyecto | ✅ plataforma 2026-09-12 | Las apps ya exponen `/actuator/prometheus`, pero no hay quien lo recoja ni dashboards. Aplazado a propósito en la sesión del 2026-09-09 |
+| OBS-2 | **Trazas distribuidas**: Tempo o colector OTLP y `TRACING_ENABLED=true` | proyecto | 📋 | D-7 decidida (ADR-0009): el starter oficial ya está en el código, apagado. Falta el destino de las trazas. Sin esto no hay trazas ni `traceId` en los logs. Todo lo demás de la Fase 5 (métricas, parada ordenada, presupuesto de reintentos) está hecho el 2026-09-12 |
 | OBS-3 | Dashboard de estado del pipeline: entidades por estado, tasa de `SAP_ERROR`, profundidad de la DLT | proyecto | 💡 | Depende de OBS-1 |
 | OBS-4 | Logs estructurados en JSON con `traceId` correlado | transversal | 🚧 parcial 2026-09-12 | El formato ECS (JSON) ya se activa con `LOGGING_STRUCTURED_FORMAT_CONSOLE=ecs` (nativo de Boot, sin código). El `traceId` llegará con las trazas (OBS-2, decisión D-7) |
 
@@ -49,16 +49,16 @@
 | OPS-3 | Decidir el **sufijo del topic DLT** | proyecto | ✅ 2026-09-11 | Decidido: se mantiene el sufijo por defecto de Spring Kafka, **`<topic>-dlt`**, y se corrige la documentación (23 ocurrencias en 13 ficheros). Motivo: fabricar un sufijo propio obliga a configurar el recoverer en cada dominio para no ganar nada; el topic real ya existía con ese nombre y tenía mensajes |
 | OPS-4 | Mapeo fino de errores SAP (código, mensaje, campo) en vez de propagar el HTTP crudo | proyecto | 📋 | Ya listado como brecha; diagnóstico muy pobre cuando SAP rechaza algo |
 | OPS-5 | Saga / compensación entre features | proyecto | 📋 | Un fallo parcial deja SAP a medias. Es la brecha estructural más grande del sistema |
-| OPS-7 | **Artefacto de despliegue** (Dockerfile / Helm / `mta.yaml`) y entorno de producción | proyecto | 📋 | Depende de decidir la plataforma (D-9: contenedores propios, BTP Cloud Foundry, Kubernetes...). `spring-boot:build-image` ya genera una imagen OCI con buildpacks; los perfiles Spring `local/test/prod` que pedía la auditoría **no** se adoptan: la configuración va por variables de entorno (`scripts/env/*.env`) |
+| OPS-7 | **Gestión de secretos en Kubernetes** (sealed-secrets, External Secrets Operator o Vault) | proyecto | 📋 | D-9 decidida (Kubernetes, ADR-0008, `deploy/k8s`). Queda cómo llegan los `Secret` al clúster (D-9 resuelta: contenedores propios, BTP Cloud Foundry, Kubernetes...). `spring-boot:build-image` ya genera una imagen OCI con buildpacks; los perfiles Spring `local/test/prod` que pedía la auditoría **no** se adoptan: la configuración va por variables de entorno (`scripts/env/*.env`) |
 | OPS-6 | Reevaluar el **VDM del SAP Cloud SDK** como transporte hacia S/4 | proyecto | 📋 | Decidido en [ADR-0001](architecture/adr/0001-transporte-http-sap-restclient.md): hoy `RestClient`. Disparador: soporte oficial de Boot 4 por el SDK, o que reimplementar OData V2 (ETag, deep insert, `$batch`) en la Fase 3 cueste más que adoptar el VDM |
 
 ## Seguridad
 
 | # | Mejora | Ámbito | Estado | Notas |
 |---|---|---|---|---|
-| SEC-1 | **Autenticación en las APIs REST** de `customer` y `article` | proyecto | 📋 | Bloqueante para exponerlas a terceros o a un MCP |
+| SEC-1 | **Autenticación en las APIs REST** de `customer` y `article` | proyecto | ✅ 2026-09-12 | Keycloak (resource server JWT), roles `sap-read/write/admin/superadmin/external-read`, `@PreAuthorize` por endpoint ([`sdd/common/seguridad-api.md`](sdd/common/seguridad-api.md)) |
 | SEC-2 | Rotación y gestión de secretos SAP (Vault o equivalente) | transversal | 💡 | Hoy van por variables de entorno; suficiente en local, no en test/producción |
-| SEC-3 | Ofuscación de PII en logs y en respuestas de consulta | proyecto | 💡 | Prerrequisito del MCP ([`tools-integrations/MCP.md`](tools-integrations/MCP.md)) |
+| SEC-3 | Ofuscación de PII en logs (en respuestas a `external-read` ya se enmascara) | proyecto | 🚧 parcial 2026-09-12 | Prerrequisito del MCP ([`tools-integrations/MCP.md`](tools-integrations/MCP.md)) |
 | SEC-5 | Sin fallback silencioso a token stub y sin secretos en los YAML empaquetados (auditoría A8) | proyecto | ✅ 2026-09-12 | `sap.auth.allow-stub` (default `false`) hace que la app no arranque sin credenciales SAP; usuario/clave de BD legacy y `trustServerCertificate` salen del jar y los aporta `scripts/env/*.env`. Adelantado de la Fase 4 como prerrequisito del tenant de test |
 | SEC-4 | Revisar `sap-sdk-client/`: tiene URL de tenant real, usuario y contraseña en claro | proyecto | 📋 | Es un spike desechable, pero la credencial hay que rotarla igualmente |
 

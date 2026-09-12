@@ -355,6 +355,11 @@ MinIO): `cd external-services && docker compose up -d`.
 - **Cambio en `SapClient`**: nuevo método HTTP → implementar en
   `RestClientSapClient` vía su `exchange()` interno y añadir el AC al spec
   `docs/sdd/common/resiliencia-cliente-sap.md`.
+- **Endpoint nuevo**: declara quién puede llamarlo en el propio método con
+  `@PreAuthorize("hasRole('" + ApiRoles.X + "')")`; sin ello el build falla
+  (`EndpointsDeclareAccessTest`). Si devuelve PII y lo puede llamar
+  `sap-external-read`, enmascara antes de responder (`AccessScope`, `PiiMasker`).
+  Spec: [`docs/sdd/common/seguridad-api.md`](docs/sdd/common/seguridad-api.md).
 - **Nueva feature de un dominio**: no copies un `Sync<Feature>UseCase`. Declara
   el puerto SAP y el validador y construye un `FeatureSyncPipeline<D>`
   (`common/application`); el orquestador la recibe como `CustomerFeatureSync`.
@@ -388,6 +393,8 @@ si algo ya está escrito, enlázalo.
 | qué se rompió, por qué y qué patrón se repite (fingerprints) | [`docs/incidencias/`](docs/incidencias/README.md) |
 | operar el sistema: runbooks y aptitud para producción | [`docs/operacion/`](docs/operacion/RUNBOOKS.md) |
 | primera sesión contra el tenant SAP de test | [`docs/testing/CHECKLIST-TENANT-SAP.md`](docs/testing/CHECKLIST-TENANT-SAP.md) |
+| qué crear en Keycloak y cómo probar la API con token | [`docs/tools-integrations/KEYCLOAK.md`](docs/tools-integrations/KEYCLOAK.md) |
+| desplegar en Kubernetes (test y prod) | [`deploy/README.md`](deploy/README.md) |
 | stack y decisiones técnicas | [`docs/architecture/TECH.md`](docs/architecture/TECH.md) |
 | flujos con nombres de clase para navegar el código | [`docs/architecture/FLOWS.md`](docs/architecture/FLOWS.md) |
 | patrones de integración SAP (implementado vs propuesto) | [`docs/architecture/INTEGRATION-PATTERNS.md`](docs/architecture/INTEGRATION-PATTERNS.md) |

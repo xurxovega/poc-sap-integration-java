@@ -6,7 +6,9 @@ import com.poc.sap.common.domain.OperationType;
 import com.poc.sap.common.domain.SyncState;
 import com.poc.sap.customer.application.general.SyncCustomerUseCase;
 import com.poc.sap.customer.application.general.ValidateCustomerUseCase;
+import com.poc.sap.common.security.ApiRoles;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
@@ -14,6 +16,8 @@ import java.util.Map;
 /**
  * REST controller del dominio Customer (TECH.md §6).
  * Entrada alternativa (ingesta por API). Reusa el mismo use case que CDC/Kafka.
+ * Acceso: rol WRITE o superior (sdd/common/seguridad-api.md §5): dispara
+ * escrituras facturables en S/4.
  */
 @RestController
 @RequestMapping("/customers")
@@ -29,6 +33,7 @@ public class SyncCustomerController {
     }
 
     @PostMapping("/sync")
+    @PreAuthorize("hasRole('" + ApiRoles.WRITE + "')")
     public ResponseEntity<Map<String, Object>> sync(@RequestBody SyncRequest req) {
         IngestionMessage msg = new IngestionMessage(
                 req.entityId(),
@@ -44,6 +49,7 @@ public class SyncCustomerController {
     }
 
     @PostMapping("/validate")
+    @PreAuthorize("hasRole('" + ApiRoles.WRITE + "')")
     public ResponseEntity<Map<String, Object>> validate(@RequestBody ValidateRequest req) {
         SyncState state = validateUseCase.execute(req.entityId(), req.payloadHash());
         return ResponseEntity.ok(Map.of(

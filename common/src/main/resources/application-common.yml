@@ -1,6 +1,17 @@
 # Configuracion comun SAP y observabilidad (TECH.md §8, §9)
 # Cada dominio sobreescribe lo que necesite en su application.yml.
 
+app:
+  security:
+    # true (por defecto): las APIs exigen un JWT de Keycloak y cada endpoint declara
+    # con @PreAuthorize quien puede llamarlo. false: todo abierto, solo para el
+    # entorno local con el SAP simulado (scripts/env/local.env).
+    enabled: ${APP_SECURITY_ENABLED:true}
+    keycloak:
+      # Cliente de Keycloak cuyos roles de cliente (resource_access.<client>.roles)
+      # se suman a los del realm.
+      client-id: ${KEYCLOAK_CLIENT_ID:sap-integration}
+
 sap:
   odata:
     address:
@@ -78,9 +89,21 @@ management:
       # Un valor por app (customer-app / article-app); antes era el mismo en las
       # dos y sus series se mezclaban (auditoria A9).
       application: ${spring.application.name}
-  # Trazas distribuidas: pendiente de soporte Boot 4 del starter OTel.
-  # Mientras tanto, arrancar con el OpenTelemetry javaagent y las variables
-  # OTEL_EXPORTER_OTLP_ENDPOINT / OTEL_SERVICE_NAME.
+  # Trazas distribuidas (ADR-0009): starter oficial de OpenTelemetry de Boot 4.
+  # Apagadas por defecto; con TRACING_ENABLED=true exportan por OTLP/HTTP al
+  # colector o Tempo indicado y el traceId aparece en los logs (ECS).
+  tracing:
+    enabled: ${TRACING_ENABLED:false}
+    sampling:
+      probability: ${TRACING_SAMPLING:1.0}
+  otlp:
+    tracing:
+      export:
+        enabled: ${TRACING_ENABLED:false}
+      endpoint: ${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT:http://localhost:4318/v1/traces}
+    metrics:
+      export:
+        enabled: false   # las metricas las recoge Prometheus por scraping
 
 server:
   # Parada ordenada: se dejan terminar las peticiones y los mensajes en curso
@@ -88,6 +111,12 @@ server:
   shutdown: graceful
 
 spring:
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          # https://<keycloak>/realms/<realm>. Obligatorio con app.security.enabled=true.
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:}
   lifecycle:
     timeout-per-shutdown-phase: ${SHUTDOWN_TIMEOUT:30s}
   kafka:

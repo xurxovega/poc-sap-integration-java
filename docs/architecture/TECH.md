@@ -163,6 +163,19 @@ destino y con qué mapeo; los mapeos son parte del dominio, no del shared kernel
   en el módulo `sap-api-models` (openapi-generator del SAP Cloud SDK);
   serialización con `SapJsonMapper` (NON_NULL, sin wrapper `d` en peticiones).
 
+## 8b. Seguridad de las APIs
+
+Spec: [`../sdd/common/seguridad-api.md`](../sdd/common/seguridad-api.md); decisión: [ADR-0007](adr/0007-keycloak-como-proveedor-de-identidad-de-las-apis.md).
+
+- Spring Security como **resource server OAuth2**: JWT de Keycloak
+  (`KEYCLOAK_ISSUER_URI`); roles de realm y de cliente → `ROLE_SAP_*` con
+  jerarquía superadmin ⊃ admin ⊃ write ⊃ read; `sap-external-read` aparte.
+- El acceso se declara **en cada endpoint** con `@PreAuthorize`;
+  `EndpointsDeclareAccessTest` (ArchUnit) rompe el build si falta.
+- PII enmascarada (`PiiMasker`) para `external-read`; `diff` solo con `read`.
+- `health`/`info`/`prometheus` sin token; resto de actuator, `admin`;
+  `show-details: when-authorized`. `APP_SECURITY_ENABLED=false` solo en local.
+
 ## 9. Observabilidad
 
 Spec: [`../sdd/common/observabilidad.md`](../sdd/common/observabilidad.md).
@@ -183,9 +196,12 @@ Spec: [`../sdd/common/observabilidad.md`](../sdd/common/observabilidad.md).
 - **Logs estructurados**: formato ECS (JSON) nativo de Boot activable con
   `LOGGING_STRUCTURED_FORMAT_CONSOLE=ecs`; en local consola legible. La
   correlación por `traceId` llega con las trazas.
-- **Trazas distribuidas: pendientes** de la decisión D-7 (starter oficial de
-  OpenTelemetry para Boot 4 o javaagent) y de un colector (backlog OBS-2). El
-  starter de terceros (2.x) solo soporta Boot 3 y rompe el arranque.
+- **Trazas distribuidas** ([ADR-0009](adr/0009-trazas-con-el-starter-oficial-de-opentelemetry.md)):
+  `spring-boot-starter-opentelemetry` (oficial de Boot 4) en `common`, apagado
+  por defecto; `TRACING_ENABLED=true` + `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT`
+  cuando exista Tempo. Prometheus, Grafana y Loki los aporta la plataforma.
+- **Despliegue**: Kubernetes, dos clústeres, Kustomize en `deploy/k8s`
+  ([ADR-0008](adr/0008-kubernetes-como-plataforma-de-despliegue.md), [`../../deploy/README.md`](../../deploy/README.md)).
 
 ## 10. Testing
 

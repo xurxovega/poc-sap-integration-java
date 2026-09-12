@@ -112,6 +112,7 @@ Capacidades transversales del shared kernel, no features de negocio.
 | Máquina de estados de sincronización | [`maquina-de-estados.md`](common/maquina-de-estados.md) | ✅ | ✅ implementada (`SyncStateMachine`) |
 | Idempotencia, dedupe y consistencia de la imagen | [`idempotencia-y-dedupe.md`](common/idempotencia-y-dedupe.md) | ✅ | ✅ implementada: dedupe contra el último `SENT_SAP`, imagen tras el ACK, histórico por intento |
 | Cliente SAP: transporte, resiliencia y CSRF | [`resiliencia-cliente-sap.md`](common/resiliencia-cliente-sap.md) | ✅ | ✅ implementada (`RestClientSapClient`, ADR-0001) |
+| Seguridad de las APIs REST (Keycloak, roles por endpoint, PII enmascarada) | [`seguridad-api.md`](common/seguridad-api.md) | ✅ | ✅ implementada; pendiente de probar contra el Keycloak corporativo |
 | Autenticación hacia SAP (OAuth2/basic, sin stub silencioso) | [`autenticacion-sap.md`](common/autenticacion-sap.md) | ✅ | ✅ implementada (`BtpAuthProvider`, `S4NativeAuthProvider`; `sap.auth.allow-stub`) |
 | Observabilidad y operación del pipeline | [`observabilidad.md`](common/observabilidad.md) | ✅ | ⚠️ métricas (estado, etapa, HTTP SAP, Resilience4j), parada ordenada y presupuesto de reintentos hechos; trazas pendientes de D-7 |
 
@@ -155,6 +156,8 @@ Estado de las brechas detectadas sobre el código real.
 | README decía «wrapper incluido» y no existía; surefire sin versión resolvía distinto sin wrapper (A24) | `./mvnw` con Maven 3.9.9 fijado en `.mvn/wrapper/maven-wrapper.properties`; la CI lo usa; `maven-enforcer` exige Maven ≥ 3.9 y JDK ≥ 25 | 2026-09-12 |
 | Máquina de estados descrita 8 veces, 4 copias desactualizadas (A17) | Fuente única declarada: [`common/maquina-de-estados.md`](common/maquina-de-estados.md) §4/§6; OVERVIEW §5, AGENTS, GLOSSARY y MAPA enlazan a ella y se corrigen desde allí | 2026-09-12 |
 | `application` con Spring y Micrometer en 16/16 use cases (A4) | `@Service` fuera; `MetricsPort` en `common/domain/port`; wiring en `bootstrap/CustomerUseCaseConfig` y `ArticleUseCaseConfig`; `ApplicationPurityTest` (ArchUnit) lo vigila | 2026-09-12 |
+| **APIs REST y actuator sin autenticación; PII expuesta** (B4) | Resource server JWT de Keycloak (`common/security`), roles `sap-*` con jerarquía, `@PreAuthorize` en cada endpoint (ArchUnit lo exige), `PiiMasker` para `external-read`, actuator solo admin salvo health/info/prometheus, `show-details: when-authorized`. Spec [`common/seguridad-api.md`](common/seguridad-api.md), [ADR-0007](../architecture/adr/0007-keycloak-como-proveedor-de-identidad-de-las-apis.md) | 2026-09-12 |
+| APIs REST sin autenticación (fila de brechas abiertas, más abajo) | Cerrada por la fila anterior | 2026-09-12 |
 | ~900 LOC duplicadas: 4 `Sync<Feature>UseCase` idénticos, 14 copias de `transition()`, 2 `KafkaErrorHandlingConfig` (A5, parcial) | `common/application/FeatureSyncPipeline<D>` y `SyncCycleRecorder`; los use cases de feature son envoltorios de una línea; `common/kafka/KafkaErrorHandlingConfig` único. **Quedan** los pares `*HistoryUseCase`/`*HistoryController`, indexers e image stores por dominio (menos duplicación, más riesgo de generics sobre documentos): backlog | 2026-09-12 |
 | 27 `@Mock` sobre clases concretas (A20, parcial) | El orquestador depende de `CustomerFeatureSync` (puerto) y sus tests lo mockean como interfaz; los use cases de feature se prueban con `InMemoryStateRepo` (máquina real) | 2026-09-12 |
 | Código muerto: `IngestionPort` sin implementaciones, `sap.odata.enabled` y `sap.integration.mode` sin lector, `IndexCustomerUseCase` sin llamadores (A18) | Borrados. `DeleteMandateUseCase` se conserva: tiene spec ([`customer/baja-mandato-sepa.md`](customer/baja-mandato-sepa.md)) y llegará su evento | 2026-09-12 |
@@ -186,7 +189,6 @@ Estado de las brechas detectadas sobre el código real.
 | Mandatos no llegan desde el legacy | `SepaMandateODataAdapter` listo, `DeleteMandateUseCase` sin llamador | BANKING incompleto: solo llegan `mandateIds` |
 | Sin mapeo fino de errores SAP | `RestClientSapClient` | diagnóstico deficiente |
 | `supplier` vacío + MinIO sin uso | `SupplierApplicationPlaceholder`, compose | dominio/infra no operativos |
-| APIs REST sin autenticación | controllers de `customer`/`article` | bloqueante para exponer las APIs a terceros o a un MCP ([`../tools-integrations/MCP.md`](../tools-integrations/MCP.md) §4) |
 | Servidor MCP para agentes IA (propuesta) | servicio `mcp-server` futuro | requiere autenticación + ofuscación de PII — ver [`../tools-integrations/MCP.md`](../tools-integrations/MCP.md) |
 
 > Esto son **defectos**, con su detalle técnico. Lo mismo contado en lenguaje de

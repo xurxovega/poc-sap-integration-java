@@ -15,7 +15,9 @@ reevaluación. Numeración correlativa `NNNN-titulo-en-kebab.md`.
 | [0004](0004-dos-familias-de-adaptadores-btp-y-odata.md) | Dos familias de adaptadores hacia SAP (BTP propio y OData nativo) tras el mismo puerto | ✅ retroactiva 2026-09-12 |
 | [0005](0005-mysql-para-el-registro-sdd.md) | MySQL para el registro de features SDD | ✅ retroactiva 2026-09-12 |
 | [0006](0006-kafka-connect-debezium-como-cdc.md) | Kafka Connect + Debezium (outbox por triggers) como CDC | ✅ retroactiva 2026-09-12 |
+| [0007](0007-keycloak-como-proveedor-de-identidad-de-las-apis.md) | Keycloak (resource server OAuth2) como identidad de las APIs; acceso declarado por endpoint; PII enmascarada para externos | ✅ aceptada 2026-09-12 |
+| [0008](0008-kubernetes-como-plataforma-de-despliegue.md) | Kubernetes, dos clústeres (test y prod), Kustomize, imagen con buildpacks | ✅ aceptada 2026-09-12 |
+| [0009](0009-trazas-con-el-starter-oficial-de-opentelemetry.md) | Trazas con el starter oficial de OTel de Boot 4, apagadas hasta tener Tempo; Prometheus/Loki los aporta la plataforma | ✅ aceptada 2026-09-12 |
 
 Decisiones **pendientes** del plan de acción que acabarán aquí: D-2 (compensación
-entre features), D-3 (Debezium Server / Event Router SMT), D-4 (OData V4), D-7
-(trazas con OpenTelemetry), D-9 (plataforma de despliegue).
+entre features), D-3 (Debezium Server / Event Router SMT), D-4 (OData V4).

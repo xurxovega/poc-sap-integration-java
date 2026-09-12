@@ -25,8 +25,8 @@ por configuración.
 **Fuera** (y por qué):
 - Recolección y paneles (Prometheus + Grafana): aplazado por decisión del
   usuario (backlog OBS-1, OBS-3).
-- Trazas distribuidas y `traceId` en logs: requieren la decisión D-7 (starter
-  oficial de OpenTelemetry para Boot 4 o javaagent) y un colector (OBS-2).
+- Destino de las trazas (Tempo o colector OTLP): plataforma. El código ya
+  exporta con `TRACING_ENABLED=true` ([ADR-0009](../../architecture/adr/0009-trazas-con-el-starter-oficial-de-opentelemetry.md)).
 - Alertas: dependen de OBS-1.
 
 ## 3. Entrada
@@ -38,7 +38,9 @@ por configuración.
 | `spring.lifecycle.timeout-per-shutdown-phase` | `SHUTDOWN_TIMEOUT` | `30s` | Tiempo para terminar lo que está en curso |
 | `spring.kafka.consumer.properties.max.poll.interval.ms` | `KAFKA_MAX_POLL_INTERVAL_MS` | `900000` | Margen antes de que Kafka expulse al consumidor |
 | `sap.client.calls-per-message` | `SAP_CLIENT_CALLS_PER_MESSAGE` | `5` | Llamadas a SAP que puede provocar un mensaje (cabecera + 4 features) |
-| `logging.structured.format.console` | `LOGGING_STRUCTURED_FORMAT_CONSOLE` | *(vacío: consola legible)* | `ecs` para JSON compatible con ELK |
+| `logging.structured.format.console` | `LOGGING_STRUCTURED_FORMAT_CONSOLE` | *(vacío: consola legible)* | `ecs` para JSON (Loki/ELK) |
+| `management.tracing.enabled` | `TRACING_ENABLED` | `false` | trazas OTLP con el starter oficial de OTel (ADR-0009) |
+| `management.otlp.tracing.endpoint` | `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` | `http://localhost:4318/v1/traces` | Tempo o colector |
 
 ## 4. Reglas de negocio
 
@@ -94,5 +96,6 @@ Este spec **es** la observabilidad del sistema. Lo que falta está en §2 (fuera
 
 | Fecha | Cambio | PR |
 |---|---|---|
+| 2026-09-12 | D-7 (ADR-0009): `spring-boot-starter-opentelemetry` apagado por defecto; `TRACING_ENABLED`/`OTEL_EXPORTER_OTLP_TRACES_ENDPOINT`; exportación OTLP de métricas desactivada (Prometheus por scraping) | — |
 | 2026-09-12 | Fase 7: `MetricsPort` en el dominio; `application` deja de importar Micrometer | — |
 | 2026-09-12 | Spec inicial (plan Fase 5 parcial, auditoría A9/A10). Timer de etapas cableado en ambos orquestadores; timer por intento HTTP y binder de Resilience4j en el cliente SAP; tag `application` por app; `RetryBudgetGuard` con `max.poll.interval.ms` a 15 min; parada ordenada; formato ECS de log por variable de entorno. Trazas: pendientes de D-7 | — |

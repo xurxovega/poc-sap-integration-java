@@ -28,7 +28,9 @@ import static org.assertj.core.api.Assertions.assertThat;
         "spring.kafka.listener.auto-startup=false",
         // credenciales fuera del YAML y stub SAP explicito (sdd/common/autenticacion-sap.md AC-5)
         "SQLSERVER_USER=test", "SQLSERVER_PASSWORD=test",
-        "sap.auth.allow-stub=true"
+        "sap.auth.allow-stub=true",
+        // seguridad activa con un issuer que no se consulta (el decoder es perezoso)
+        "spring.security.oauth2.resourceserver.jwt.issuer-uri=http://localhost:9/realms/test"
 })
 class CustomerMongoDatabaseConfigTest {
 

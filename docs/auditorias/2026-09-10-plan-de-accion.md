@@ -445,13 +445,13 @@ D-1 y D-6 están decididas (arriba). Quedan abiertas:
 
 | ID | Decisión | La necesito antes de |
 |---|---|---|
-| D-2 | Compensación entre features: Spring Modulith, saga propia, o ninguna | Fase 6 |
-| D-7 | Trazas con el starter oficial de OTel | Fase 5 |
+| D-2 | Compensación entre features: Spring Modulith, saga propia, o ninguna. **Qué es**: un cliente se envía a SAP en cuatro llamadas (dirección, fiscal, contacto, banco); si la tercera falla, SAP queda con dos partes nuevas y dos viejas. Compensar = deshacer las dos que sí entraron. Propuesta: **ninguna compensación**; el siguiente evento reenvía y el upsert idempotente (Fase 3) lo hace inocuo | Pendiente de confirmar la propuesta |
+| D-7 | Trazas con el starter oficial de OTel | **Decidida 2026-09-12** ([ADR-0009](../architecture/adr/0009-trazas-con-el-starter-oficial-de-opentelemetry.md)): starter oficial, apagado hasta tener Tempo; Prometheus/Grafana/Loki ya existen |
 | D-3 | Debezium Server vs Kafka Connect; Event Router SMT oficial | Fase 3 (compose del e2e) |
 | D-4 | OData V4 ahora o después | Fase 3 (se diseña para que el cambio sea local) |
 | D-5 | MCP de solo lectura | Después |
 | D-8 | Schema Registry para la outbox | Después |
-| D-9 | Plataforma de despliegue (contenedores propios, BTP Cloud Foundry, Kubernetes) → Dockerfile/Helm/mta | Antes de la primera instalación fuera del equipo de desarrollo |
+| D-9 | Plataforma de despliegue | **Decidida 2026-09-12**: dos clústeres de Kubernetes, test y producción ([ADR-0008](../architecture/adr/0008-kubernetes-como-plataforma-de-despliegue.md), `deploy/k8s`) |
 
 ## Esto no es un PoC: es probablemente la aplicación final
 
@@ -555,11 +555,11 @@ una sesión nueva sepa dónde estamos sin leer el historial de ninguna otra.
 | 1 · Inservible | ✅ hecha | 2026-09-12 | `84a9da4` | pendiente de verificación por otra sesión (verificación en vivo: 3/3 en esta sesión) |
 | 2 · Red de seguridad | ✅ hecha | 2026-09-12 | `299567a` | pendiente de verificación por otra sesión (`mvn verify` y `-pl it verify -Ddocker.available=true` en verde en esta sesión) |
 | 3 · SAP real | 🚧 en curso | | 3.1 transporte `RestClient` + CSRF (ADR-0001, `c07adb0`) · 3.2 contratos banco y mandato SEPA, hechos el 2026-09-12 | |
-| 4 · Seguridad | 🚧 parcial | | A8 adelantado el 2026-09-12 (sin stub silencioso, secretos fuera del YAML) como prerrequisito del tenant; B4 (auth REST/actuator) pendiente | |
-| 5 · Observabilidad | 🚧 parcial | | A9 (métricas, tag, ECS) y A10 (graceful, presupuesto de reintentos) hechos el 2026-09-12; trazas bloqueadas por D-7 | |
+| 4 · Seguridad | ✅ hecha (salvo TLS/enmascarado en logs, SEC-3) | 2026-09-12 | A8 (`b4a8736`) · B4: Keycloak resource server, roles por endpoint, PII enmascarada para externos, actuator protegido (ADR-0007, commit de la Fase 4) | pendiente de verificación por otra sesión y de probar contra el Keycloak corporativo |
+| 5 · Observabilidad | ✅ hecha (trazas apagadas hasta tener Tempo) | 2026-09-12 | A9, A10 (`f6d0af4`); D-7 decidida: starter oficial de OTel, apagado por defecto (ADR-0009); Prometheus/Grafana/Loki los aporta la plataforma | |
 | 6 · Consistencia | ✅ hecha (salvo compensación, D-2) | 2026-09-12 | `2c532a7` + `9e7fd6c` | pendiente de verificación por otra sesión (verificación en vivo 3/3 en esta sesión: imagen intacta con SAP en 500, imagen actualizada tras 2xx, A→B→A reenviado) |
 | 7 · Refactor | ✅ hecha (salvo resto de A5: history/indexers/image stores, DX-8) | 2026-09-12 | A4, A18, A19 (`d9ffce1`) · A5/A20: `FeatureSyncPipeline<D>`, `SyncCycleRecorder`, `KafkaErrorHandlingConfig` común, `CustomerFeatureSync` (`27fbbfc`) | pendiente de verificación por otra sesión |
-| 8 · Supply chain | ✅ hecha (salvo artefacto de despliegue, D-9) | 2026-09-12 | `16b0336` | pendiente de verificación por otra sesión |
+| 8 · Supply chain | ✅ hecha (D-9 decidida: Kubernetes, `deploy/k8s`, ADR-0008) | 2026-09-12 | `16b0336` | pendiente de verificación por otra sesión |
 | 9 · Documentación | 🚧 parcial | | 2026-09-12: ADRs 0002-0006, `docs/incidencias/` (plantilla, fingerprints, 2 post-mortems), `docs/operacion/` (runbooks, aptitud para producción), checklist del tenant, `sdd-registry-check.py`, fuente única de la máquina, glosario (+11 términos), cierre de bloqueantes | |
 
 ## Esfuerzo

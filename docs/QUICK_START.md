@@ -36,6 +36,10 @@ curl -s -X POST http://localhost:8081/customers/sync \
 Si responde `SENT_SAP`, el pipeline completo (legacy → validación → Mongo →
 Elasticsearch → SAP) está funcionando.
 
+> En local las APIs van **sin token** (`APP_SECURITY_ENABLED=false` en
+> `local.env`; la app lo avisa al arrancar). En test y producción exigen un JWT
+> de Keycloak con rol `sap-write` para `/sync` ([`sdd/common/seguridad-api.md`](sdd/common/seguridad-api.md)).
+
 ### Qué levanta y qué no
 
 | | Estado |
@@ -123,7 +127,7 @@ mvn -pl common install -DskipTests
 Recomendable antes de arrancar nada — la suite no necesita Docker:
 
 ```bash
-mvn clean test                        # 298 tests (unit, slice, resiliencia, smoke de contexto)
+mvn clean test                        # 307 tests (unit, slice, resiliencia, smoke de contexto)
 ```
 
 Los smoke `CustomerApplicationContextTest` / `ArticleApplicationContextTest`
@@ -227,7 +231,8 @@ Variables por bloque:
 | SAP BTP | `SAP_BTP_BASE_URL`, `SAP_BTP_TOKEN_URL`, `SAP_BTP_CLIENT_ID`, `SAP_BTP_CLIENT_SECRET` |
 | SAP S/4 | `SAP_S4_BASE_URL`, `SAP_S4_AUTH_TYPE`, `SAP_S4_TOKEN_URL`, `SAP_S4_CLIENT_ID`, `SAP_S4_CLIENT_SECRET`, `SAP_S4_CSRF_ENABLED` |
 | Timeouts | `SAP_CLIENT_CONNECT_TIMEOUT_MS`, `SAP_CLIENT_RESPONSE_TIMEOUT_MS` (súbelos contra remotos; `RetryBudgetGuard` exige que `5 × (intentos × timeout + backoff)` quepa en `KAFKA_MAX_POLL_INTERVAL_MS`, 15 min por defecto) |
-| Operación | `SAP_AUTH_ALLOW_STUB`, `KAFKA_MAX_POLL_INTERVAL_MS`, `SHUTDOWN_TIMEOUT`, `LOGGING_STRUCTURED_FORMAT_CONSOLE=ecs` (logs JSON para ELK) |
+| Operación | `SAP_AUTH_ALLOW_STUB`, `KAFKA_MAX_POLL_INTERVAL_MS`, `SHUTDOWN_TIMEOUT`, `LOGGING_STRUCTURED_FORMAT_CONSOLE=ecs` (logs JSON para Loki/ELK), `TRACING_ENABLED` + `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` |
+| Seguridad de la API | `APP_SECURITY_ENABLED` (`false` en local), `KEYCLOAK_ISSUER_URI`, `KEYCLOAK_CLIENT_ID` ([`tools-integrations/KEYCLOAK.md`](tools-integrations/KEYCLOAK.md)) |
 
 > **Sin credenciales OAuth2 la app no arranca** (`SAP_AUTH_ALLOW_STUB=false`, el
 > default). Contra el mock, `local.env` autoriza el token stub con

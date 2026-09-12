@@ -34,7 +34,7 @@ class CustomerHistoryControllerTest {
 
     @BeforeEach
     void setUp() {
-        mvc = MockMvcBuilders.standaloneSetup(new CustomerHistoryController(useCase)).build();
+        mvc = MockMvcBuilders.standaloneSetup(new CustomerHistoryController(useCase, new com.poc.sap.common.security.AccessScope(com.poc.sap.common.security.ApiRoles.hierarchy()))).build();
     }
 
     @Test

@@ -29,6 +29,8 @@ import static org.assertj.core.api.Assertions.assertThat;
         "POSTGRES_USER=test", "POSTGRES_PASSWORD=test",
         // sin SAP real: token stub declarado de forma explicita
         "sap.auth.allow-stub=true",
+        // seguridad activa con un issuer que no se consulta (el decoder es perezoso)
+        "spring.security.oauth2.resourceserver.jwt.issuer-uri=http://localhost:9/realms/test",
         // sin broker real: los listeners no arrancan
         "spring.kafka.listener.auto-startup=false"
 })

@@ -7,6 +7,8 @@
 
 | Fecha | Capacidad | Cambio |
 |---|---|---|
+| 2026-09-12 | [Seguridad de las APIs REST](seguridad-api.md) | Spec inicial (Fase 4, B4): Keycloak resource server, roles `sap-*` con jerarquía, `@PreAuthorize` obligatorio, PII enmascarada para externos, actuator protegido |
+| 2026-09-12 | [Observabilidad y operación](observabilidad.md) | Trazas: starter oficial de OTel apagado por defecto (ADR-0009, D-7) |
 | 2026-09-12 | [Autenticación hacia SAP](autenticacion-sap.md) | AC-6 `LegacyCredentialsGuard`: placeholder de BD sin resolver = la app no arranca con mensaje claro |
 | 2026-09-12 | [Máquina de estados](maquina-de-estados.md) | Fase 7 (A5): `SyncCycleRecorder` + `FeatureSyncPipeline<D>` en `common/application`; `KafkaErrorHandlingConfig` compartido en `common/kafka` |
 | 2026-09-12 | [Observabilidad y operación](observabilidad.md) | `MetricsPort` en el dominio (Fase 7, A4): los use cases ya no importan Micrometer |

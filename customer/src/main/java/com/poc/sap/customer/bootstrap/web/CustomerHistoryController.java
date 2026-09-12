@@ -1,6 +1,10 @@
 package com.poc.sap.customer.bootstrap.web;
 
+import com.poc.sap.common.security.AccessScope;
+import com.poc.sap.common.security.ApiRoles;
 import com.poc.sap.customer.application.general.CustomerHistoryUseCase;
+import com.poc.sap.customer.domain.Customer;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -26,38 +30,48 @@ import java.util.NoSuchElementException;
  *       cambian entre dos versiones; sin parametros compara la ultima contra
  *       la anterior.</li>
  * </ul>
+ * Acceso (sdd/common/seguridad-api.md §5): historico con READ o EXTERNAL_READ;
+ * a EXTERNAL_READ se le enmascara la PII del snapshot antes de responder; el
+ * diff (valores campo a campo) exige READ.
  */
 @RestController
 @RequestMapping("/customers")
 public class CustomerHistoryController {
 
     private final CustomerHistoryUseCase historyUseCase;
+    private final AccessScope accessScope;
 
-    public CustomerHistoryController(CustomerHistoryUseCase historyUseCase) {
+    public CustomerHistoryController(CustomerHistoryUseCase historyUseCase, AccessScope accessScope) {
         this.historyUseCase = historyUseCase;
+        this.accessScope = accessScope;
     }
 
     @GetMapping("/{id}/history")
+    @PreAuthorize("hasAnyRole('" + ApiRoles.READ + "','" + ApiRoles.EXTERNAL_READ + "')")
     public ResponseEntity<Map<String, Object>> history(
             @PathVariable String id,
             @RequestParam(defaultValue = "false") boolean full) {
+        boolean sensitive = accessScope.canSeeSensitiveData();
         List<Map<String, Object>> versions = historyUseCase.history(id).stream()
                 .map(s -> {
                     Map<String, Object> v = new LinkedHashMap<>();
                     v.put("payloadHash", s.payloadHash());
                     v.put("timestamp", s.timestamp());
                     if (full) {
-                        v.put("snapshot", s.entity());
+                        Customer snapshot = s.entity();
+                        v.put("snapshot", sensitive ? snapshot : PiiMasker.mask(snapshot));
                     }
                     return v;
                 })
                 .toList();
         return ResponseEntity.ok(Map.of(
                 "entityId", id,
-                "versions", versions));
+                "versions", versions,
+                "masked", !sensitive));
     }
 
     @GetMapping("/{id}/history/diff")
+    @PreAuthorize("hasRole('" + ApiRoles.READ + "')")
     public ResponseEntity<CustomerHistoryUseCase.HistoryDiff> diff(
             @PathVariable String id,
             @RequestParam(required = false) String from,

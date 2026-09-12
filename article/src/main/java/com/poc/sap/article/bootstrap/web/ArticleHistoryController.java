@@ -2,7 +2,9 @@ package com.poc.sap.article.bootstrap.web;
 
 import com.poc.sap.article.application.ArticleHistoryUseCase;
 import org.springframework.http.HttpStatus;
+import com.poc.sap.common.security.ApiRoles;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -30,6 +32,7 @@ public class ArticleHistoryController {
     }
 
     @GetMapping("/{id}/history")
+    @PreAuthorize("hasAnyRole('" + ApiRoles.READ + "','" + ApiRoles.EXTERNAL_READ + "')")
     public ResponseEntity<Map<String, Object>> history(
             @PathVariable String id,
             @RequestParam(defaultValue = "false") boolean full) {
@@ -50,6 +53,7 @@ public class ArticleHistoryController {
     }
 
     @GetMapping("/{id}/history/diff")
+    @PreAuthorize("hasAnyRole('" + ApiRoles.READ + "','" + ApiRoles.EXTERNAL_READ + "')")
     public ResponseEntity<ArticleHistoryUseCase.HistoryDiff> diff(
             @PathVariable String id,
             @RequestParam(required = false) String from,

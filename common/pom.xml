@@ -38,6 +38,23 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-data-mongodb</artifactId>
         </dependency>
+        <!-- Trazas distribuidas (ADR-0009, D-7): starter oficial de OpenTelemetry de Boot 4.
+             Desactivadas por defecto (management.tracing.enabled=false); se activan con
+             TRACING_ENABLED=true y un endpoint OTLP (Tempo/colector). -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-opentelemetry</artifactId>
+        </dependency>
+        <!-- Seguridad de las APIs REST: resource server OAuth2 con los JWT de Keycloak
+             (common/security; auditoria B4, ADR-0007). -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-security</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-oauth2-resource-server</artifactId>
+        </dependency>
         <!-- Manejo de errores Kafka compartido (common/kafka), antes duplicado por app. -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

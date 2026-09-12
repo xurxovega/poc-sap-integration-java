@@ -207,6 +207,14 @@ Plataforma de eventos. Recibe mensajes CDC (`outbox.<DOMINIO>`) y eventos direct
 
 Marco de conectores de Kafka en el que corre Debezium (`kafka-connect`, puerto 8083). Los conectores se registran por REST (`scripts/start-all.sh --with-cdc`). Alternativa evaluable: Debezium Server sin Connect (decisión D-3, [ADR-0006](architecture/adr/0006-kafka-connect-debezium-como-cdc.md)).
 
+### Keycloak
+
+Proveedor de identidad corporativo (OpenID Connect). Emite los JWT que las APIs validan como *resource server*; los roles `sap-read`, `sap-write`, `sap-admin`, `sap-superadmin` y `sap-external-read` viajan en el token. Ver [`KEYCLOAK.md`](tools-integrations/KEYCLOAK.md) y [ADR-0007](architecture/adr/0007-keycloak-como-proveedor-de-identidad-de-las-apis.md).
+
+### Kustomize
+
+Herramienta nativa de `kubectl` (`kubectl apply -k`) para componer manifiestos: una **base** común y **overlays** por entorno (`deploy/k8s/overlays/test`, `prod`) que cambian namespace, imagen, réplicas y configuración. Elegida frente a Helm por tamaño del proyecto ([ADR-0008](architecture/adr/0008-kubernetes-como-plataforma-de-despliegue.md)).
+
 ## L
 
 ### Línea de estado por feature
@@ -275,6 +283,10 @@ Patrón que escribe eventos en una tabla outbox transaccionalmente con el cambio
 
 ## P
 
+### `@PreAuthorize` (acceso por endpoint)
+
+Anotación de Spring Security que declara, en el propio método del controller, quién puede llamarlo (`hasRole('SAP_WRITE')`). Es el equivalente Java de los atributos de autorización de .NET. Obligatoria en todo endpoint: lo vigila `EndpointsDeclareAccessTest` (ArchUnit).
+
 ### Parada ordenada (graceful shutdown)
 
 `server.shutdown=graceful`: al detener la app se deja de aceptar trabajo nuevo y se espera (hasta `spring.lifecycle.timeout-per-shutdown-phase`, 30 s) a que terminen las peticiones HTTP y los mensajes Kafka en curso, para no dejar entidades en estados en vuelo.
@@ -328,6 +340,10 @@ Ver **`feature_evento` / `sdd_registry`**.
 ### Resilience4j
 
 Librería de resiliencia (circuit breaker, retry, rate limiter) usada en los clientes SAP actuales. Ver [`TECH.md`](architecture/TECH.md#8-clientes-sap).
+
+### Resource server (OAuth2)
+
+Papel de una API que **valida** tokens emitidos por otro (Keycloak) en vez de autenticar usuarios ella misma: comprueba firma, expiración e issuer y convierte los roles en permisos. Es como se protegen `/customers/**` y `/articles/**` ([`seguridad-api.md`](sdd/common/seguridad-api.md)).
 
 ### `RestClient` (Spring)
 
@@ -409,6 +425,10 @@ Plugins Maven que ejecutan tests: surefire en `test` (`*Test`), failsafe en `int
 ### TDD (Test-Driven Development)
 
 Técnica obligatoria en el repositorio: ningún código de producción se escribe sin un test que **falle antes**, y el ciclo es rojo → verde → refactor, de dentro afuera (`domain` → `application` → `adapters` → `bootstrap`). Ver [`DESARROLLO.md`](architecture/DESARROLLO.md).
+
+### Tempo (Grafana)
+
+Almacén de trazas distribuidas de Grafana, destino natural de las trazas OTLP junto a Prometheus (métricas) y Loki (logs). El código exporta trazas cuando `TRACING_ENABLED=true` apunta a él ([ADR-0009](architecture/adr/0009-trazas-con-el-starter-oficial-de-opentelemetry.md)).
 
 ### Testcontainers
 
