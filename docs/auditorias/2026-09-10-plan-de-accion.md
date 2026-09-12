@@ -518,7 +518,7 @@ una sesión nueva sepa dónde estamos sin leer el historial de ninguna otra.
 | 3 · SAP real | 🚧 en curso | | 3.1 transporte `RestClient` + CSRF (ADR-0001, `c07adb0`) · 3.2 contratos banco y mandato SEPA, hechos el 2026-09-12 | |
 | 4 · Seguridad | 🚧 parcial | | A8 adelantado el 2026-09-12 (sin stub silencioso, secretos fuera del YAML) como prerrequisito del tenant; B4 (auth REST/actuator) pendiente | |
 | 5 · Observabilidad | 🚧 parcial | | A9 (métricas, tag, ECS) y A10 (graceful, presupuesto de reintentos) hechos el 2026-09-12; trazas bloqueadas por D-7 | |
-| 6 · Consistencia | ✅ hecha (salvo compensación, D-2) | 2026-09-12 | commit de la Fase 6 (ver `git log`) | pendiente de verificación por otra sesión |
+| 6 · Consistencia | ✅ hecha (salvo compensación, D-2) | 2026-09-12 | `2c532a7` + fix semconv | pendiente de verificación por otra sesión (verificación en vivo 3/3 en esta sesión: imagen intacta con SAP en 500, imagen actualizada tras 2xx, A→B→A reenviado) |
 | 7 · Refactor | ⬜ pendiente (desbloqueada: Fase 2 cerrada) | | | |
 | 8 · Supply chain | ⬜ pendiente | | | |
 | 9 · Documentación | ⬜ pendiente | | | |

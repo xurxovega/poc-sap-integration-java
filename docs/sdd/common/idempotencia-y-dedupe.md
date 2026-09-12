@@ -91,4 +91,5 @@ Log `INFO` «dedupe» y «sin cambios reales» con `entityId` y hash. Métrica
 
 | Fecha | Cambio | PR |
 |---|---|---|
+| 2026-09-12 | **Verificación en vivo** (customer-app reconstruida, SAP simulado): con SAP en 500 y `city=Vigo` en el legacy, `SAP_ERROR` (seq 68) e imagen intacta en `Bilbao`, con documento de histórico `CUST-001-f6-err-3-<epoch>` con `Vigo`; al restaurar SAP, `SENT_SAP` (seq 76) e imagen `Vigo`; secuencia A→B→A (`f6-ok-4` → `f6-ok-5` → `f6-ok-4`): el tercer evento abrió ciclo (seq 90-92), hizo 4 POST a SAP y dejó la imagen en `Vigo`. Hallazgo colateral: la primera escritura en Elasticsearch fallaba con `ClassNotFoundException: io.opentelemetry.semconv.DbAttributes` (ver `sdd/README.md` §6) | — |
 | 2026-09-12 | Spec inicial (plan Fase 6, auditoría A1/A31 e imagen antes del ACK). Dedupe contra el **último** `SENT_SAP`; imagen persistida solo tras el ACK de SAP; un documento de histórico por intento; semántica explícita del atajo «sin cambios reales» | — |

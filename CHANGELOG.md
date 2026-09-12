@@ -33,6 +33,9 @@ identifican por fecha.
   acepta.
 - Un reenvío tras un fallo de SAP **sobrescribía** la versión anterior en el
   histórico. Ahora cada intento es una versión distinta y el rastro se conserva.
+- Tras el salto a Spring Boot 4.1, la **primera escritura en el histórico**
+  (Elasticsearch) fallaba por una librería incompatible. Detectado en la
+  verificación en vivo y corregido; ninguna prueba automática lo cubría.
 
 #### Pendiente
 

@@ -104,6 +104,7 @@ un proceso murió a mitad.
 
 | Fecha | Cambio | PR |
 |---|---|---|
+| 2026-09-12 | Verificación en vivo de R-1 y R-8: ver [`../common/idempotencia-y-dedupe.md`](../common/idempotencia-y-dedupe.md) §10 (SAP_ERROR sin tocar la imagen, A→B→A reenviado) | — |
 | 2026-09-12 | Fase 6 del plan (A1, A31, imagen antes del ACK): R-1 dedupe contra el último `SENT_SAP`; R-8 imagen solo tras `SENT_SAP` e histórico con un documento por intento. AC-7 | — |
 | 2026-09-12 | **Verificación en vivo** de AC-4 y AC-6: `CUST-001` atascado en `SENDING_SAP` se re-sincronizó abriendo ciclo; con SAP devolviendo 500 un cambio real por CDC terminó en `SAP_ERROR` y el evento siguiente abrió ciclo (`RECEIVED`, seq 17) y llegó a `SENT_SAP` (seq 24). Antes moría en la DLT | — |
 | 2026-09-11 | Spec inicial, escrito al abordar B1/B12 de la auditoría: el agregado en `SAP_ERROR` no volvía a sincronizarse (`SAP_ERROR → RECEIVED` no era transición permitida) y un fallo de infraestructura tras `VALID` dejaba la entidad colgada. Se introduce la regla R-5 (un evento nuevo siempre abre ciclo) y R-6 | — |
