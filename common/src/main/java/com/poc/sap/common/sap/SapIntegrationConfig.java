@@ -6,6 +6,10 @@ import com.poc.sap.common.sap.odata.S4CsrfTokenProvider;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerConfig;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
 import io.github.resilience4j.core.IntervalFunction;
+import io.github.resilience4j.micrometer.tagged.TaggedCircuitBreakerMetrics;
+import io.github.resilience4j.micrometer.tagged.TaggedRetryMetrics;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.binder.MeterBinder;
 import io.github.resilience4j.retry.RetryConfig;
 import io.github.resilience4j.retry.RetryRegistry;
 import org.springframework.beans.factory.ObjectProvider;
@@ -85,7 +89,8 @@ public class SapIntegrationConfig {
                                @Value("${sap.client.connect-timeout-ms:3000}") long connectTimeoutMs,
                                @Value("${sap.client.response-timeout-ms:20000}") long responseTimeoutMs,
                                @Value("${sap.s4.csrf.fetch-path:/sap/opu/odata/sap/API_BUSINESS_PARTNER/A_BusinessPartner}") String csrfFetchPath,
-                               ObjectProvider<CsrfTokenProvider> csrfProvider) {
+                               ObjectProvider<CsrfTokenProvider> csrfProvider,
+                               ObjectProvider<MeterRegistry> meterRegistry) {
         return new RestClientSapClient(
                 sapAuthProviders,
                 btpBaseUrl,
@@ -95,6 +100,21 @@ public class SapIntegrationConfig {
                 csrfProvider.getIfAvailable(),
                 new RestClientSapClient.SapClientTimeouts(
                         Duration.ofMillis(connectTimeoutMs), Duration.ofMillis(responseTimeoutMs)),
-                csrfFetchPath);
+                csrfFetchPath,
+                meterRegistry.getIfAvailable());
+    }
+
+    /**
+     * Metricas de Resilience4j (resilience4j.retry.calls, resilience4j.circuitbreaker.state,
+     * ...) para el retry y el circuit breaker "sap" (sdd/common/observabilidad.md R-3;
+     * auditoria A9: sin binder, el estado del circuito era invisible).
+     */
+    @Bean
+    public MeterBinder sapResilienceMetrics(RetryRegistry retryRegistry,
+                                            CircuitBreakerRegistry circuitBreakerRegistry) {
+        return registry -> {
+            TaggedRetryMetrics.ofRetryRegistry(retryRegistry).bindTo(registry);
+            TaggedCircuitBreakerMetrics.ofCircuitBreakerRegistry(circuitBreakerRegistry).bindTo(registry);
+        };
     }
 }

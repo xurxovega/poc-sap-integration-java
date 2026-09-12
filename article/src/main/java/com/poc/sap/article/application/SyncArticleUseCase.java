@@ -18,6 +18,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.Instant;
 import java.util.Optional;
+import java.util.function.Supplier;
 
 /**
  * Use case principal de Article: fetch → validate → index → send to SAP
@@ -66,7 +67,7 @@ public class SyncArticleUseCase {
         beginCycle(message, SyncState.RECEIVED);
         transition(message, SyncState.RECEIVED, SyncState.FETCHING);
 
-        Optional<Article> fetched = legacyRepo.fetch(message.entityId());
+        Optional<Article> fetched = timed("fetch", () -> legacyRepo.fetch(message.entityId()));
         if (fetched.isEmpty()) {
             transition(message, SyncState.FETCHING, SyncState.ERROR);
             return SyncState.ERROR;
@@ -74,7 +75,7 @@ public class SyncArticleUseCase {
         Article article = fetched.get();
 
         transition(message, SyncState.FETCHING, SyncState.VALIDATING);
-        ValidationResult validation = ArticleValidations.validate(article);
+        ValidationResult validation = timed("validate", () -> ArticleValidations.validate(article));
         if (!validation.valid()) {
             log.warn("Article invalido entityId={} errors={}", message.entityId(), validation.errors());
             transition(message, SyncState.VALIDATING, SyncState.INVALID);
@@ -95,12 +96,15 @@ public class SyncArticleUseCase {
             }
 
             transition(message, SyncState.VALID, SyncState.INDEXING);
-            imageStore.save(article.id(), article);
-            historyIndexer.index(article.id(), article, message.payloadHash());
+            timed("index", () -> {
+                imageStore.save(article.id(), article);
+                historyIndexer.index(article.id(), article, message.payloadHash());
+                return null;
+            });
             transition(message, SyncState.INDEXING, SyncState.INDEXED);
 
             transition(message, SyncState.INDEXED, SyncState.SENDING_SAP);
-            var response = sapOutbound.send(article.id(), message.payloadHash(), article);
+            var response = timed("send", () -> sapOutbound.send(article.id(), message.payloadHash(), article));
             SyncState finalState = response.isSuccess()
                     ? SyncState.SENT_SAP
                     : SyncState.SAP_ERROR;
@@ -112,6 +116,16 @@ public class SyncArticleUseCase {
         } catch (RuntimeException e) {
             markError(message, e);
             throw e;
+        }
+    }
+
+    /** Duracion de cada etapa en sap_sync_stage_duration (sdd/common/observabilidad.md R-2). */
+    private <T> T timed(String stage, Supplier<T> body) {
+        long start = System.nanoTime();
+        try {
+            return body.get();
+        } finally {
+            metrics.recordStageDuration(DOMAIN, stage, (System.nanoTime() - start) / 1_000_000);
         }
     }
 

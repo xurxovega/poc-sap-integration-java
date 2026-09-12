@@ -9,6 +9,7 @@ import io.github.resilience4j.circuitbreaker.CircuitBreaker;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
 import io.github.resilience4j.retry.Retry;
 import io.github.resilience4j.retry.RetryRegistry;
+import io.micrometer.core.instrument.MeterRegistry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpHeaders;
@@ -64,6 +65,7 @@ public class RestClientSapClient implements SapClient {
     private final CsrfTokenProvider csrfProvider;
     private final String s4BaseUrl;
     private final String csrfFetchPath;
+    private final MeterRegistry meterRegistry;
 
     public RestClientSapClient(Map<SapDestination, SapAuthProvider> authProviders,
                                String btpBaseUrl,
@@ -73,6 +75,25 @@ public class RestClientSapClient implements SapClient {
                                CsrfTokenProvider csrfProvider,
                                SapClientTimeouts timeouts,
                                String csrfFetchPath) {
+        this(authProviders, btpBaseUrl, s4BaseUrl, retryRegistry, cbRegistry, csrfProvider, timeouts,
+                csrfFetchPath, null);
+    }
+
+    /**
+     * @param meterRegistry registro Micrometer para {@code sap_client_request_duration}
+     *                      (una muestra por intento HTTP, con destino, metodo y
+     *                      resultado); {@code null} desactiva la metrica.
+     */
+    public RestClientSapClient(Map<SapDestination, SapAuthProvider> authProviders,
+                               String btpBaseUrl,
+                               String s4BaseUrl,
+                               RetryRegistry retryRegistry,
+                               CircuitBreakerRegistry cbRegistry,
+                               CsrfTokenProvider csrfProvider,
+                               SapClientTimeouts timeouts,
+                               String csrfFetchPath,
+                               MeterRegistry meterRegistry) {
+        this.meterRegistry = meterRegistry;
         this.authProviders = authProviders;
         this.retry = retryRegistry.retry("sap");
         this.circuitBreaker = cbRegistry.circuitBreaker("sap");
@@ -167,12 +188,35 @@ public class RestClientSapClient implements SapClient {
             request.contentType(MediaType.APPLICATION_JSON).body(body != null ? body : "{}");
         }
 
-        RawResponse response = request.exchange((req, res) -> new RawResponse(
-                res.getStatusCode().value(), readBody(res.getBody()), res.getHeaders()));
-        if (response.status() >= 500) {
-            throw new SapServerException(response.status(), response.body());
+        long start = System.nanoTime();
+        String outcome = "transport_error";
+        try {
+            RawResponse response = request.exchange((req, res) -> new RawResponse(
+                    res.getStatusCode().value(), readBody(res.getBody()), res.getHeaders()));
+            outcome = outcomeOf(response.status());
+            if (response.status() >= 500) {
+                throw new SapServerException(response.status(), response.body());
+            }
+            return response;
+        } finally {
+            recordRequest(destination, method, outcome, System.nanoTime() - start);
         }
-        return response;
+    }
+
+    /** Una muestra por intento HTTP real (los reintentos cuentan cada uno), spec observabilidad R-3. */
+    private void recordRequest(SapDestination destination, HttpMethod method, String outcome, long nanos) {
+        if (meterRegistry == null) {
+            return;
+        }
+        meterRegistry.timer("sap_client_request_duration",
+                        "destination", destination.name(),
+                        "method", method.name(),
+                        "outcome", outcome)
+                .record(Duration.ofNanos(nanos));
+    }
+
+    private static String outcomeOf(int status) {
+        return status >= 500 ? "5xx" : status >= 400 ? "4xx" : status >= 200 ? "2xx" : "other";
     }
 
     private static String readBody(InputStream in) {

@@ -20,6 +20,33 @@ identifican por fecha.
 
 ## [Sin publicar]
 
+### 2026-09-12 — Operación y métricas (Fase 5 de la auditoría, parcial)
+
+#### Añadido
+
+- Métricas nuevas para operar el sistema: cuánto tarda cada etapa del proceso
+  (leer del origen, validar, guardar, enviar), cuánto tarda cada llamada a SAP y
+  con qué resultado, y en qué estado está el cortacircuitos hacia SAP. Antes
+  solo se contaban entidades por estado.
+- Cada aplicación etiqueta sus métricas con su propio nombre; antes las dos se
+  mezclaban.
+- Los registros de actividad pueden emitirse en formato JSON estándar (ECS)
+  para el stack ELK, activándolo por configuración.
+
+#### Cambiado
+
+- **Parada ordenada**: al detener una aplicación se dejan terminar las
+  peticiones y los mensajes en curso en vez de cortarlos.
+- Se ha ampliado el margen que Kafka concede para procesar un mensaje, y la
+  aplicación comprueba al arrancar que los reintentos hacia SAP caben en ese
+  margen. Con la configuración anterior, un SAP degradado podía provocar que
+  Kafka expulsara al consumidor una y otra vez.
+
+#### Pendiente
+
+- Trazas distribuidas (seguir una operación entre sistemas): a la espera de
+  decidir la integración con OpenTelemetry (D-7).
+
 ### 2026-09-12 — Sin credenciales, la aplicación no arranca (adelanto de la Fase 4 de la auditoría)
 
 #### Cambiado

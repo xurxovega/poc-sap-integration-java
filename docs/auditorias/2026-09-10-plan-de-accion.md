@@ -312,6 +312,17 @@ correspondencia de `SEPAMandateStatus` (1/3/4), `SenderType=BUS1006`,
   SAP degradado).
 - Prometheus + Grafana: **ya aplazado por ti**; queda aquí como opcional.
 
+**Avance (12-09-2026).** Hecho: `recordStageDuration` cableado en ambos
+orquestadores (`fetch`/`validate`/`index`/`send`); `sap_client_request_duration`
+por intento HTTP; `MeterBinder` de Resilience4j para retry y circuit breaker
+`sap`; tag `application` = `${spring.application.name}`; `server.shutdown=graceful`
+(30 s); `max.poll.interval.ms` a 15 min con `RetryBudgetGuard` (peor caso por
+mensaje 5,1 min con los defaults; falla al arrancar si no cabe); formato ECS de
+log con `LOGGING_STRUCTURED_FORMAT_CONSOLE=ecs`. Spec `common/observabilidad.md`.
+**Queda**: trazas distribuidas y `traceId` en logs, bloqueadas por **D-7**
+(starter oficial de OTel para Boot 4 vs javaagent) y por el colector (OBS-2);
+Prometheus + Grafana aplazados por ti.
+
 ---
 
 ## Fase 6 · Consistencia del estado
@@ -497,7 +508,7 @@ una sesión nueva sepa dónde estamos sin leer el historial de ninguna otra.
 | 2 · Red de seguridad | ✅ hecha | 2026-09-12 | `299567a` | pendiente de verificación por otra sesión (`mvn verify` y `-pl it verify -Ddocker.available=true` en verde en esta sesión) |
 | 3 · SAP real | 🚧 en curso | | 3.1 transporte `RestClient` + CSRF (ADR-0001, `c07adb0`) · 3.2 contratos banco y mandato SEPA, hechos el 2026-09-12 | |
 | 4 · Seguridad | 🚧 parcial | | A8 adelantado el 2026-09-12 (sin stub silencioso, secretos fuera del YAML) como prerrequisito del tenant; B4 (auth REST/actuator) pendiente | |
-| 5 · Observabilidad | ⬜ pendiente | | | |
+| 5 · Observabilidad | 🚧 parcial | | A9 (métricas, tag, ECS) y A10 (graceful, presupuesto de reintentos) hechos el 2026-09-12; trazas bloqueadas por D-7 | |
 | 6 · Consistencia | ⬜ pendiente | | | |
 | 7 · Refactor | ⬜ pendiente (desbloqueada: Fase 2 cerrada) | | | |
 | 8 · Supply chain | ⬜ pendiente | | | |

@@ -25,6 +25,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.BiFunction;
+import java.util.function.Supplier;
 
 /**
  * Orchestrador general del dominio Customer (OVERVIEW.md §2, §5; TECH.md §6).
@@ -103,7 +104,7 @@ public class SyncCustomerUseCase {
         beginCycle(message, SyncState.RECEIVED);
         transition(message, SyncState.RECEIVED, SyncState.FETCHING);
 
-        Optional<Customer> fetched = legacyRepo.fetch(message.entityId());
+        Optional<Customer> fetched = timed("fetch", () -> legacyRepo.fetch(message.entityId()));
         if (fetched.isEmpty()) {
             transition(message, SyncState.FETCHING, SyncState.ERROR);
             return SyncState.ERROR;
@@ -111,7 +112,7 @@ public class SyncCustomerUseCase {
         Customer customer = fetched.get();
 
         transition(message, SyncState.FETCHING, SyncState.VALIDATING);
-        var validation = CustomerValidations.validate(customer, features);
+        var validation = timed("validate", () -> CustomerValidations.validate(customer, features));
         if (!validation.valid()) {
             log.warn("Customer invalido entityId={} errors={}", message.entityId(), validation.errors());
             transition(message, SyncState.VALIDATING, SyncState.INVALID);
@@ -136,33 +137,15 @@ public class SyncCustomerUseCase {
             }
 
             transition(message, SyncState.VALID, SyncState.INDEXING);
-            imageStore.save(customer.id(), customer);
-            historyIndexer.index(customer.id(), customer, message.payloadHash());
+            timed("index", () -> {
+                imageStore.save(customer.id(), customer);
+                historyIndexer.index(customer.id(), customer, message.payloadHash());
+                return null;
+            });
             transition(message, SyncState.INDEXING, SyncState.INDEXED);
 
             transition(message, SyncState.INDEXED, SyncState.SENDING_SAP);
-            Map<CustomerFeature, BiFunction<Customer, String, SyncState>> dispatch = Map.of(
-                    CustomerFeature.ADDRESS, address::execute,
-                    CustomerFeature.FISCAL,  fiscal::execute,
-                    CustomerFeature.CONTACT, contact::execute,
-                    CustomerFeature.BANKING, banking::execute);
-
-            boolean allOk = true;
-            boolean anyInvalid = false;
-            for (CustomerFeature f : features) {
-                BiFunction<Customer, String, SyncState> uc = dispatch.get(f);
-                if (uc == null) {
-                    continue;
-                }
-                SyncState s = uc.apply(customer, message.payloadHash());
-                if (s == SyncState.INVALID) {
-                    anyInvalid = true;
-                } else if (s != SyncState.SENT_SAP) {
-                    allOk = false;
-                }
-            }
-            SyncState finalState = anyInvalid ? SyncState.INVALID
-                    : (allOk ? SyncState.SENT_SAP : SyncState.SAP_ERROR);
+            SyncState finalState = timed("send", () -> sendFeatures(customer, message.payloadHash(), features));
             transition(message, SyncState.SENDING_SAP, finalState);
 
             log.info("SyncCustomer fin entityId={} state={}", message.entityId(), finalState);
@@ -170,6 +153,40 @@ public class SyncCustomerUseCase {
         } catch (RuntimeException e) {
             markError(message, e);
             throw e;
+        }
+    }
+
+    private SyncState sendFeatures(Customer customer, String payloadHash, Set<CustomerFeature> features) {
+        Map<CustomerFeature, BiFunction<Customer, String, SyncState>> dispatch = Map.of(
+                CustomerFeature.ADDRESS, address::execute,
+                CustomerFeature.FISCAL,  fiscal::execute,
+                CustomerFeature.CONTACT, contact::execute,
+                CustomerFeature.BANKING, banking::execute);
+
+        boolean allOk = true;
+        boolean anyInvalid = false;
+        for (CustomerFeature f : features) {
+            BiFunction<Customer, String, SyncState> uc = dispatch.get(f);
+            if (uc == null) {
+                continue;
+            }
+            SyncState s = uc.apply(customer, payloadHash);
+            if (s == SyncState.INVALID) {
+                anyInvalid = true;
+            } else if (s != SyncState.SENT_SAP) {
+                allOk = false;
+            }
+        }
+        return anyInvalid ? SyncState.INVALID : (allOk ? SyncState.SENT_SAP : SyncState.SAP_ERROR);
+    }
+
+    /** Duracion de cada etapa en sap_sync_stage_duration (sdd/common/observabilidad.md R-2). */
+    private <T> T timed(String stage, Supplier<T> body) {
+        long start = System.nanoTime();
+        try {
+            return body.get();
+        } finally {
+            metrics.recordStageDuration(DOMAIN, stage, (System.nanoTime() - start) / 1_000_000);
         }
     }
 

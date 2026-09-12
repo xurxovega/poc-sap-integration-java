@@ -9,6 +9,7 @@ import io.github.resilience4j.circuitbreaker.CircuitBreakerConfig;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
 import io.github.resilience4j.retry.RetryConfig;
 import io.github.resilience4j.retry.RetryRegistry;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -267,6 +268,32 @@ class RestClientSapClientTest {
         assertThat(response.body()).contains("No authorization");
         wiremock.verify(1, postRequestedFor(urlEqualTo("/api")));
         wiremock.verify(1, getRequestedFor(urlPathEqualTo("/csrf-fetch")));
+    }
+
+    /**
+     * observabilidad AC-3 (auditoria A9): cada intento HTTP deja una muestra en
+     * sap_client_request_duration con destino, metodo y resultado. Antes el
+     * WebClient.builder() estatico no registraba ninguna metrica HTTP.
+     */
+    @Test
+    void recordsOneTimerSamplePerHttpAttemptWithDestinationMethodAndOutcome() {
+        SimpleMeterRegistry meters = new SimpleMeterRegistry();
+        Map<SapDestination, SapAuthProvider> auth = Map.of(
+                SapDestination.BTP, STUB_AUTH, SapDestination.S4_NATIVE, STUB_AUTH);
+        RestClientSapClient c = new RestClientSapClient(auth, wiremock.baseUrl(), wiremock.baseUrl(),
+                retries(), CircuitBreakerRegistry.ofDefaults(), null,
+                new RestClientSapClient.SapClientTimeouts(Duration.ofSeconds(2), Duration.ofSeconds(5)),
+                "/csrf-fetch", meters);
+        wiremock.stubFor(post(urlEqualTo("/ok")).willReturn(aResponse().withStatus(201)));
+        wiremock.stubFor(post(urlEqualTo("/down")).willReturn(aResponse().withStatus(503)));
+
+        c.send(SapDestination.BTP, "/ok", "E-1", "h", "{}");
+        c.send(SapDestination.S4_NATIVE, "/down", "E-2", "h", "{}");   // 3 intentos
+
+        assertThat(meters.get("sap_client_request_duration")
+                .tags("destination", "BTP", "method", "POST", "outcome", "2xx").timer().count()).isEqualTo(1);
+        assertThat(meters.get("sap_client_request_duration")
+                .tags("destination", "S4_NATIVE", "method", "POST", "outcome", "5xx").timer().count()).isEqualTo(3);
     }
 
     /**

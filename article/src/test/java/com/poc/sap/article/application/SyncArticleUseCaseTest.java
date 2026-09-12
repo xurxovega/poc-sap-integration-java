@@ -69,6 +69,20 @@ class SyncArticleUseCaseTest {
         verify(historyIndexer).index(eq("A-1"), any(), eq("hash-a"));
     }
 
+    /** observabilidad AC-2 (auditoria A9): cada etapa deja su duracion. */
+    @Test
+    void happyPathRecordsTheDurationOfEveryStage() {
+        when(legacyRepo.fetch("A-1")).thenReturn(Optional.of(validArticle()));
+        when(sapOutbound.send(eq("A-1"), anyString(), any()))
+                .thenReturn(new SapResponse(201, "", null));
+
+        useCase.execute(ingestion());
+
+        for (String stage : new String[] {"fetch", "validate", "index", "send"}) {
+            verify(metrics).recordStageDuration(eq("article"), eq(stage), anyLong());
+        }
+    }
+
     @Test
     void unchangedSnapshotAfterSentSapSkipsResend() {
         Article a = validArticle();

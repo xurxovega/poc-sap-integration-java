@@ -109,6 +109,10 @@ Topic `<original>-dlt` al que el `DefaultErrorHandler` publica un mensaje que si
 
 ## E
 
+### ECS (Elastic Common Schema)
+
+Formato JSON estándar de logs de Elastic. Spring Boot lo emite de forma nativa con `logging.structured.format.console=ecs` (variable `LOGGING_STRUCTURED_FORMAT_CONSOLE`); en local se deja la consola legible. Es el primer paso de OBS-4; el `traceId` llegará con las trazas (D-7).
+
 ### Elasticsearch (ES)
 
 Motor de búsqueda e indexación. Almacena histórico de sincronizaciones. Port: `HistoryIndexerPort`.
@@ -231,6 +235,10 @@ Patrón que escribe eventos en una tabla outbox transaccionalmente con el cambio
 
 ## P
 
+### Parada ordenada (graceful shutdown)
+
+`server.shutdown=graceful`: al detener la app se deja de aceptar trabajo nuevo y se espera (hasta `spring.lifecycle.timeout-per-shutdown-phase`, 30 s) a que terminen las peticiones HTTP y los mensajes Kafka en curso, para no dejar entidades en estados en vuelo.
+
 ### payloadHash
 
 Hash del payload del evento de ingesta; clave del dedupe de idempotencia: si ya existe una transición `SENT_SAP` de la entidad con ese hash (`SyncStateRepositoryPort.alreadySent`), el mensaje se descarta sin reprocesar. Viaja también como cabecera `Idempotency-Key`.
@@ -242,6 +250,10 @@ Dos recorridos sobre la misma máquina de estados. El **agregado** cubre la enti
 ### Port
 
 Interfaz Java en el dominio que define una capacidad externa sin depender de infraestructura. Ver [`TECH.md`](architecture/TECH.md#5-puertos-y-adaptadores).
+
+### Presupuesto de reintentos por mensaje
+
+Peor caso de tiempo que un mensaje Kafka puede pasar en proceso: `llamadas a SAP por mensaje × (intentos × timeout de respuesta + backoff)`. Con los defaults del proyecto, 5 × (3 × 20 s + 1,5 s) = 5,1 min. Debe ser menor que `max.poll.interval.ms` (15 min aquí, `KAFKA_MAX_POLL_INTERVAL_MS`); si no, Kafka expulsa al consumidor mientras aún procesa y rebalancea en cascada. `RetryBudgetGuard` lo comprueba al arrancar (auditoría A10). Ver [`observabilidad.md`](sdd/common/observabilidad.md).
 
 ### Prometheus
 

@@ -146,14 +146,27 @@ destino y con qué mapeo; los mapeos son parte del dominio, no del shared kernel
 
 ## 9. Observabilidad
 
-- Micrometer + Prometheus registry expuesto por Actuator (`/actuator/prometheus`).
-- Trazas distribuidas: **OpenTelemetry javaagent** en el arranque de la JVM
-  (`-javaagent:opentelemetry-javaagent.jar` + `OTEL_EXPORTER_OTLP_ENDPOINT`).
-  El starter Spring de OTel (2.x) solo soporta Boot 3 y rompe el arranque con
-  Boot 4, por eso no se usa como dependencia.
-- Logs estructurados (JSON) + correlación por `traceId` — **visión, no
-  implementado**: hoy formato de consola por defecto (auditoría A9; plan Fase 5).
-- Métricas por dominio y por estado de la máquina de estados.
+Spec: [`../sdd/common/observabilidad.md`](../sdd/common/observabilidad.md).
+
+- Micrometer + Prometheus registry expuesto por Actuator (`/actuator/prometheus`),
+  con el tag `application` = nombre de cada app (antes idéntico en las dos).
+- **Métricas propias**: `sap_sync_state_total{domain,state}` por transición;
+  `sap_sync_stage_duration{domain,stage}` (`fetch`/`validate`/`index`/`send`,
+  p50/p95/p99) desde ambos orquestadores; `sap_client_request_duration
+  {destination,method,outcome}` por cada intento HTTP hacia SAP; y las de
+  Resilience4j del retry y el circuit breaker `sap` (`resilience4j_retry_calls`,
+  `resilience4j_circuitbreaker_state`...).
+- **Operación**: `server.shutdown=graceful` (30 s por fase);
+  `max.poll.interval.ms` a 15 min y `RetryBudgetGuard`, que al arrancar
+  comprueba que el peor caso de reintentos por mensaje (`calls-per-message ×
+  (intentos × timeout + backoff)`) cabe en ese intervalo y si no, la app no
+  arranca (auditoría A10).
+- **Logs estructurados**: formato ECS (JSON) nativo de Boot activable con
+  `LOGGING_STRUCTURED_FORMAT_CONSOLE=ecs`; en local consola legible. La
+  correlación por `traceId` llega con las trazas.
+- **Trazas distribuidas: pendientes** de la decisión D-7 (starter oficial de
+  OpenTelemetry para Boot 4 o javaagent) y de un colector (backlog OBS-2). El
+  starter de terceros (2.x) solo soporta Boot 3 y rompe el arranque.
 
 ## 10. Testing
 

@@ -56,6 +56,10 @@ sap:
   client:
     connect-timeout-ms: ${SAP_CLIENT_CONNECT_TIMEOUT_MS:3000}
     response-timeout-ms: ${SAP_CLIENT_RESPONSE_TIMEOUT_MS:20000}
+    # Llamadas a SAP que puede provocar UN mensaje Kafka en el peor caso
+    # (cabecera del BP + 4 features). RetryBudgetGuard comprueba al arrancar que
+    # calls x (intentos x timeout + backoff) < max.poll.interval.ms (auditoria A10).
+    calls-per-message: ${SAP_CLIENT_CALLS_PER_MESSAGE:5}
     retry:
       max-attempts: ${SAP_CLIENT_RETRY_MAX_ATTEMPTS:3}
       initial-backoff-ms: ${SAP_CLIENT_RETRY_INITIAL_BACKOFF_MS:500}
@@ -74,12 +78,28 @@ management:
       enabled: true
   metrics:
     tags:
-      application: sap-integration
+      # Un valor por app (customer-app / article-app); antes era el mismo en las
+      # dos y sus series se mezclaban (auditoria A9).
+      application: ${spring.application.name}
   # Trazas distribuidas: pendiente de soporte Boot 4 del starter OTel.
   # Mientras tanto, arrancar con el OpenTelemetry javaagent y las variables
   # OTEL_EXPORTER_OTLP_ENDPOINT / OTEL_SERVICE_NAME.
 
+server:
+  # Parada ordenada: se dejan terminar las peticiones y los mensajes en curso
+  # (hasta timeout-per-shutdown-phase) antes de cerrar (auditoria A10).
+  shutdown: graceful
+
 spring:
+  lifecycle:
+    timeout-per-shutdown-phase: ${SHUTDOWN_TIMEOUT:30s}
+  kafka:
+    consumer:
+      properties:
+        # 15 min: por encima del presupuesto de reintentos por mensaje (5,1 min con
+        # los defaults del cliente SAP). Con los 5 min por defecto de Kafka un SAP
+        # degradado provocaba rebalanceos en cascada (auditoria A10).
+        max.poll.interval.ms: ${KAFKA_MAX_POLL_INTERVAL_MS:900000}
   threads:
     virtual:
       enabled: true

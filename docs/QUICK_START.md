@@ -123,7 +123,7 @@ mvn -pl common install -DskipTests
 Recomendable antes de arrancar nada — la suite no necesita Docker:
 
 ```bash
-mvn clean test                        # 284 tests (unit, slice, resiliencia, smoke de contexto)
+mvn clean test                        # 291 tests (unit, slice, resiliencia, smoke de contexto)
 ```
 
 Los smoke `CustomerApplicationContextTest` / `ArticleApplicationContextTest`
@@ -226,7 +226,8 @@ Variables por bloque:
 | Mensajería | `KAFKA_BOOTSTRAP`, `KAFKA_CONNECT_URL` |
 | SAP BTP | `SAP_BTP_BASE_URL`, `SAP_BTP_TOKEN_URL`, `SAP_BTP_CLIENT_ID`, `SAP_BTP_CLIENT_SECRET` |
 | SAP S/4 | `SAP_S4_BASE_URL`, `SAP_S4_AUTH_TYPE`, `SAP_S4_TOKEN_URL`, `SAP_S4_CLIENT_ID`, `SAP_S4_CLIENT_SECRET`, `SAP_S4_CSRF_ENABLED` |
-| Timeouts | `SAP_CLIENT_CONNECT_TIMEOUT_MS`, `SAP_CLIENT_RESPONSE_TIMEOUT_MS` (súbelos contra remotos) |
+| Timeouts | `SAP_CLIENT_CONNECT_TIMEOUT_MS`, `SAP_CLIENT_RESPONSE_TIMEOUT_MS` (súbelos contra remotos; `RetryBudgetGuard` exige que `5 × (intentos × timeout + backoff)` quepa en `KAFKA_MAX_POLL_INTERVAL_MS`, 15 min por defecto) |
+| Operación | `SAP_AUTH_ALLOW_STUB`, `KAFKA_MAX_POLL_INTERVAL_MS`, `SHUTDOWN_TIMEOUT`, `LOGGING_STRUCTURED_FORMAT_CONSOLE=ecs` (logs JSON para ELK) |
 
 > **Sin credenciales OAuth2 la app no arranca** (`SAP_AUTH_ALLOW_STUB=false`, el
 > default). Contra el mock, `local.env` autoriza el token stub con

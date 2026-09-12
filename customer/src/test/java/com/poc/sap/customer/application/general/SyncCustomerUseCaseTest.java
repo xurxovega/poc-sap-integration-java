@@ -30,6 +30,7 @@ import java.util.Set;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 import com.poc.sap.customer.application.InMemoryStateRepo;
@@ -213,6 +214,20 @@ class SyncCustomerUseCaseTest {
         assertThatThrownBy(() ->
                 useCase.execute(CustomerFixtures.ingestionMessage(), null))
                 .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    /** observabilidad AC-2 (auditoria A9): recordStageDuration existia y nadie lo invocaba. */
+    @Test
+    void happyPathRecordsTheDurationOfEveryStage() {
+        Customer c = CustomerFixtures.validCustomer();
+        when(legacyRepo.fetch("C-1")).thenReturn(Optional.of(c));
+        allFeaturesSucceed();
+
+        useCase.execute(CustomerFixtures.ingestionMessage());
+
+        for (String stage : new String[] {"fetch", "validate", "index", "send"}) {
+            verify(metrics).recordStageDuration(eq("customer"), eq(stage), anyLong());
+        }
     }
 
     private SyncCustomerUseCase withRealStateMachine(InMemoryStateRepo repo) {
