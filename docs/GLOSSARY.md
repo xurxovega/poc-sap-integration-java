@@ -5,6 +5,10 @@
 
 ## A
 
+### A2X (Application-to-Cross-Application)
+
+Etiqueta de SAP para las APIs OData de S/4 Public Cloud pensadas para integrarse desde fuera con un communication user (`API_BUSINESS_PARTNER (A2X)`, `API_PRODUCT_SRV (A2X)`). Son las que consume la familia OData de adaptadores. Ver [`sdd/sap-api-catalog.md`](sdd/sap-api-catalog.md).
+
 ### Adapter (Adaptador)
 
 Implementación de un **port** en la capa de infraestructura. Traduce entre el dominio y tecnologías externas (Kafka, MongoDB, SAP, Elasticsearch). Ver [`TECH.md`](architecture/TECH.md#5-puertos-y-adaptadores).
@@ -34,6 +38,10 @@ Identificador **secuencial** de cada cuenta bancaria dentro de un Business Partn
 ### BAPI (Business Application Programming Interface)
 
 Interfaz estándar de SAP para acceder a procesos de negocio. En Java se invoca vía JCo/RFC. Ver [BAPI/RFC en SAP Cloud SDK](https://sap.github.io/cloud-sdk/docs/java/features/bapi-and-rfc/overview).
+
+### BIC (SWIFT)
+
+*Bank Identifier Code*: identificador del banco (8 u 11 caracteres). **No** es `BankIdentification` de `A_BusinessPartnerBank`; en S/4 pertenece al maestro de bancos y al mandato (`SenderBankSWIFTCode`). Auditoría B3.
 
 ### BTP (Business Technology Platform)
 
@@ -155,6 +163,10 @@ Arquitectura de puertos y adaptadores. El dominio está en el centro; los adapta
 
 ## I
 
+### IBAN
+
+*International Bank Account Number*: identificador de cuenta (país + dígitos de control + cuenta). En S/4 va en `A_BusinessPartnerBank.IBAN` y en `SEPAMandate.SenderIBAN`; sus dos primeros caracteres dan `BankCountryKey`. Es PII bancaria.
+
 ### Idempotencia
 
 Propiedad que garantiza que reintentar una operación no produce efectos duplicados. En este proyecto se logra con hash de payload + identificador de entidad. Ver [`OVERVIEW.md`](architecture/OVERVIEW.md#9-requisitos-no-funcionales).
@@ -191,6 +203,10 @@ Librería Java para conectividad RFC/BAPI con sistemas SAP.
 
 Plataforma de eventos. Recibe mensajes CDC (`outbox.<DOMINIO>`) y eventos directos (`events.<DOMINIO>`).
 
+### Kafka Connect
+
+Marco de conectores de Kafka en el que corre Debezium (`kafka-connect`, puerto 8083). Los conectores se registran por REST (`scripts/start-all.sh --with-cdc`). Alternativa evaluable: Debezium Server sin Connect (decisión D-3, [ADR-0006](architecture/adr/0006-kafka-connect-debezium-como-cdc.md)).
+
 ## L
 
 ### Línea de estado por feature
@@ -210,6 +226,10 @@ Build multi-módulo de Maven que compila `common`, `customer`, `article`, `suppl
 ### Maven wrapper (`mvnw`)
 
 Scripts `mvnw` / `mvnw.cmd` y `.mvn/wrapper/` que descargan y usan la versión de Maven fijada por el repo (3.9.9), de modo que todos los equipos y la CI compilan igual. `maven-enforcer` además rechaza Maven < 3.9 y JDK < 25.
+
+### MCP (Model Context Protocol)
+
+Protocolo abierto para que un agente de IA consulte herramientas y datos de un sistema. En este proyecto es una **propuesta** de servidor de solo lectura sobre el estado y el histórico ([`tools-integrations/MCP.md`](tools-integrations/MCP.md), PRD-7), condicionada a autenticación (SEC-1) y ofuscación de PII (SEC-3).
 
 ### Micrometer
 
@@ -245,6 +265,10 @@ Especificación estándar para APIs REST. SAP publica especificaciones OpenAPI e
 
 Estándar de observabilidad para trazas distribuidas. Se integra con el **javaagent** en el arranque de la JVM (el starter Spring de OTel 2.x no soporta Boot 4). Ver [`TECH.md`](architecture/TECH.md#9-observabilidad).
 
+### OTLP
+
+*OpenTelemetry Protocol*: protocolo con el que las apps exportan trazas y métricas a un colector (`OTEL_EXPORTER_OTLP_ENDPOINT`). Sin colector ni starter decidido (D-7) no hay trazas distribuidas (OBS-2).
+
 ### Outbox Pattern
 
 Patrón que escribe eventos en una tabla outbox transaccionalmente con el cambio de negocio; Debezium lee la outbox y publica en Kafka.
@@ -258,6 +282,10 @@ Patrón que escribe eventos en una tabla outbox transaccionalmente con el cambio
 ### payloadHash
 
 Hash del payload del evento de ingesta; clave del dedupe de idempotencia: si ya existe una transición `SENT_SAP` de la entidad con ese hash (`SyncStateRepositoryPort.alreadySent`), el mensaje se descarta sin reprocesar. Viaja también como cabecera `Idempotency-Key`.
+
+### PII (información personal identificable)
+
+Datos que identifican a una persona: NIF, IBAN, email, teléfono, dirección. Viven en el legacy, en la imagen (Mongo), en el histórico (ES, snapshot íntegro por decisión explícita) y en los topics Kafka. Condicionan retención, borrado (modelo de bloqueo), enmascarado en logs (SEC-3) y autenticación de las APIs (B4).
 
 ### Pipeline agregado vs pipeline por feature
 
@@ -274,6 +302,10 @@ Peor caso de tiempo que un mensaje Kafka puede pasar en proceso: `llamadas a SAP
 ### Prometheus
 
 Sistema de métricas y alertas. Actuator lo expone en `/actuator/prometheus`.
+
+### Published Language (lenguaje publicado)
+
+En DDD, el contrato compartido con el que dos contextos se hablan. Aquí son los contratos SAP (specs OpenAPI oficiales en `sap-api-models`) y el contrato BTP propuesto (`/sap/btp/odata/*`, [ADR-0004](architecture/adr/0004-dos-familias-de-adaptadores-btp-y-odata.md)); los DTOs los traducen desde el dominio.
 
 ### Pull (integración)
 
@@ -315,6 +347,10 @@ Protocolo de SAP para llamar a funciones remotas, incluidas BAPIs.
 
 Suite ERP de SAP. En este proyecto se sincronizan datos maestros con **SAP S/4HANA Public Cloud**.
 
+### Saga / compensación
+
+Patrón para mantener consistencia entre varias operaciones sin transacción distribuida: si una falla, se **compensan** las anteriores. Aplica al cliente con cuatro features enviadas por separado (OPS-5, decisión D-2: Spring Modulith, saga propia o ninguna).
+
 ### SAP Cloud SDK for Java
 
 SDK oficial de SAP para conectividad, generación de clientes tipados (VDM) y operaciones en BTP/SAP. En este proyecto **no está en el runtime**: [ADR-0001](architecture/adr/0001-transporte-http-sap-restclient.md) eligió `RestClient` mientras el SDK no soporte Spring Boot 4; solo se usa su generador de modelos OpenAPI en `sap-api-models`. Guía de la opción aparcada: [`SAP_CLOUD_SDK.md`](tools-integrations/SAP_CLOUD_SDK.md).
@@ -339,6 +375,10 @@ La regla bidireccional que sostiene el SDD: un cambio de comportamiento sin spec
 
 Número monótono por entidad que lleva cada transición en `sync_state`. Decide cuál es el estado actual (antes se ordenaba por `timestamp` en milisegundos, y las transiciones en ráfaga empataban) y, con el índice único `dom_ent_seq_uk`, actúa como **versión optimista** entre instancias. Los documentos anteriores a su introducción no lo tienen; por eso el índice es **parcial** (`seq` existe), no `sparse`: un índice compuesto `sparse` indexa el documento si tiene *al menos una* clave, y todos los antiguos colisionaban en `seq = null`.
 
+### SEPA (Single Euro Payments Area)
+
+Zona única de pagos en euros: transferencias y **adeudos domiciliados** con reglas comunes. De aquí salen el IBAN, el BIC y el mandato SEPA (autorización del deudor) que S/4 gestiona en `API_APAR_SEPA_MANDATE_SRV`. Ver *Mandato SEPA*.
+
 ### Shared Kernel
 
 Módulo `common` con primitivas de dominio, máquina de estados, clientes SAP y soporte de test compartidos por todos los dominios. Ver [`OVERVIEW.md`](architecture/OVERVIEW.md#1-vista-de-módulos-reactor-maven).
@@ -351,10 +391,13 @@ Optimización del pipeline agregado: si el ciclo anterior terminó en `SENT_SAP`
 
 Test de una capa aislada (p. ej. REST controller) sin levantar todo el contexto Spring Boot. En Spring Boot 4.0 se hace con `MockMvcBuilders.standaloneSetup`. Ver [`TESTING.md`](testing/TESTING.md#2-tipos-de-tests).
 
+### SMT (Single Message Transform)
+
+Transformación por mensaje aplicada en Kafka Connect. Debezium ofrece el *Event Router* oficial para el patrón outbox; hoy la outbox se rellena por triggers y no se usa el SMT (decisión D-3).
+
 ### State Machine
 
-Máquina de estados de sincronización (`common/domain/SyncStateMachine.java`):
-`RECEIVED → FETCHING → VALIDATING → VALID | INVALID`; `VALID → INDEXING → INDEXED → SENDING_SAP → SENT_SAP | SAP_ERROR`.
+Máquina de estados de sincronización (`common/domain/SyncStateMachine.java`). **Fuente única**: [`maquina-de-estados.md`](sdd/common/maquina-de-estados.md) §6 (tabla de `advance`) y §4 (`beginCycle`: un evento nuevo abre ciclo desde cualquier estado por uno de los cuatro estados de entrada). Las demás descripciones (OVERVIEW §5, AGENTS, MAPA-FUNCIONAL) son resúmenes y enlazan a ella.
 Estados de error: `ERROR`, `SAP_ERROR` y `COMMUNICATION_ERROR`. Re-entrada: `SENT_SAP → RECEIVED` e `INVALID → RECEIVED` cuando llega un nuevo evento de la entidad. Ver [`OVERVIEW.md`](architecture/OVERVIEW.md#5-máquina-de-estados-de-sincronización).
 
 ### Surefire / Failsafe

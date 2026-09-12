@@ -20,6 +20,23 @@ identifican por fecha.
 
 ## [Sin publicar]
 
+### 2026-09-12 — Memoria del proyecto: decisiones, incidencias y operación (Fase 9 de la auditoría)
+
+#### Añadido
+
+- **Registro de decisiones** de arquitectura: por qué se eligió cada pieza y
+  cuándo se revisa (seis decisiones documentadas).
+- **Incidencias y post-mortems**: qué se rompió, por qué, cuánto tardó en verse
+  y qué patrón se repite, para que la tercera vez no sea una sorpresa.
+- **Guías de operación** para las seis situaciones conocidas (entidad atascada,
+  mensaje en la cola de errores, SAP caído, la app no arranca, Kafka expulsa al
+  consumidor, bajas), y la **lista de lo que falta para producción** con quién
+  decide cada punto.
+- Checklist para la primera sesión contra el SAP de test y comprobación
+  automática de que el registro de features coincide con los specs.
+- Cierre de la auditoría: 11 de 14 bloqueantes cerrados, 1 mitigado por
+  decisión, 1 parcial a la espera del SAP de test, 1 pendiente de decidir.
+
 ### 2026-09-12 — Cadena de suministro (Fase 8 de la auditoría)
 
 #### Añadido

@@ -125,7 +125,7 @@ re-desplegar los dominios: ver el criterio en
 - [ ] `mvn verify` en verde: incluye JaCoCo `check` (≥ 75 % líneas en `domain`), ArchUnit y los contract tests reales.
 - [ ] Si has añadido o quitado un `@Test`, la cifra de `docs/testing/TESTING.md` §1 (y QUICK_START/GUIA-PRUEBAS) está al día: `TestCountMatchesDocsTest` rompe el build si no.
 - [ ] Estado e índice de `docs/sdd/README.md` al día.
-- [ ] `CHANGELOG.md` del subproyecto y evento en `feature_evento` registrados.
+- [ ] `CHANGELOG.md` del subproyecto y evento en `feature_evento` registrados; `python scripts/sdd-registry-check.py` sin diferencias.
 - [ ] `CHANGELOG.md` raíz actualizado si el cambio se percibe en negocio.
 - [ ] Conceptos nuevos añadidos a `docs/GLOSSARY.md`.
 - [ ] Ningún documento nuevo duplica algo que ya esté en `docs/architecture/` o `docs/sdd/`.
@@ -206,7 +206,8 @@ indexación `INDEXING`. Avanzar dentro del ciclo (`advance`) sigue la tabla. El
 estado actual se resuelve por secuencia (`seq`) y el índice único sobre ella es
 la versión optimista entre instancias (`ConcurrentTransitionException`).
 
-Detalle con nombres de clase en [`docs/architecture/FLOWS.md`](docs/architecture/FLOWS.md);
+Fuente única de la máquina: [`docs/sdd/common/maquina-de-estados.md`](docs/sdd/common/maquina-de-estados.md)
+§4 y §6. Detalle con nombres de clase en [`docs/architecture/FLOWS.md`](docs/architecture/FLOWS.md);
 esquema completo en [`docs/architecture/OVERVIEW.md`](docs/architecture/OVERVIEW.md) §5.
 
 ## 2.4 Puertos clave
@@ -376,6 +377,9 @@ si algo ya está escrito, enlázalo.
 | **cómo se desarrolla**: ciclo SDD+TDD, capas, DoD | [`docs/architecture/DESARROLLO.md`](docs/architecture/DESARROLLO.md) |
 | **cómo está construido**: módulos, dominios, estados, deployment, NFR | [`docs/architecture/OVERVIEW.md`](docs/architecture/OVERVIEW.md) |
 | **por qué se decidió así** y cuándo se reevalúa cada decisión | [`docs/architecture/adr/`](docs/architecture/adr/README.md) |
+| qué se rompió, por qué y qué patrón se repite (fingerprints) | [`docs/incidencias/`](docs/incidencias/README.md) |
+| operar el sistema: runbooks y aptitud para producción | [`docs/operacion/`](docs/operacion/RUNBOOKS.md) |
+| primera sesión contra el tenant SAP de test | [`docs/testing/CHECKLIST-TENANT-SAP.md`](docs/testing/CHECKLIST-TENANT-SAP.md) |
 | stack y decisiones técnicas | [`docs/architecture/TECH.md`](docs/architecture/TECH.md) |
 | flujos con nombres de clase para navegar el código | [`docs/architecture/FLOWS.md`](docs/architecture/FLOWS.md) |
 | patrones de integración SAP (implementado vs propuesto) | [`docs/architecture/INTEGRATION-PATTERNS.md`](docs/architecture/INTEGRATION-PATTERNS.md) |

@@ -153,6 +153,10 @@ Estado de las brechas detectadas sobre el código real.
 | Observabilidad prometida y no implementada (A9, parcial) | `recordStageDuration` nunca se invocaba → cableado en `SyncCustomerUseCase` y `SyncArticleUseCase` (`fetch`/`validate`/`index`/`send`); sin métricas HTTP del cliente SAP → `sap_client_request_duration` por intento; sin binder de Resilience4j → `MeterBinder` para retry y circuit breaker `sap`; tag `application` idéntico en ambas apps → `${spring.application.name}`; logs JSON → formato ECS por `LOGGING_STRUCTURED_FORMAT_CONSOLE`. Quedan las trazas (D-7). Spec [`common/observabilidad.md`](common/observabilidad.md) | 2026-09-12 |
 | **La primera escritura en Elasticsearch rompía** con `ClassNotFoundException: io.opentelemetry.semconv.DbAttributes` | `elasticsearch-java` 9.4.x (Boot 4.1) arrastra `opentelemetry-semconv` 1.30.0-rc.1 pero su instrumentación OTel usa `DbAttributes`, que existe desde 1.34.0. Fijado a 1.34.0 en el parent. **Ningún test lo cazó**: los slices y los smoke de contexto no escriben en ES; solo el e2e con Docker (TEST-1) lo habría visto. Detectado en la verificación en vivo de la Fase 6 | 2026-09-12 |
 | README decía «wrapper incluido» y no existía; surefire sin versión resolvía distinto sin wrapper (A24) | `./mvnw` con Maven 3.9.9 fijado en `.mvn/wrapper/maven-wrapper.properties`; la CI lo usa; `maven-enforcer` exige Maven ≥ 3.9 y JDK ≥ 25 | 2026-09-12 |
+| Máquina de estados descrita 8 veces, 4 copias desactualizadas (A17) | Fuente única declarada: [`common/maquina-de-estados.md`](common/maquina-de-estados.md) §4/§6; OVERVIEW §5, AGENTS, GLOSSARY y MAPA enlazan a ella y se corrigen desde allí | 2026-09-12 |
+| Sin carpeta de incidencias ni post-mortem; el CHANGELOG y este §6 declaraban resuelto lo que seguía vivo (A36) | [`../incidencias/`](../incidencias/README.md) con plantilla, índice de *fingerprints* y dos post-mortems (primer arranque e2e; semconv). CP-08/CP-10 de la guía dicen lo verificado en vivo | 2026-09-12 |
+| Registro SDD solo manual (T44) | `scripts/sdd-registry-check.py`: compara specs con `feature` y repara con `--apply`; forma parte de la definición de hecho | 2026-09-12 |
+| Sin ADRs (A23) | [`../architecture/adr/`](../architecture/adr/README.md): 0001 (RestClient) + 0002-0006 retroactivos (Mongo, ES, dos familias, MySQL, Kafka Connect) | 2026-09-12 |
 | Sin Dependabot, SBOM ni imágenes fijadas (A22) | `.github/dependabot.yml` (Maven + Actions, semanal); SBOM CycloneDX agregado en `package`, artefacto `sbom` en la CI; 11 imágenes del compose por `@sha256` | 2026-09-12 |
 | `launch.json` activaba un perfil `dev` inexistente (A21, parcial) | Sin perfil: carga `scripts/env/local.env` con `envFile`. El artefacto de despliegue queda pendiente de D-9 | 2026-09-12 |
 | Dedupe contra cualquier `SENT_SAP` histórico (A1) | `alreadySent` compara solo con el **último** `SENT_SAP`: A→B→A ya reenvía el tercer evento. Spec [`common/idempotencia-y-dedupe.md`](common/idempotencia-y-dedupe.md) | 2026-09-12 |
@@ -229,7 +233,10 @@ feature. Al hacerlo hay que tocar tres sitios, y los tres van en el mismo PR:
 
 1. El **spec** de la feature (§10 Cambios).
 2. El **CHANGELOG.md** de su carpeta.
-3. Un `INSERT` en `feature_evento` (y en `feature` si es un alta).
+3. Un `INSERT` en `feature_evento` (y en `feature` si es un alta). Después,
+   `python scripts/sdd-registry-check.py` debe salir sin diferencias: compara los
+   specs de `docs/sdd/` con la tabla `feature` (`--apply` recrea o corrige las
+   filas de features desde los specs; los eventos siguen siendo manuales).
 
 ```sql
 -- Alta de una feature nueva

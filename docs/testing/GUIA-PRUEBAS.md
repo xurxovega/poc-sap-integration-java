@@ -278,9 +278,9 @@ mvn -pl customer spring-boot:run
 | CP-05 | Validación negativa | `INVALID` con errores, sin llamadas a SAP |
 | CP-06 | CDC — alta (INSERT) | Cadena completa hasta `SENT_SAP` |
 | CP-07 | CDC — modificación (UPDATE) | Payload actualizado llega al mock |
-| CP-08 | CDC — borrado (DELETE) | Delete a SAP + imagen Mongo eliminada |
+| CP-08 | CDC — baja (DELETE) | `DELETE` a SAP + imagen Mongo **bloqueada** (`status=BLOCKED`), no borrada. Verificado en vivo el 2026-09-12 |
 | CP-09 | Dominio article (Postgres) | Cadena article hasta el mock |
-| CP-10 | SAP caído (503) | 3 reintentos + `SAP_ERROR` |
+| CP-10 | SAP caído (503) | 3 reintentos + `SAP_ERROR`; la imagen no cambia; el siguiente evento re-sincroniza. Verificado en vivo el 2026-09-12 |
 | CP-11 | Mensaje envenenado | Acaba en `outbox.CUSTOMER-dlt` |
 | CP-12 | Ruta OData nativa | URLs `/sap/opu/odata/...` en el mock |
 | CP-13 | Métricas | Contadores por estado incrementados |
@@ -378,8 +378,13 @@ mvn -pl customer spring-boot:run
    ```
 2. **Verificar en** el log de customer-app: el evento `DELETE` enruta a
    `DeleteCustomerUseCase`.
-3. **Verificar en** el mock: llamada de borrado para `CUST-100`.
-4. **Verificar en** Mongo: `db.customers_current.findOne({_id:"CUST-100"})` → `null`.
+3. **Verificar en** el mock: `DELETE /sap/btp/odata/Customer('CUST-100')` (un
+   `DELETE` HTTP real, no un `POST`).
+4. **Verificar en** Mongo: `db.customers_current.findOne({_id:"CUST-100"}).status`
+   → `"BLOCKED"`. La imagen **no** se borra: modelo de bloqueo
+   ([`../sdd/customer/baja-cliente.md`](../sdd/customer/baja-cliente.md)).
+   Qué operación representa la baja en S/4 se valida contra el tenant
+   ([`CHECKLIST-TENANT-SAP.md`](CHECKLIST-TENANT-SAP.md) §6).
 
 ### CP-09 — Dominio article (Postgres → Kafka → SAP)
 
@@ -401,8 +406,13 @@ mvn -pl customer spring-boot:run
 2. Lanza un sync REST de `CUST-001` con hash nuevo.
 3. **Verificar en** la respuesta: `"state":"SAP_ERROR"`.
 4. **Verificar en** el mock: cada URL aparece **3 veces** (reintentos con backoff).
-5. **Verificar en** Mongo: última transición `SAP_ERROR` (estado recuperable).
-6. Borra el stub 503 y **verifica la recuperación**: nuevo sync con hash nuevo → `SENT_SAP`.
+5. **Verificar en** Mongo: última transición `SAP_ERROR` (estado recuperable) y la
+   **imagen sin cambios** (`customers_current`): solo se actualiza tras el ACK de
+   SAP ([`../sdd/common/idempotencia-y-dedupe.md`](../sdd/common/idempotencia-y-dedupe.md) R-4).
+6. **Verificar en** Elasticsearch: hay un documento del intento con ese hash
+   (`customers_history`, id `CUST-001-<hash>-<epoch>`).
+7. Borra el stub 503 y **verifica la recuperación**: nuevo sync con hash nuevo →
+   `SENT_SAP` e imagen actualizada. Nota: el stub del mock exige un `id` UUID.
 
 ### CP-11 — Mensaje envenenado → DLT
 

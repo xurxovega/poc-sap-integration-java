@@ -88,6 +88,7 @@
 | PRD-7 | **Servidor MCP** de consulta para agentes IA | extra | 💡 | Requiere SEC-1 y SEC-3. Propuesta en [`tools-integrations/MCP.md`](tools-integrations/MCP.md) |
 | PRD-8 | `S3ImageStoreAdapter` sobre MinIO | extra | 💡 | MinIO está levantado y sin uso |
 | PRD-9 | **Consulta de Business Partner desde SAP** (GET, sin coste) | extra | 💡 | Medio hecho: existen `BusinessPartnerReadPort` y `BusinessPartnerReadAdapter` (`sap.odata.read.enabled=true`). Faltan `LookupCustomerUseCase` y un endpoint que los exponga. Detalle abajo |
+| PRD-11 | **Upsert idempotente** contra S/4: lookup → deep insert / `PATCH` con `If-Match`, `AddressID` y ETag persistidos en la imagen (auditoría B3) | proyecto | 📋 | Diseño condicionado a la comprobación PATCH parcial contra el tenant ([`testing/CHECKLIST-TENANT-SAP.md`](testing/CHECKLIST-TENANT-SAP.md) §1-§2). Hoy la ruta OData solo hace POST |
 | PRD-10 | **Alta y actualización de Business Partner** desde nuestro lado (POST/PATCH, upsert con coste) | extra | 💡 | Ninguna de las clases existe. Detalle abajo |
 
 ### Detalle de los flujos propuestos

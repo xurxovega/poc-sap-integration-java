@@ -292,6 +292,9 @@ que el estado de cualquier registro es consultable (imagen actual + histórico).
 | COMMUNICATION_ERROR | FETCHING, SENDING_SAP, ERROR |
 | ERROR           | RECEIVED (recover)          |
 
+> **Fuente única**: [`../sdd/common/maquina-de-estados.md`](../sdd/common/maquina-de-estados.md)
+> §6; esta tabla es un resumen y se corrige desde allí (auditoría A17).
+>
 > Abrir ciclo (`beginCycle`) y avanzar (`advance`) son operaciones distintas.
 > Un evento nuevo abre ciclo **desde cualquier estado** — cerrado, de error o a
 > medias — por el estado de entrada de su pipeline; la tabla solo gobierna el

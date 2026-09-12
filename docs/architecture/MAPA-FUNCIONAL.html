@@ -1030,7 +1030,8 @@ stateDiagram-v2
     SENDING_SAP --&gt; SAP_ERROR
     SENDING_SAP --&gt; INVALID
     SENDING_SAP --&gt; COMMUNICATION_ERROR
-    SAP_ERROR --&gt; SENDING_SAP : reintento, sin job que lo dispare
+    SAP_ERROR --&gt; SENDING_SAP : avance dentro del ciclo (raro)
+    note right of SAP_ERROR : un evento nuevo abre ciclo (beginCycle) desde cualquier estado; fuente unica: docs/sdd/common/maquina-de-estados.md
     SAP_ERROR --&gt; ERROR
     SENT_SAP --&gt; RECEIVED : nuevo evento de la entidad
     INVALID --&gt; RECEIVED : datos corregidos

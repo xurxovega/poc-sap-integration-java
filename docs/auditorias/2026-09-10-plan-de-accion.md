@@ -413,6 +413,20 @@ plataforma: **D-9**, añadida a la tabla de decisiones.
   alcance del producto final o se retira del reactor.
 - **Auditoría de cierre**: bloqueante a bloqueante, cerrado/abierto con evidencia.
 
+**Avance (12-09-2026).** Hecho: [`../architecture/adr/`](../architecture/adr/README.md)
+(0002-0006 retroactivos), [`../incidencias/`](../incidencias/README.md) con
+plantilla, índice de *fingerprints* y los post-mortems del primer arranque y del
+fallo de `semconv`; CP-08/CP-10 de la guía reformulados con lo verificado en
+vivo; fuente única de la máquina de estados declarada (OVERVIEW, AGENTS,
+GLOSSARY y MAPA enlazan al spec); glosario con los 11 términos que faltaban;
+`scripts/sdd-registry-check.py` (specs → tabla `feature`, con `--apply`);
+[`../operacion/RUNBOOKS.md`](../operacion/RUNBOOKS.md) para las seis incidencias
+conocidas; [`../operacion/APTITUD-PRODUCCION.md`](../operacion/APTITUD-PRODUCCION.md)
+(B10 reformulado) y [`../testing/CHECKLIST-TENANT-SAP.md`](../testing/CHECKLIST-TENANT-SAP.md);
+[`2026-09-12-cierre-bloqueantes.md`](2026-09-12-cierre-bloqueantes.md). **Queda**
+lo que necesita al negocio: retención, SLOs con cifra, RTO/RPO, quién opera,
+alcance de `supplier`; y la verificación por una sesión distinta.
+
 ---
 
 ## Decisiones que necesito de ti, y cuándo
@@ -536,7 +550,7 @@ una sesión nueva sepa dónde estamos sin leer el historial de ninguna otra.
 | 6 · Consistencia | ✅ hecha (salvo compensación, D-2) | 2026-09-12 | `2c532a7` + `9e7fd6c` | pendiente de verificación por otra sesión (verificación en vivo 3/3 en esta sesión: imagen intacta con SAP en 500, imagen actualizada tras 2xx, A→B→A reenviado) |
 | 7 · Refactor | ⬜ pendiente (desbloqueada: Fase 2 cerrada) | | | |
 | 8 · Supply chain | ✅ hecha (salvo artefacto de despliegue, D-9) | 2026-09-12 | `16b0336` | pendiente de verificación por otra sesión |
-| 9 · Documentación | ⬜ pendiente | | | |
+| 9 · Documentación | 🚧 parcial | | 2026-09-12: ADRs 0002-0006, `docs/incidencias/` (plantilla, fingerprints, 2 post-mortems), `docs/operacion/` (runbooks, aptitud para producción), checklist del tenant, `sdd-registry-check.py`, fuente única de la máquina, glosario (+11 términos), cierre de bloqueantes | |
 
 ## Esfuerzo
 
