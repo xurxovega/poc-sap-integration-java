@@ -4,9 +4,6 @@
 sap:
   integration:
     mode: ${SAP_INTEGRATION_MODE:push}   # push | pull | both
-  cloud-sdk:
-    local-destination:
-      enabled: ${SAP_CLOUD_SDK_LOCAL_DESTINATION_ENABLED:false}
   odata:
     enabled: ${SAP_ODATA_ENABLED:false}
     address:

@@ -20,6 +20,24 @@ identifican por fecha.
 
 ## [Sin publicar]
 
+### 2026-09-12 — Cliente SAP sobre un transporte más simple (Fase 3.1 de la auditoría)
+
+#### Cambiado
+
+- La pieza que habla por HTTP con SAP se ha reescrito sobre el cliente
+  síncrono estándar de Spring. Se comporta igual (reintentos, cortacircuitos,
+  token CSRF) y lo prueban las mismas pruebas, pero deja de arrastrar una pila
+  reactiva que no se usaba y el SDK de SAP, que tampoco. La decisión y el
+  momento de revisarla quedan escritos en el primer registro de decisiones de
+  arquitectura del proyecto.
+
+#### Corregido
+
+- Al pedir el token CSRF a SAP se enviaban siempre unas credenciales fijas,
+  aunque el sistema estuviera configurado con otro método de autenticación.
+- Cualquier rechazo «prohibido» de SAP se interpretaba como un problema de
+  token CSRF y se reintentaba; ahora solo se reintenta cuando SAP lo pide.
+
 ### 2026-09-12 — Red de seguridad antes de tocar SAP (Fase 2 de la auditoría)
 
 #### Añadido

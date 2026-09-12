@@ -113,17 +113,29 @@ destino y con qué mapeo; los mapeos son parte del dominio, no del shared kernel
 
 - Adaptadores **BTP** (`Btp*Adapter`) y **OData S/4** (`BusinessPartner*ODataAdapter`),
   excluyentes por `sap.odata.<feature>.enabled`; todos delegan en `SapClient`.
-- Contrato de cliente centralizado en `common/sap` para reutilizar auth,
-  reintentos y circuit breaker (Resilience4j).
-- Semántica de errores del cliente (`WebClientSapClient`): 5xx y errores de
-  transporte disparan retry con backoff exponencial y cuentan para el circuit
-  breaker; 4xx no se reintenta; timeouts de conexión/respuesta configurables
-  vía `sap.client.*` en `application-common.yml`.
+- Contrato de cliente centralizado en `common/sap` (`SapClient`) para reutilizar
+  auth, reintentos y circuit breaker (Resilience4j). Spec:
+  [`../sdd/common/resiliencia-cliente-sap.md`](../sdd/common/resiliencia-cliente-sap.md).
+- **Transporte**: `RestClientSapClient`, `RestClient` de Spring sobre el
+  `HttpClient` del JDK (síncrono; PATCH y DELETE nativos). Sustituyó al
+  `WebClient` reactivo con `.block()` y retiró `webflux`, Reactor y `sdk-core`
+  del runtime: [ADR-0001](adr/0001-transporte-http-sap-restclient.md), con su disparador de reevaluación (VDM del
+  Cloud SDK cuando soporte Boot 4).
+- Semántica de errores: 5xx y errores de transporte disparan retry con backoff
+  exponencial y cuentan para el circuit breaker; 4xx no se reintenta; el
+  circuit breaker envuelve al retry y con el circuito abierto se lanza
+  `SapCircuitOpenException`; timeouts de conexión/respuesta configurables vía
+  `sap.client.*` en `application-common.yml`.
 - OAuth2 client-credentials real con caché por expiración
   (`OAuth2TokenClient`; xsuaa para BTP, token endpoint o basic para S/4) con
   fallback a token stub cuando no hay credenciales configuradas (dev local).
 - CSRF OData V2: fetch de `x-csrf-token` + cookies de sesión en escrituras
-  S/4, con refresh y reintento único en 403 (`sap.s4.csrf.enabled`).
+  S/4 (`sap.s4.csrf.enabled`). El fetch se autentica con la misma cabecera
+  `Authorization` que la escritura; solo un 403 con `x-csrf-token: Required`
+  dispara el refresh y el reintento único.
+- `Idempotency-Key = payloadHash` viaja en toda escritura pero **no es garantía**
+  en OData V2 de S/4: la idempotencia real es el dedupe por hash y, en la
+  Fase 3, el upsert con lookup previo.
 - Modelos de payload generados desde la spec oficial `API_BUSINESS_PARTNER`
   en el módulo `sap-api-models` (openapi-generator del SAP Cloud SDK);
   serialización con `SapJsonMapper` (NON_NULL, sin wrapper `d` en peticiones).
@@ -148,7 +160,7 @@ destino y con qué mapeo; los mapeos son parte del dominio, no del shared kernel
 - **Integración**: Testcontainers (Kafka, PostgreSQL, SQL Server, MongoDB,
   Elasticsearch) + WireMock para SAP. Por dominio y en módulo `it/`.
 - **Contrato SAP**: WireMock en `it/` (`*ContractTest`, ejecutados por
-  failsafe). Desde la Fase 2 construyen el `WebClientSapClient` **real** contra
+  failsafe). Desde la Fase 2 construyen el `RestClientSapClient` **real** contra
   WireMock y ejercitan cada adaptador de producción (path, método, cabeceras,
   cuerpo). Spring Cloud Contract/Pact: visión, no usados.
 - Cobertura: JaCoCo con `check` en el parent: **≥ 75 % de líneas en

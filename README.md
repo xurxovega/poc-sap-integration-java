@@ -44,7 +44,7 @@ La documentación está organizada por **para qué sirve cada cosa**:
 
 ### Integraciones y referencia
 
-- [`docs/tools-integrations/SAP_CLOUD_SDK.md`](docs/tools-integrations/SAP_CLOUD_SDK.md) — guía de integración con SAP Cloud SDK: OData VDM (Business Partner), OpenAPI (APIs propias de SAP y callbacks), BTP destinations, arquitectura hexagonal, módulos Maven.
+- [`docs/tools-integrations/SAP_CLOUD_SDK.md`](docs/tools-integrations/SAP_CLOUD_SDK.md) — guía del SAP Cloud SDK (opción aparcada por [ADR-0001](docs/architecture/adr/0001-transporte-http-sap-restclient.md)): OData VDM (Business Partner), OpenAPI (APIs propias de SAP y callbacks), BTP destinations, arquitectura hexagonal, módulos Maven.
 - [`docs/tools-integrations/MCP.md`](docs/tools-integrations/MCP.md) — propuesta a futuro: servidor MCP de consulta para agentes IA (estado de sync, histórico, diff), con sus prerrequisitos de autenticación y ofuscación de datos sensibles.
 - [`docs/MEJORAS-Y-PROPUESTAS.md`](docs/MEJORAS-Y-PROPUESTAS.md) — **backlog vivo** de mejoras e ideas que aún no se han abordado: observabilidad, calidad, resiliencia, seguridad, utillaje, alcance y método. Incluye lo transversal a otros proyectos.
 - [`docs/GLOSSARY.md`](docs/GLOSSARY.md) — glosario de términos del proyecto con definiciones y enlaces.

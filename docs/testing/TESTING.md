@@ -8,7 +8,7 @@
 
 ## 1. Resumen ejecutivo
 
-Total: **270 tests** declarados (medido el 12-09-2026 con JDK 25, `mvn clean test`).
+Total: **272 tests** declarados (medido el 12-09-2026 con JDK 25, `mvn clean test`).
 
 La cifra es de `@Test` **declarados** en `src/test/java` de todos los módulos; la vigila
 `TestCountMatchesDocsTest` (módulo `it`) y el build falla si diverge. Los IT gateados
@@ -17,7 +17,7 @@ El módulo `it` sigue ejecutando los contract dos veces — ver §8 issue 3.
 
 | Módulo     | Tests aprox. | Contenido principal |
 |------------|--------------|---------------------|
-| common     | 78           | dominio (máquina de estados con estado inicial/re-sync, ValidationResult acumulativo), Mongo repo (dedupe `alreadySent`), auth providers, **`WebClientSapClientTest`** (retry 5xx, no-retry 4xx, cabeceras, CSRF completo contra WireMock) |
+| common     | 80           | dominio (máquina de estados con estado inicial/re-sync, ValidationResult acumulativo), Mongo repo (dedupe `alreadySent`), auth providers, **`RestClientSapClientTest`** (retry 5xx, no-retry 4xx, cabeceras, PATCH/DELETE, CSRF completo con auth del destino y 403 sin `Required` contra WireMock) |
 | customer   | 137          | unit + slice + **`CustomerApplicationContextTest`** (smoke de contexto Spring completo) |
 | article    | 42           | unit + slice + **`ArticleApplicationContextTest`** (smoke de contexto) |
 | it         | 13           | contract (WireMock, adaptadores **reales**, failsafe) + `TestCountMatchesDocsTest` + `SyncStateMongoIT`/`InfrastructureSmokeIT` (skip sin `-Ddocker.available=true`) |
@@ -216,7 +216,7 @@ JDK 25 (`C:\Program Files\Java\jdk-25.0.3`). **JDK 25 es el mínimo**: el reacto
 ### Patrón `AbstractSapContractTest`
 
 Base en `it/src/test/java/com/poc/sap/it/contract/AbstractSapContractTest.java`.
-Desde la Fase 2 (auditoría B6) construye el **`WebClientSapClient` real** con la
+Desde la Fase 2 (auditoría B6) construye el **`RestClientSapClient` real** (antes `WebClientSapClient`; ADR-0001) con la
 URL de WireMock como destino BTP y S/4, un `AuthProvider` fijo
 (`Bearer contract-token`), retry de 3 intentos con 10 ms y circuit breaker por
 defecto. Cada test instancia el **adaptador de producción** y verifica en
@@ -247,7 +247,7 @@ backlog TEST-5).
 | 3 | Contract tests del módulo `it` corren dos veces (surefire + failsafe) | **Resuelto (12-09-2026, Fase 2)**: `**/*ContractTest.java` y `**/*IT.java` excluidos de surefire en `it/pom.xml`. |
 | 4 | `*HistoryDoc.toDomain()` pierde datos (`unit`/`banking` a null) | Pendiente fix de mapeo. |
 | 5 | Adapters BTP/S4 escribían `BusinessPartner:""` | **Resuelto (25-07-2026)**: los adaptadores rellenan `BusinessPartner`/`CustomerID` con el `entityId` real; aserciones añadidas en sus tests. |
-| 6 | Contract tests de `it/` no pasan por el código de producción (stubbean WireMock y verifican el propio stub) | **Resuelto (12-09-2026, Fase 2, auditoría B6)**: `AbstractSapContractTest` construye el `WebClientSapClient` real contra WireMock y cada test ejercita el adaptador real (path, método, `Authorization`, `Idempotency-Key`, cuerpo). |
+| 6 | Contract tests de `it/` no pasan por el código de producción (stubbean WireMock y verifican el propio stub) | **Resuelto (12-09-2026, Fase 2, auditoría B6)**: `AbstractSapContractTest` construye el cliente SAP real (hoy `RestClientSapClient`) contra WireMock y cada test ejercita el adaptador real (path, método, `Authorization`, `Idempotency-Key`, cuerpo). |
 
 ## 9. Próximos pasos
 

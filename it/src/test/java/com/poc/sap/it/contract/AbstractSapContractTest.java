@@ -3,7 +3,7 @@ package com.poc.sap.it.contract;
 import com.github.tomakehurst.wiremock.junit5.WireMockExtension;
 import com.poc.sap.common.sap.SapClient;
 import com.poc.sap.common.sap.SapDestination;
-import com.poc.sap.common.sap.WebClientSapClient;
+import com.poc.sap.common.sap.RestClientSapClient;
 import com.poc.sap.common.sap.auth.SapAuthProvider;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
 import io.github.resilience4j.retry.RetryConfig;
@@ -21,7 +21,7 @@ import static com.github.tomakehurst.wiremock.core.WireMockConfiguration.wireMoc
  *
  * <p>Hasta la Fase 2 estos tests stubbeaban WireMock y lo llamaban con el
  * HttpClient del JDK: verificaban el propio stub y no tocaban una sola linea de
- * produccion. Ahora construyen el {@link WebClientSapClient} REAL apuntando a
+ * produccion. Ahora construyen el {@link RestClientSapClient} REAL apuntando a
  * WireMock y cada test ejercita el adaptador real: si el adaptador cambia el
  * path, el metodo, una cabecera o el cuerpo, aqui se rompe.
  */
@@ -45,15 +45,15 @@ abstract class AbstractSapContractTest {
         Map<SapDestination, SapAuthProvider> auth = Map.of(
                 SapDestination.BTP, stubAuth(SapDestination.BTP),
                 SapDestination.S4_NATIVE, stubAuth(SapDestination.S4_NATIVE));
-        sapClient = new WebClientSapClient(
+        sapClient = new RestClientSapClient(
                 auth,
                 sap.baseUrl(),          // BTP y S/4 apuntan al mismo WireMock
                 sap.baseUrl(),
                 retries,
                 CircuitBreakerRegistry.ofDefaults(),
-                null,                   // sin CSRF: se prueba aparte en WebClientSapClientTest
-                new WebClientSapClient.SapClientTimeouts(Duration.ofSeconds(2), Duration.ofSeconds(5)),
-                "/csrf-fetch", "user", "pass");
+                null,                   // sin CSRF: se prueba aparte en RestClientSapClientTest
+                new RestClientSapClient.SapClientTimeouts(Duration.ofSeconds(2), Duration.ofSeconds(5)),
+                "/csrf-fetch");
     }
 
     private static SapAuthProvider stubAuth(SapDestination destination) {

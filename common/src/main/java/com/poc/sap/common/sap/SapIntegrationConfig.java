@@ -8,6 +8,7 @@ import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
 import io.github.resilience4j.core.IntervalFunction;
 import io.github.resilience4j.retry.RetryConfig;
 import io.github.resilience4j.retry.RetryRegistry;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -69,6 +70,11 @@ public class SapIntegrationConfig {
         return new S4CsrfTokenProvider();
     }
 
+    /**
+     * Transporte HTTP: {@link RestClientSapClient} (ADR-0001). El fetch CSRF se
+     * autentica con el {@code SapAuthProvider} del destino S/4, por eso ya no
+     * recibe usuario/password aqui.
+     */
     @Bean
     @ConditionalOnMissingBean
     public SapClient sapClient(Map<SapDestination, SapAuthProvider> sapAuthProviders,
@@ -79,20 +85,16 @@ public class SapIntegrationConfig {
                                @Value("${sap.client.connect-timeout-ms:3000}") long connectTimeoutMs,
                                @Value("${sap.client.response-timeout-ms:20000}") long responseTimeoutMs,
                                @Value("${sap.s4.csrf.fetch-path:/sap/opu/odata/sap/API_BUSINESS_PARTNER/A_BusinessPartner}") String csrfFetchPath,
-                               @Value("${sap.s4.auth.username:}") String s4Username,
-                               @Value("${sap.s4.auth.password:}") String s4Password,
-                               org.springframework.beans.factory.ObjectProvider<CsrfTokenProvider> csrfProvider) {
-        return new WebClientSapClient(
+                               ObjectProvider<CsrfTokenProvider> csrfProvider) {
+        return new RestClientSapClient(
                 sapAuthProviders,
                 btpBaseUrl,
                 s4BaseUrl,
                 retryRegistry,
                 circuitBreakerRegistry,
                 csrfProvider.getIfAvailable(),
-                new WebClientSapClient.SapClientTimeouts(
+                new RestClientSapClient.SapClientTimeouts(
                         Duration.ofMillis(connectTimeoutMs), Duration.ofMillis(responseTimeoutMs)),
-                csrfFetchPath,
-                s4Username,
-                s4Password);
+                csrfFetchPath);
     }
 }

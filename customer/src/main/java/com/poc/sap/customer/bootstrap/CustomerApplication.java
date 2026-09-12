@@ -18,8 +18,8 @@ import org.springframework.data.mongodb.repository.config.EnableMongoRepositorie
  * adapters ni el shared kernel common.
  */
 @SpringBootApplication
-@ComponentScan(basePackages = {"com.sap.cloud.sdk", "com.poc.sap.customer", "com.poc.sap.common"})
-@ServletComponentScan(basePackages = {"com.sap.cloud.sdk", "com.poc.sap.customer", "com.poc.sap.common"})
+@ComponentScan(basePackages = {"com.poc.sap.customer", "com.poc.sap.common"})
+@ServletComponentScan(basePackages = {"com.poc.sap.customer", "com.poc.sap.common"})
 @EnableJpaRepositories(basePackages = "com.poc.sap.customer.adapters.persistence")
 @EntityScan(basePackages = "com.poc.sap.customer.adapters.persistence")
 @EnableMongoRepositories(basePackages = {

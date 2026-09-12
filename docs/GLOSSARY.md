@@ -9,6 +9,10 @@
 
 Implementación de un **port** en la capa de infraestructura. Traduce entre el dominio y tecnologías externas (Kafka, MongoDB, SAP, Elasticsearch). Ver [`TECH.md`](architecture/TECH.md#5-puertos-y-adaptadores).
 
+### ADR (Architecture Decision Record)
+
+Documento corto que registra una decisión de arquitectura: contexto, opciones, decisión, consecuencias y **cuándo se reevalúa**. Viven en [`docs/architecture/adr/`](architecture/adr/README.md); el primero es ADR-0001 (transporte `RestClient` hacia SAP). No se editan para cambiar la decisión: se escribe otro que lo sustituye.
+
 ### Apertura de ciclo (`beginCycle`) / avance (`advance`)
 
 Las dos intenciones de la máquina de estados, separadas desde la Fase 1 de la auditoría. **Abrir ciclo** es lo que ocurre cuando llega un evento: legal desde *cualquier* estado actual, por el estado de entrada del pipeline. **Avanzar** es moverse dentro del ciclo abierto y sigue la tabla de transiciones. Mientras fueron la misma operación, cada camino nuevo descubría «una fila que faltaba» y fallaba igual — tres veces. Ver [`maquina-de-estados.md`](sdd/common/maquina-de-estados.md) §3.
@@ -41,7 +45,7 @@ Eventos de negocio que S/4HANA Public Cloud publica cuando algo ocurre dentro de
 
 ### Business Partner
 
-Entidad maestra de SAP S/git push -u origin feature/saneamiento-integracion-sap4HANA que agrupa datos de cliente, proveedor y socio. En el dominio `customer` se sincroniza mediante OData VDM. Ver [`SAP_CLOUD_SDK.md`](tools-integrations/SAP_CLOUD_SDK.md#1-business-partner--odata-vdm).
+Entidad maestra de SAP S/4HANA que agrupa datos de cliente, proveedor y socio. En el dominio `customer` se sincroniza contra la API OData `API_BUSINESS_PARTNER` (adaptadores `BusinessPartner*ODataAdapter`) o contra las APIs BTP (`Btp*Adapter`). Ver [`SAP_CLOUD_SDK.md`](tools-integrations/SAP_CLOUD_SDK.md#1-business-partner--odata-vdm).
 
 ## C
 
@@ -75,7 +79,7 @@ Dos instancias intentaron escribir la misma secuencia de estado para la misma en
 
 ### Contract test (test de contrato)
 
-Test que fija **lo que enviamos** a un sistema externo: método, path, cabeceras y cuerpo. En el repo viven en `it/…/contract/*ContractTest`, los ejecuta failsafe y, desde la Fase 2 de la auditoría, construyen el `WebClientSapClient` real contra WireMock y ejercitan el **adaptador de producción**, no el stub. No validan lo que SAP acepta: eso es la validación contra el tenant de test. Ver [`TESTING.md`](testing/TESTING.md) §7.
+Test que fija **lo que enviamos** a un sistema externo: método, path, cabeceras y cuerpo. En el repo viven en `it/…/contract/*ContractTest`, los ejecuta failsafe y, desde la Fase 2 de la auditoría, construyen el `RestClientSapClient` real contra WireMock y ejercitan el **adaptador de producción**, no el stub. No validan lo que SAP acepta: eso es la validación contra el tenant de test. Ver [`TESTING.md`](testing/TESTING.md) §7.
 
 ### Criterio de aceptación (AC-n)
 
@@ -257,6 +261,10 @@ Ver **`feature_evento` / `sdd_registry`**.
 
 Librería de resiliencia (circuit breaker, retry, rate limiter) usada en los clientes SAP actuales. Ver [`TECH.md`](architecture/TECH.md#8-clientes-sap).
 
+### `RestClient` (Spring)
+
+Cliente HTTP **síncrono** de Spring Framework 6.1+, con la API fluida de `WebClient` pero sin Reactor. Es el transporte hacia SAP desde [ADR-0001](architecture/adr/0001-transporte-http-sap-restclient.md) (`RestClientSapClient`, sobre el `HttpClient` del JDK: PATCH nativo, timeouts de conexión y lectura). Ver spec [`resiliencia-cliente-sap.md`](sdd/common/resiliencia-cliente-sap.md).
+
 ### Retry
 
 Reintentos con backoff exponencial ante fallos transitorios. Ver [`OVERVIEW.md`](architecture/OVERVIEW.md#9-requisitos-no-funcionales).
@@ -273,7 +281,7 @@ Suite ERP de SAP. En este proyecto se sincronizan datos maestros con **SAP S/4HA
 
 ### SAP Cloud SDK for Java
 
-SDK oficial de SAP para conectividad, generación de clientes y operaciones en BTP/SAP. Ver [`SAP_CLOUD_SDK.md`](tools-integrations/SAP_CLOUD_SDK.md).
+SDK oficial de SAP para conectividad, generación de clientes tipados (VDM) y operaciones en BTP/SAP. En este proyecto **no está en el runtime**: [ADR-0001](architecture/adr/0001-transporte-http-sap-restclient.md) eligió `RestClient` mientras el SDK no soporte Spring Boot 4; solo se usa su generador de modelos OpenAPI en `sap-api-models`. Guía de la opción aparcada: [`SAP_CLOUD_SDK.md`](tools-integrations/SAP_CLOUD_SDK.md).
 
 ### `SapCircuitOpenException`
 

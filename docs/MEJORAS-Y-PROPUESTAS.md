@@ -49,6 +49,7 @@
 | OPS-3 | Decidir el **sufijo del topic DLT** | proyecto | ✅ 2026-09-11 | Decidido: se mantiene el sufijo por defecto de Spring Kafka, **`<topic>-dlt`**, y se corrige la documentación (23 ocurrencias en 13 ficheros). Motivo: fabricar un sufijo propio obliga a configurar el recoverer en cada dominio para no ganar nada; el topic real ya existía con ese nombre y tenía mensajes |
 | OPS-4 | Mapeo fino de errores SAP (código, mensaje, campo) en vez de propagar el HTTP crudo | proyecto | 📋 | Ya listado como brecha; diagnóstico muy pobre cuando SAP rechaza algo |
 | OPS-5 | Saga / compensación entre features | proyecto | 📋 | Un fallo parcial deja SAP a medias. Es la brecha estructural más grande del sistema |
+| OPS-6 | Reevaluar el **VDM del SAP Cloud SDK** como transporte hacia S/4 | proyecto | 📋 | Decidido en [ADR-0001](architecture/adr/0001-transporte-http-sap-restclient.md): hoy `RestClient`. Disparador: soporte oficial de Boot 4 por el SDK, o que reimplementar OData V2 (ETag, deep insert, `$batch`) en la Fase 3 cueste más que adoptar el VDM |
 
 ## Seguridad
 

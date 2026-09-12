@@ -115,7 +115,7 @@ sus entidades y sus features:
 |  S4BankingAdapter   (SapDestination.S4_NATIVE, incluye mandates)    |
 |  BtpCustomerAdapter (operaciones generales: DELETE OData)           |
 |                                                                     |
-|  Todos delegan en SapClient (common) → WebClient + OAuth2 + Retry    |
+|  Todos delegan en SapClient (common) → RestClient + OAuth2 + Retry   |
 |                              + CircuitBreaker (Resilience4j)         |
 +--------------------------------------------------------------------+
 ```
@@ -211,7 +211,7 @@ POST /customers/sync  { features:[ADDRESS] }  (futuro)
                           ▼
                 +-------------------+
                 | SapClient (common) |
-                | WebClient + OAuth2 |
+                | RestClient + OAuth2|
                 | + Retry/Circuit    |
                 +-------------------+
                           |
@@ -315,7 +315,7 @@ que el estado de cualquier registro es consultable (imagen actual + histórico).
           ▼                                  ▼
      +-------------------------------------------+
      |              SapClient (common)            |
-     |  WebClient + Retry + Circuit Breaker       |
+     |  RestClient + Retry + Circuit Breaker      |
      +-----+---------------+-------------+--------+
            |               |             |
            ▼               ▼             ▼
@@ -369,7 +369,7 @@ que el estado de cualquier registro es consultable (imagen actual + histórico).
 Detalle completo (plataforma, build, persistencia, clientes SAP, observabilidad,
 testing, empaquetado) en [`TECH.md`](TECH.md). Resumen: Java 25 LTS +
 Spring Boot 4.1 + Maven 3.9 multi-módulo, Kafka (CDC Debezium) con DLT,
-JPA (SQL Server/Postgres) + MongoDB + Elasticsearch, WebClient + OAuth2 hacia
+JPA (SQL Server/Postgres) + MongoDB + Elasticsearch, `RestClient` + OAuth2 hacia
 SAP con Resilience4j, Micrometer/Prometheus + OTel javaagent.
 
 ## 8. Convenciones de paquetes
@@ -438,6 +438,7 @@ com.poc.sap.<dominio>/
 - [`DESARROLLO.md`](DESARROLLO.md) — ciclo de trabajo SDD + TDD.
 - [`../sdd/sap-api-catalog.md`](../sdd/sap-api-catalog.md) — catálogo de las specs OpenAPI oficiales de SAP.
 - [`FLOWS.md`](FLOWS.md) — flujos implementados con nombres de clase: CDC completo y mapa de rutas BTP vs OData directo.
-- [`../tools-integrations/SAP_CLOUD_SDK.md`](../tools-integrations/SAP_CLOUD_SDK.md) — guía de integración con SAP Cloud SDK (fases de implementación).
+- [`adr/`](adr/README.md) — decisiones de arquitectura y cuándo se reevalúan (ADR-0001: transporte `RestClient`).
+- [`../tools-integrations/SAP_CLOUD_SDK.md`](../tools-integrations/SAP_CLOUD_SDK.md) — guía del SAP Cloud SDK (VDM), opción aparcada por ADR-0001.
 - [`../testing/TESTING.md`](../testing/TESTING.md) — estrategia y catálogo de tests.
 - `README.md` — intro, requisitos, comandos, debug VS Code.

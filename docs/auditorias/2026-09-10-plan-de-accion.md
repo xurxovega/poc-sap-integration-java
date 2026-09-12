@@ -259,6 +259,18 @@ La más grande. D-1 ya está decidida: **`RestClient`**.
 - Circuit breaker fuera del `Retry` (hoy `CallNotPermittedException` se reintenta 3 veces).
 - Documentar que `Idempotency-Key` **no** es garantía en OData V2: la garantía es el upsert.
 
+**Avance (12-09-2026).** 3.1 hecho: `RestClientSapClient` sustituye a
+`WebClientSapClient` detrás del puerto; fuera `webflux`, Reactor, `sdk-core`,
+`@ComponentScan("com.sap.cloud.sdk")` y el destino local del SDK. El test del
+cliente se portó íntegro y sigue verde (más tres AC nuevos). ADR-0001 escrito con
+el disparador de reevaluación; spec `common/resiliencia-cliente-sap.md` creado.
+De paso, CSRF (A6/C4): fetch con la auth del destino, 403 solo es CSRF con
+`Required`, caché atómica. `Idempotency-Key` documentado como no-garantía (R-7
+del spec). Circuit breaker fuera del retry ya venía de la Fase 1. **Queda**: la
+comprobación PATCH parcial vs payload completo contra el tenant de test, el
+bloqueo en SAP, el upsert idempotente, y los contratos de contacto, BIC y
+mandatos.
+
 ---
 
 ## Fase 4 · Seguridad
@@ -466,7 +478,7 @@ una sesión nueva sepa dónde estamos sin leer el historial de ninguna otra.
 | 0 · Higiene | ✅ hecha | 2026-09-11 | `b55f889` (.gitattributes) + `00bbbae` | pendiente de verificación por otra sesión |
 | 1 · Inservible | ✅ hecha | 2026-09-12 | `84a9da4` | pendiente de verificación por otra sesión (verificación en vivo: 3/3 en esta sesión) |
 | 2 · Red de seguridad | ✅ hecha | 2026-09-12 | `299567a` | pendiente de verificación por otra sesión (`mvn verify` y `-pl it verify -Ddocker.available=true` en verde en esta sesión) |
-| 3 · SAP real | ⬜ pendiente | | | |
+| 3 · SAP real | 🚧 en curso | | 3.1 transporte `RestClient` + CSRF A6/C4 (ADR-0001) hecho el 2026-09-12 | |
 | 4 · Seguridad | ⬜ pendiente | | | |
 | 5 · Observabilidad | ⬜ pendiente | | | |
 | 6 · Consistencia | ⬜ pendiente | | | |

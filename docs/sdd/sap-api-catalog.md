@@ -31,7 +31,7 @@
 
 > ⚠️ Las APIs `CE_*` son OData **V4**: sin envoltura `d` tampoco en respuestas,
 > paginación con `@odata.nextLink` y sin fetch CSRF clásico de V2. El
-> `WebClientSapClient` actual está probado contra V2; al activar una V4,
+> `RestClientSapClient` actual está probado contra V2; al activar una V4,
 > revisar parseo de respuestas y cabeceras.
 
 ## Cómo actualizar una spec

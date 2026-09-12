@@ -1,5 +1,12 @@
 # SAP Cloud SDK for Java
 
+> **Estado (2026-09-12): opción aparcada.** [ADR-0001](../architecture/adr/0001-transporte-http-sap-restclient.md)
+> eligió `RestClient` de Spring como transporte hacia SAP; el SDK **no está en el
+> runtime** (se retiraron `sdk-core`, el `@ComponentScan("com.sap.cloud.sdk")` y el
+> destino local). Solo se usa su generador OpenAPI en `sap-api-models`. Esta guía
+> se conserva para cuando el SDK soporte Spring Boot 4 y se reevalúe el VDM; las
+> secciones de «spike» y «configuración aplicada» describen un estado ya retirado.
+>
 > Guía de integración con SAP Cloud SDK para los dominios del proyecto:
 > `customer`, `article` y `supplier`.
 
@@ -201,7 +208,7 @@ sin depender directamente del SAP Cloud SDK para las llamadas HTTP:
 | Fase | Estado | Qué se implementó |
 |---|---|---|
 | DTOs Jackson | ✅ | `customer/adapters/sap/dto/Btp*Dto.java` — reemplazo de `String.format` por `SapJsonMapper.write(dto)` |
-| SapClient expandido | ✅ | `get()`, `patch()`, `delete()` en `SapClient` + `WebClientSapClient.exchange()` |
+| SapClient expandido | ✅ | `get()`, `patch()`, `delete()` en `SapClient` + `RestClientSapClient.exchange()` |
 | OData support | ✅ | `CsrfTokenProvider`, `S4CsrfTokenProvider` en `common/sap/odata/` (el antiguo `ODataPayload` se eliminó: el wrapper `d` solo aparece en las **respuestas** V2, nunca en las peticiones — ver sección siguiente) |
 | Adaptadores OData | ✅ | 5 `BusinessPartner*ODataAdapter.java` en `customer/adapters/sap/odata/` — refactorizados a modelos generados |
 | Puerto de lectura | ✅ | `BusinessPartnerReadPort` + `BusinessPartnerReadAdapter` para GET/search |
@@ -282,7 +289,7 @@ consumen con OAuth2 puro: el baile del CSRF **no aplica**.
 
 **Resumen práctico**: Business Partner, mandato SEPA, producto, stock, precios y
 características son **V2** → wrapper `d` en respuestas, `d.results` en listas,
-CSRF en escrituras (todo lo que `WebClientSapClient` ya hace). Bancos, activos
+CSRF en escrituras (todo lo que `RestClientSapClient` ya hace). Bancos, activos
 fijos y números de serie son **V4** → respuesta plana, `value` +
 `@odata.nextLink`, sin CSRF. Al activar la primera API V4 conviene introducir un
 parseo/config por versión en el cliente (p. ej. flag `odata-version` por destino

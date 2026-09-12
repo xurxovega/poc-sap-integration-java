@@ -111,7 +111,7 @@ Capacidades transversales del shared kernel, no features de negocio.
 |---|---|---|---|
 | Máquina de estados de sincronización | [`maquina-de-estados.md`](common/maquina-de-estados.md) | ✅ | ✅ implementada (`SyncStateMachine`) |
 | Idempotencia y deduplicación por hash | `idempotencia-y-dedupe.md` | ⬜ | ✅ implementada (`alreadySent`, `Idempotency-Key`) |
-| Resiliencia del cliente SAP (retry + circuit breaker + CSRF) | `resiliencia-cliente-sap.md` | ⬜ | ✅ implementada (`WebClientSapClient`) |
+| Cliente SAP: transporte, resiliencia y CSRF | [`resiliencia-cliente-sap.md`](common/resiliencia-cliente-sap.md) | ✅ | ✅ implementada (`RestClientSapClient`, ADR-0001) |
 | Observabilidad: métricas por dominio y estado | `observabilidad.md` | ⬜ | ✅ implementada (`SyncMetrics`) |
 
 > Las features ya implementadas se escribieron antes de adoptar SDD. Regla de
@@ -145,6 +145,8 @@ Estado de las brechas detectadas sobre el código real.
 | Recuento de tests incoherente entre documentos (A15) | Una sola cifra de `@Test` **declarados** (§1 de `TESTING.md`) vigilada por `TestCountMatchesDocsTest`: el build falla si un documento se queda atrás | 2026-09-12 |
 | Sin umbral de cobertura ni regla de arquitectura activa (TEST-6, A4 parcial) | JaCoCo `check` en el parent: ≥ 75 % de líneas en `**/domain/**` (suelo medido). ArchUnit `DomainPurityTest` en common, customer y article: `domain` sin Spring/Jackson/Mongo/Kafka/Micrometer/JPA | 2026-09-12 |
 | `InfrastructureSmokeIT` nunca arrancaba Kafka | `KafkaContainer(String)` deprecado duplicaba el nombre de la imagen en Testcontainers 1.21 (`cp-kafka:confluentinc/cp-kafka:7.7.1`). Sustituido por `ConfluentKafkaContainer` | 2026-09-12 |
+| **Transporte reactivo con `.block()` y Cloud SDK sin uso** (D-1) | `WebClientSapClient` → `RestClientSapClient` (`RestClient` sobre el `HttpClient` del JDK) detrás del mismo puerto; fuera `webflux`, Reactor, `sdk-core`, el `@ComponentScan("com.sap.cloud.sdk")` y el destino local del SDK. Mismo comportamiento observable: el test se portó íntegro. [ADR-0001](../architecture/adr/0001-transporte-http-sap-restclient.md); spec [`common/resiliencia-cliente-sap.md`](common/resiliencia-cliente-sap.md) | 2026-09-12 |
+| CSRF: fetch con Basic fijo, cualquier 403 tratado como CSRF, caché sin sincronizar (A6, C4) | El fetch usa la misma `Authorization` que la escritura; solo un 403 con `x-csrf-token: Required` refresca y reintenta; token y cookies son un único valor inmutable (`CsrfToken`) | 2026-09-12 |
 | Listeners reintentaban fallos no transitorios (C5) | Tombstone, `operation` en minúsculas y operación desconocida producían 3 reintentos con backoff. Ahora: tombstone ignorado, operación normalizada, e `IllegalState/IllegalArgument/JsonProcessing` declaradas no reintentables en `KafkaErrorHandlingConfig` | 2026-09-11 |
 | Topic DLT documentado ≠ real | Toda la documentación decía `<topic>.DLT`; el `DeadLetterPublishingRecoverer` usa el sufijo por defecto de Spring Kafka y el topic real es **`<topic>-dlt`**. Corregidas las 23 ocurrencias; decisión en `MEJORAS-Y-PROPUESTAS.md` OPS-3 | 2026-09-11 |
 | Re-sync con cambios reales rompía el pipeline | Tras un primer ciclo, cada línea de feature quedaba en `SENT_SAP` y `SENT_SAP → VALIDATING` no era transición permitida: el segundo evento con cambios reales moría en la primera feature y acababa en la DLT. Añadida la **re-entrada de features** por `VALIDATING` desde `SENT_SAP`, `INVALID` y `SAP_ERROR`. Spec: [`common/maquina-de-estados.md`](common/maquina-de-estados.md) AC-4/AC-5 · verificado por CDC en vivo | 2026-09-10 |
@@ -161,7 +163,7 @@ Estado de las brechas detectadas sobre el código real.
 | Sin transacción distribuida / saga entre features | `SyncCustomerUseCase` (envíos por feature independientes) | fallos parciales dejan SAP a medias, sin compensación |
 | Contactos no usan `A_AddressEmailAddress`/`A_AddressPhoneNumber` | adaptadores de CONTACT | el contrato real de S/4 para email/teléfono es por dirección |
 | Mandatos no llegan desde el legacy | `S4BankingAdapter` (mandates) | BANKING incompleto |
-| Sin mapeo fino de errores SAP | `WebClientSapClient` | diagnóstico deficiente |
+| Sin mapeo fino de errores SAP | `RestClientSapClient` | diagnóstico deficiente |
 | `supplier` vacío + MinIO sin uso | `SupplierApplicationPlaceholder`, compose | dominio/infra no operativos |
 | APIs REST sin autenticación | controllers de `customer`/`article` | bloqueante para exponer las APIs a terceros o a un MCP ([`../tools-integrations/MCP.md`](../tools-integrations/MCP.md) §4) |
 | Servidor MCP para agentes IA (propuesta) | servicio `mcp-server` futuro | requiere autenticación + ofuscación de PII — ver [`../tools-integrations/MCP.md`](../tools-integrations/MCP.md) |
@@ -174,8 +176,8 @@ Estado de las brechas detectadas sobre el código real.
 
 - **Auth SAP**: OAuth2 client-credentials vía variables de entorno; con
   configuración incompleta se usa token stub (solo para mocks locales).
-- **Cliente HTTP SAP definitivo**: `WebClientSapClient`. `sap-sdk-client/` es un
-  spike OpenAPI **desechable**, no forma parte del reactor.
+- **Cliente HTTP SAP definitivo**: `RestClientSapClient` ([ADR-0001](../architecture/adr/0001-transporte-http-sap-restclient.md)).
+  `sap-sdk-client/` es un spike OpenAPI **desechable**, gitignored, fuera del reactor.
 - **Debezium/outbox**: cableado en `external-services/` (triggers + Kafka
   Connect); la operación en entornos reales sigue siendo externa.
 - **`supplier`**: futuro, patrón simple como `article`.

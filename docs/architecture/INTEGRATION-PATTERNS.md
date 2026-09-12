@@ -36,7 +36,7 @@ sequenceDiagram
     participant UC as SyncCustomerUseCase<br/>(máquina de estados)
     participant ST as MongoDB<br/>(imagen + sync_state)
     participant ES as Elasticsearch<br/>(histórico)
-    participant CL as WebClientSapClient<br/>(OAuth2/basic + CSRF<br/>+ retry + circuit breaker)
+    participant CL as RestClientSapClient<br/>(OAuth2/basic + CSRF<br/>+ retry + circuit breaker)
     participant S4 as S/4 Public Cloud<br/>API_BUSINESS_PARTNER (OData V2)
 
     DB->>OB: INSERT/UPDATE/DELETE (trigger AFTER)
@@ -59,7 +59,7 @@ sequenceDiagram
 
 **Estado**: implementado. Clases: `CustomerKafkaListener` →
 `SyncCustomerUseCase` → `BusinessPartner*ODataAdapter` (activados por
-`sap.odata.*.enabled`) → `WebClientSapClient`. Infra local completa en
+`sap.odata.*.enabled`) → `RestClientSapClient`. Infra local completa en
 `external-services/` (outbox + triggers + Debezium + conectores).
 **Pendiente**: validar payloads contra tenant real; reprocesador de
 `SAP_ERROR` por feature (reintento hacia delante) para el fallo parcial
@@ -80,7 +80,7 @@ sequenceDiagram
     participant L as CustomerKafkaListener
     participant UC as SyncCustomerUseCase
     participant AD as BtpAddressAdapter /<br/>BtpFiscalAdapter / ...
-    participant CL as WebClientSapClient<br/>(OAuth2 xsuaa + retry/CB)
+    participant CL as RestClientSapClient<br/>(OAuth2 xsuaa + retry/CB)
     participant XS as xsuaa<br/>(token endpoint)
     participant BTP as API BTP intermedia<br/>(CAP / Integration Suite)
     participant S4 as S/4 Public Cloud
@@ -167,7 +167,7 @@ sequenceDiagram
     participant BL as BatchTriggerListener<br/>(nuevo, mismo estilo que<br/>CustomerKafkaListener)
     participant DB as Plataforma<br/>(legacy DB / imagen Mongo)
     participant UC as SyncCustomerUseCase<br/>(mismo pipeline que CDC)
-    participant CL as WebClientSapClient
+    participant CL as RestClientSapClient
     participant S4 as S/4 Public Cloud<br/>OData (opcional $batch)
 
     Note over TRG: quien programa el corte publica<br/>el mensaje de disparo (cron, operador,<br/>u otro sistema) con el alcance del batch

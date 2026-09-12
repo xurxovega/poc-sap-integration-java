@@ -236,7 +236,9 @@ esquema completo en [`docs/architecture/OVERVIEW.md`](docs/architecture/OVERVIEW
 
 **Cliente HTTP low-level.** `SapClient` (`common/sap/`) abstrae transporte,
 auth, retry y circuit breaker; soporta GET, `send` (POST), PATCH y DELETE.
-Implementado por `WebClientSapClient` (WebClient + Resilience4j):
+Implementado por `RestClientSapClient` (`RestClient` de Spring sobre el `HttpClient`
+del JDK + Resilience4j; decisión [ADR-0001](docs/architecture/adr/0001-transporte-http-sap-restclient.md);
+spec [`docs/sdd/common/resiliencia-cliente-sap.md`](docs/sdd/common/resiliencia-cliente-sap.md)):
 
 - 5xx y errores de transporte → retry con backoff y cuentan para el circuit
   breaker; **4xx no se reintenta**.
@@ -294,7 +296,9 @@ confundir con el Shared Kernel, que es `common`. Catálogo en
   Jackson 3 por defecto, **sin** starter OTel (incompatible — se usa el
   javaagent), y `@WebMvcTest` eliminado (slice web con
   `MockMvcBuilders.standaloneSetup`).
-- **SAP Cloud SDK** 5.32.0 · **Resilience4j** · **Micrometer + Prometheus** ·
+- **Spring `RestClient`** hacia SAP (sin webflux ni Cloud SDK en runtime; el BOM
+  del Cloud SDK solo genera los modelos de `sap-api-models`) · **Resilience4j** ·
+  **Micrometer + Prometheus** ·
   trazas por **OTel javaagent**.
 - **Testing**: JUnit 5, Mockito, AssertJ, WireMock, Testcontainers.
 
@@ -345,7 +349,8 @@ MinIO): `cd external-services && docker compose up -d`.
   el `openapi-generator-maven-plugin`, y alta en
   [`docs/sdd/sap-api-catalog.md`](docs/sdd/sap-api-catalog.md).
 - **Cambio en `SapClient`**: nuevo método HTTP → implementar en
-  `WebClientSapClient` vía su `exchange()` interno.
+  `RestClientSapClient` vía su `exchange()` interno y añadir el AC al spec
+  `docs/sdd/common/resiliencia-cliente-sap.md`.
 - **Cambio en `common`**: bump semver y ejecutar `it/` **antes**; un
   `minor`/`major` obliga a re-desplegar todos los dominios.
 - **Banner por dominio**: cada app lleva `src/main/resources/banner.txt` con el
@@ -370,6 +375,7 @@ si algo ya está escrito, enlázalo.
 | contratos SAP (APIs OpenAPI oficiales) | [`docs/sdd/sap-api-catalog.md`](docs/sdd/sap-api-catalog.md) |
 | **cómo se desarrolla**: ciclo SDD+TDD, capas, DoD | [`docs/architecture/DESARROLLO.md`](docs/architecture/DESARROLLO.md) |
 | **cómo está construido**: módulos, dominios, estados, deployment, NFR | [`docs/architecture/OVERVIEW.md`](docs/architecture/OVERVIEW.md) |
+| **por qué se decidió así** y cuándo se reevalúa cada decisión | [`docs/architecture/adr/`](docs/architecture/adr/README.md) |
 | stack y decisiones técnicas | [`docs/architecture/TECH.md`](docs/architecture/TECH.md) |
 | flujos con nombres de clase para navegar el código | [`docs/architecture/FLOWS.md`](docs/architecture/FLOWS.md) |
 | patrones de integración SAP (implementado vs propuesto) | [`docs/architecture/INTEGRATION-PATTERNS.md`](docs/architecture/INTEGRATION-PATTERNS.md) |
@@ -379,7 +385,7 @@ si algo ya está escrito, enlázalo.
 | probar la API a mano (colección Postman) | [`scripts/postman/`](scripts/postman/) |
 | catálogo de la suite de tests y convenciones | [`docs/testing/TESTING.md`](docs/testing/TESTING.md) |
 | probar a fondo (CDC, resiliencia, tenant real) | [`docs/testing/GUIA-PRUEBAS.md`](docs/testing/GUIA-PRUEBAS.md) |
-| SAP Cloud SDK (OData VDM, OpenAPI, destinations) | [`docs/tools-integrations/SAP_CLOUD_SDK.md`](docs/tools-integrations/SAP_CLOUD_SDK.md) |
+| SAP Cloud SDK (VDM): opción aparcada por ADR-0001, guía para cuando se reevalúe | [`docs/tools-integrations/SAP_CLOUD_SDK.md`](docs/tools-integrations/SAP_CLOUD_SDK.md) |
 | propuesta de servidor MCP para agentes IA | [`docs/tools-integrations/MCP.md`](docs/tools-integrations/MCP.md) |
 | mejoras e ideas pendientes (backlog, no defectos) | [`docs/MEJORAS-Y-PROPUESTAS.md`](docs/MEJORAS-Y-PROPUESTAS.md) |
 | **qué cambia para negocio** en cada revisión | [`CHANGELOG.md`](CHANGELOG.md) (raíz) |

@@ -404,7 +404,7 @@ tr.nomatch { display: none; }
       <button class="pieza" data-id="adapters-odata" data-estado="impl">
         <span class="n">Familia OData S/4</span><span class="s">BusinessPartner*ODataAdapter</span></button>
       <button class="pieza" data-id="sapclient" data-estado="impl">
-        <span class="n">WebClientSapClient</span><span class="s">retry · circuit breaker · idempotencia</span></button>
+        <span class="n">RestClientSapClient</span><span class="s">retry · circuit breaker · idempotencia</span></button>
       <button class="pieza" data-id="auth" data-estado="impl">
         <span class="n">Auth y CSRF</span><span class="s">xsuaa · S4 oauth2/basic · x-csrf-token</span></button>
       <button class="pieza" data-id="s4" data-estado="impl">
@@ -663,7 +663,7 @@ sequenceDiagram
     participant P as AddressSapPort&lt;br/&gt;interfaz de dominio
     participant BTP as BtpAddressAdapter
     participant OD as BusinessPartnerAddressODataAdapter
-    participant CL as WebClientSapClient
+    participant CL as RestClientSapClient
     participant DEST as Destino SAP
 
     UC-&gt;&gt;P: send entityId, payloadHash, AddressData
@@ -945,12 +945,12 @@ sequenceDiagram
   <h3 id="k1">K1 · Anatomía de una llamada a SAP</h3>
   <figure class="diagrama">
     <figcaption>K1 <span class="badge impl">Implementado</span>
-      <span class="desc">WebClientSapClient: auth, CSRF, idempotencia, retry y circuit breaker</span></figcaption>
+      <span class="desc">RestClientSapClient: auth, CSRF, idempotencia, retry y circuit breaker</span></figcaption>
     <div class="lienzo"><pre class="mermaid">
 sequenceDiagram
     autonumber
     participant AD as Adaptador SAP
-    participant CL as WebClientSapClient
+    participant CL as RestClientSapClient
     participant AU as SapAuthProvider&lt;br/&gt;BtpAuthProvider o S4NativeAuthProvider
     participant XS as xsuaa o token endpoint S4
     participant CS as S4CsrfTokenProvider
@@ -1355,7 +1355,6 @@ sequenceDiagram
         <tr><td><code>sap.client.connect-timeout-ms</code> / <code>response-timeout-ms</code></td><td><code>3000</code> / <code>20000</code></td><td>timeouts del WebClient</td></tr>
         <tr><td><code>sap.client.retry.max-attempts</code> / <code>initial-backoff-ms</code></td><td><code>3</code> / <code>500</code></td><td>retry con backoff exponencial ×2; solo ante 5xx y errores de transporte</td></tr>
         <tr><td><code>sap.client.circuit-breaker.*</code></td><td>50 % · ventana 10 · 30 s</td><td>umbral de fallo, tamaño de ventana deslizante y tiempo en abierto</td></tr>
-        <tr><td><code>sap.cloud-sdk.local-destination.enabled</code></td><td><code>false</code></td><td>registra un destino <code>local-s4</code> sin auth; el SAP Cloud SDK no se usa para las llamadas reales</td></tr>
         <tr><td><code>spring.threads.virtual.enabled</code></td><td><code>true</code></td><td>virtual threads de Java 25</td></tr>
       </tbody>
     </table>
@@ -1437,7 +1436,7 @@ sequenceDiagram
         <tr><td><code>docs/sdd/sap-api-catalog.md</code></td><td>catálogo de las specs OpenAPI oficiales de S/4HANA usadas o previstas</td></tr>
         
         <tr><td><code>docs/tools-integrations/MCP.md</code> · <code>SAP_CLOUD_SDK.md</code></td><td>propuesta del MCP y guía del SAP Cloud SDK</td></tr>
-        <tr><td><code>docs/testing/TESTING.md</code> · <code>GUIA-PRUEBAS.md</code></td><td>catálogo de la suite (270 tests) y guía práctica CP-01…CP-13</td></tr>
+        <tr><td><code>docs/testing/TESTING.md</code> · <code>GUIA-PRUEBAS.md</code></td><td>catálogo de la suite (272 tests) y guía práctica CP-01…CP-13</td></tr>
         <tr><td><code>external-services/README.md</code> · <code>debezium/README.md</code></td><td>infraestructura local y detalle de los conectores</td></tr>
         <tr><td><code>docs/GLOSSARY.md</code></td><td>glosario de términos y siglas SAP</td></tr>
       </tbody>
@@ -1643,9 +1642,9 @@ const PIEZAS = {
     conexiones: ['uc-features','sapclient','sapmodels','s4'], diagramas: [['c4','C4']]
   },
   'sapclient': {
-    titulo: 'WebClientSapClient', estado: 'impl',
-    rol: 'Un WebClient por destino (BTP, S4_NATIVE) sobre Reactor Netty. Añade Idempotency-Key = payloadHash a todas las escrituras. Resilience4j: retry 3 con backoff 500 ms ×2 y circuit breaker 50 % / ventana 10 / 30 s. Los 5xx y los errores de transporte reintentan; los 4xx no. patch() y delete() están implementados pero nadie los invoca.',
-    ficheros: ['common/src/main/java/com/poc/sap/common/sap/WebClientSapClient.java', 'common/…/sap/SapClient.java', 'common/…/sap/SapIntegrationConfig.java'],
+    titulo: 'RestClientSapClient', estado: 'impl',
+    rol: 'Un RestClient de Spring por destino (BTP, S4_NATIVE) sobre el HttpClient del JDK (ADR-0001). Añade Idempotency-Key = payloadHash a todas las escrituras. Resilience4j: retry 3 con backoff 500 ms ×2 y circuit breaker 50 % / ventana 10 / 30 s. Los 5xx y los errores de transporte reintentan; los 4xx no. delete() lo usa la baja de cliente; patch() espera al upsert idempotente (Fase 3).',
+    ficheros: ['common/src/main/java/com/poc/sap/common/sap/RestClientSapClient.java', 'common/…/sap/SapClient.java', 'common/…/sap/SapIntegrationConfig.java'],
     config: ['sap.client.connect-timeout-ms / response-timeout-ms', 'sap.client.retry.*', 'sap.client.circuit-breaker.*'],
     conexiones: ['adapters-btp','adapters-odata','auth','s4','btp-api'], diagramas: [['k1','K1'],['c4','C4']]
   },

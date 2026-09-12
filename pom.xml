@@ -45,8 +45,10 @@
     <dependencyManagement>
         <dependencies>
             <!--
-                SAP Cloud SDK BOM (modules only) importado ANTES del BOM de Spring Boot
-                para minimizar choques de versiones con Spring Boot 4.0.
+                SAP Cloud SDK BOM (modules only): solo lo usa sap-api-models
+                (openapi-core + generator de modelos). Ningun modulo lleva sdk-core
+                ni conectividad del SDK en runtime (ADR-0001). Importado ANTES del BOM
+                de Spring Boot para minimizar choques de versiones.
             -->
             <dependency>
                 <groupId>com.sap.cloud.sdk</groupId>

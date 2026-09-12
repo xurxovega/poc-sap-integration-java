@@ -61,8 +61,8 @@ customer/application/general/SyncCustomerUseCase.java
          │      │  common/sap/json/SapJsonMapper.write(dto)
          │      │  common/sap/SapClient.send(BTP, path, ...)
          │      │
-         │      └→ common/sap/WebClientSapClient.java
-         │         │  exchange("POST", ...) → WebClient.post()
+         │      └→ common/sap/RestClientSapClient.java  (ADR-0001)
+         │         │  exchange(POST, ...) → RestClient.method(POST)
          │         │  Resilience4j retry + circuit breaker
          │         │  auth via SapAuthProvider → Bearer token
          │         └→ SAP BTP API
@@ -125,7 +125,7 @@ Propiedades en application-common.yml:
 1. Busca el puerto en `customer/domain/port/<Puerto>.java`
 2. Abre "Find Usages" (Ctrl+Alt+F7 en IntelliJ)
 3. Spring inyecta el adaptador activo según `@ConditionalOnProperty`
-4. Sigue la cadena: adapter → SapJsonMapper → SapClient → WebClientSapClient
+4. Sigue la cadena: adapter → SapJsonMapper → SapClient → RestClientSapClient
 
 ---
 ---

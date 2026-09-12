@@ -18,7 +18,7 @@
 ## Nivel 1 — Suite automática (sin Docker)
 
 ```bash
-mvn clean test          # 270 tests: unit + slice + resiliencia + smoke de contexto
+mvn clean test          # 272 tests: unit + slice + resiliencia + smoke de contexto
 ```
 
 Qué valida cada bloque y dónde mirar si falla:
@@ -26,7 +26,7 @@ Qué valida cada bloque y dónde mirar si falla:
 | Bloque | Qué prueba | Si falla |
 |---|---|---|
 | `common` dominio | Máquina de estados (estado inicial, re-sync), `ValidationResult`, dedupe Mongo | Regresión en reglas de transición |
-| `WebClientSapClientTest` | Retry en 5xx, no-retry en 4xx, cabeceras, CSRF completo (contra WireMock embebido) | Regresión en la capa de resiliencia/CSRF |
+| `RestClientSapClientTest` | Retry en 5xx, no-retry en 4xx, cabeceras, PATCH/DELETE, CSRF completo con la auth del destino (contra WireMock embebido) | Regresión en la capa de resiliencia/CSRF |
 | `customer`/`article` unit | Validadores, use cases, adaptadores (payloads con `BusinessPartner` real) | Regresión funcional del pipeline |
 | `*ApplicationContextTest` | **El contexto Spring completo de cada app arranca** sin infraestructura | Bean que falta, YAML roto, incompatibilidad Boot 4 — mirar el primer `Caused by` |
 
@@ -219,7 +219,7 @@ Arranca con `SAP_S4_CSRF_ENABLED=true` y un stub del fetch en el mock
 (respuesta con cabecera `x-csrf-token`); verás en `__admin/requests` el `GET`
 de fetch antes del primer `POST`, y el token+cookies en las escrituras. El
 comportamiento exacto (incluido el refresh en 403) está cubierto
-automáticamente por `WebClientSapClientTest`.
+automáticamente por `RestClientSapClientTest`.
 
 ---
 
