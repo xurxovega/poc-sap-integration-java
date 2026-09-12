@@ -8,10 +8,7 @@ import com.poc.sap.common.domain.port.HistoryIndexerPort;
 import com.poc.sap.common.domain.port.LegacyRepositoryPort;
 import com.poc.sap.common.domain.port.MetricsPort;
 import com.poc.sap.customer.application.CustomerFixtures;
-import com.poc.sap.customer.application.address.SyncAddressUseCase;
-import com.poc.sap.customer.application.banking.SyncBankingUseCase;
-import com.poc.sap.customer.application.contact.SyncContactUseCase;
-import com.poc.sap.customer.application.fiscal.SyncFiscalUseCase;
+import com.poc.sap.customer.application.CustomerFeatureSync;
 import com.poc.sap.customer.domain.Customer;
 import com.poc.sap.customer.domain.CustomerFeature;
 import com.poc.sap.customer.domain.port.CustomerHistoryIndexerPort;
@@ -42,7 +39,7 @@ import static org.mockito.Mockito.verify;
 
 /**
  * Tests unit del orchestrador general {@link SyncCustomerUseCase}.
- * Puro: sin Spring, mocks de todos los ports y use cases de feature.
+ * Puro: sin Spring; puertos mockeados y las features como CustomerFeatureSync (A20).
  */
 @ExtendWith(MockitoExtension.class)
 class SyncCustomerUseCaseTest {
@@ -52,10 +49,10 @@ class SyncCustomerUseCaseTest {
     @Mock CustomerHistoryIndexerPort historyIndexer;
     @Mock SyncStateRepositoryPort stateRepo;
     @Mock MetricsPort metrics;
-    @Mock SyncAddressUseCase address;
-    @Mock SyncFiscalUseCase fiscal;
-    @Mock SyncContactUseCase contact;
-    @Mock SyncBankingUseCase banking;
+    @Mock CustomerFeatureSync address;   // puerto de feature, no la clase concreta (A20)
+    @Mock CustomerFeatureSync fiscal;   // puerto de feature, no la clase concreta (A20)
+    @Mock CustomerFeatureSync contact;   // puerto de feature, no la clase concreta (A20)
+    @Mock CustomerFeatureSync banking;   // puerto de feature, no la clase concreta (A20)
 
     private SyncCustomerUseCase useCase;
 

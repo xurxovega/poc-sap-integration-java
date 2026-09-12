@@ -1,13 +1,12 @@
 package com.poc.sap.customer.application.general;
 
+import com.poc.sap.common.application.SyncCycleRecorder;
 import com.poc.sap.common.domain.SyncState;
 import com.poc.sap.common.domain.port.SyncStateRepositoryPort;
-import com.poc.sap.common.domain.SyncStateTransition;
 import com.poc.sap.common.domain.port.MetricsPort;
 import com.poc.sap.customer.domain.CustomerValidations;
 import com.poc.sap.customer.domain.port.CustomerLegacyRepositoryPort;
 
-import java.time.Instant;
 import java.util.EnumSet;
 import java.util.Optional;
 
@@ -21,6 +20,7 @@ public class ValidateCustomerUseCase {
     private final CustomerLegacyRepositoryPort legacyRepo;
     private final SyncStateRepositoryPort stateRepo;
     private final MetricsPort metrics;
+    private final SyncCycleRecorder cycle;
 
     public ValidateCustomerUseCase(CustomerLegacyRepositoryPort legacyRepo,
                                    SyncStateRepositoryPort stateRepo,
@@ -28,6 +28,7 @@ public class ValidateCustomerUseCase {
         this.legacyRepo = legacyRepo;
         this.stateRepo = stateRepo;
         this.metrics = metrics;
+        this.cycle = new SyncCycleRecorder(DOMAIN, stateRepo, metrics);
     }
 
     public SyncState execute(String entityId, String payloadHash) {
@@ -48,17 +49,11 @@ public class ValidateCustomerUseCase {
         return target;
     }
 
-    /** Abre un ciclo nuevo (sdd/common/maquina-de-estados.md R-3): legal desde cualquier estado previo. */
     private void beginCycle(String entityId, String payloadHash, SyncState entry) {
-        stateRepo.beginCycle(DOMAIN, entityId, new SyncStateTransition(
-                entityId, DOMAIN, null, entry, "rest", payloadHash, Instant.now()));
-        metrics.incrementState(DOMAIN, entry.name());
+        cycle.beginCycle(entityId, "rest", payloadHash, entry);
     }
 
-    private void transition(String entityId, String payloadHash,
-                            SyncState from, SyncState to) {
-        stateRepo.transition(DOMAIN, entityId, new SyncStateTransition(
-                entityId, DOMAIN, from, to, "rest", payloadHash, Instant.now()));
-        metrics.incrementState(DOMAIN, to.name());
+    private void transition(String entityId, String payloadHash, SyncState from, SyncState to) {
+        cycle.advance(entityId, "rest", payloadHash, from, to);
     }
 }

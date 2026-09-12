@@ -1,76 +1,39 @@
 package com.poc.sap.customer.application.fiscal;
 
+import com.poc.sap.common.application.FeatureSyncPipeline;
 import com.poc.sap.common.domain.SyncState;
-import com.poc.sap.common.domain.port.SyncStateRepositoryPort;
-import com.poc.sap.common.domain.SyncStateTransition;
-import com.poc.sap.common.domain.ValidationResult;
 import com.poc.sap.common.domain.port.MetricsPort;
+import com.poc.sap.common.domain.port.SyncStateRepositoryPort;
+import com.poc.sap.customer.application.CustomerFeatureSync;
 import com.poc.sap.customer.domain.Customer;
 import com.poc.sap.customer.domain.CustomerFeature;
 import com.poc.sap.customer.domain.feature.fiscal.FiscalData;
 import com.poc.sap.customer.domain.feature.fiscal.FiscalValidator;
 import com.poc.sap.customer.domain.port.FiscalSapPort;
 
-import java.time.Instant;
+/**
+ * Feature FISCAL del cliente: valida y envia a SAP los datos fiscales sobre la linea de
+ * estado {@code customerId:FISCAL} (sdd/customer/sincronizacion-datos-fiscales.md). El recorrido lo
+ * implementa {@link FeatureSyncPipeline}, comun a las cuatro features (Fase 7).
+ */
+public class SyncFiscalUseCase implements CustomerFeatureSync {
 
-/** Use case de la feature FISCAL: valida y envia a SAP los datos fiscales. */
-public class SyncFiscalUseCase {
-
-    private static final String DOMAIN = "customer";
-    private static final String STAGE = "fiscal";
-
-    private final FiscalSapPort sapPort;
-    private final SyncStateRepositoryPort stateRepo;
-    private final MetricsPort metrics;
+    private final FeatureSyncPipeline<FiscalData> pipeline;
 
     public SyncFiscalUseCase(FiscalSapPort sapPort,
-                             SyncStateRepositoryPort stateRepo,
-                             MetricsPort metrics) {
-        this.sapPort = sapPort;
-        this.stateRepo = stateRepo;
-        this.metrics = metrics;
+                           SyncStateRepositoryPort stateRepo,
+                           MetricsPort metrics) {
+        this.pipeline = new FeatureSyncPipeline<>("customer", CustomerFeature.FISCAL.name(),
+                FiscalValidator::validate, sapPort, stateRepo, metrics);
     }
 
+    @Override
     public SyncState execute(Customer customer, String payloadHash) {
-        FiscalData fiscal = customer.fiscal();
-        String featureEntityId = featureEntityId(customer.id());
-
-        ValidationResult v = FiscalValidator.validate(fiscal);
-        // La linea de estado de la feature (<id>:FEATURE) es independiente de la
-        // del cliente agregado y no existe antes del primer sync: hay que
-        // registrar la entrada en VALIDATING, que es su estado inicial
-        // permitido (OVERVIEW.md §5). El repositorio calcula el 'from' del
-        // estado almacenado, no del declarado aqui.
-        beginCycle(featureEntityId, payloadHash, SyncState.VALIDATING);
-
-        transition(featureEntityId, payloadHash, SyncState.VALIDATING,
-                v.valid() ? SyncState.VALID : SyncState.INVALID);
-        if (!v.valid()) {
-            return SyncState.INVALID;
-        }
-
-        transition(featureEntityId, payloadHash, SyncState.VALID, SyncState.SENDING_SAP);
-        var response = sapPort.send(customer.id(), payloadHash, fiscal);
-        SyncState target = response.isSuccess() ? SyncState.SENT_SAP : SyncState.SAP_ERROR;
-        transition(featureEntityId, payloadHash, SyncState.SENDING_SAP, target);
-        return target;
+        return pipeline.sync(customer.id(), payloadHash, customer.fiscal());
     }
 
+    /** Identificador de la feature en el state repo: customerId:FISCAL. */
     public static String featureEntityId(String customerId) {
-        return customerId + ":" + CustomerFeature.FISCAL.name();
-    }
-
-    /** Abre un ciclo nuevo (sdd/common/maquina-de-estados.md R-3): legal desde cualquier estado previo. */
-    private void beginCycle(String entityId, String payloadHash, SyncState entry) {
-        stateRepo.beginCycle(DOMAIN, entityId, new SyncStateTransition(
-                entityId, DOMAIN, null, entry, STAGE, payloadHash, Instant.now()));
-        metrics.incrementState(DOMAIN, entry.name());
-    }
-
-    private void transition(String entityId, String payloadHash,
-                            SyncState from, SyncState to) {
-        stateRepo.transition(DOMAIN, entityId, new SyncStateTransition(
-                entityId, DOMAIN, from, to, STAGE, payloadHash, Instant.now()));
-        metrics.incrementState(DOMAIN, to.name());
+        return FeatureSyncPipeline.featureEntityId(customerId, CustomerFeature.FISCAL.name());
     }
 }

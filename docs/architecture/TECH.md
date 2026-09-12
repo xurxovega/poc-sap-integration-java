@@ -48,7 +48,9 @@ sap-integration-java/
 ├── pom.xml                       # parent reactor
 ├── common/                       # shared kernel (jar)
 │   └── src/main/java/.../common/
-│       ├── domain/               # StateMachine, SyncState, value objects base
+│       ├── domain/               # StateMachine, SyncState, puertos base (MetricsPort...)
+│       ├── application/          # SyncCycleRecorder, FeatureSyncPipeline<D> (recorrido comun por feature)
+│       ├── kafka/                # KafkaErrorHandlingConfig (reintentos + DLT, compartido)
 │       ├── sap/                  # SapClient, auth BTP/S4, DTOs contrato
 │       ├── observability/        # Micrometer + OTel config
 │       └── test/                 # Testcontainers support, WireMock SAP
@@ -67,6 +69,11 @@ sap-integration-java/
 
 - `domain`: **puro, sin Spring**. Records/sealed para entidades y value objects.
   Validaciones y **ports = interfaces Java**. Sin dependencias de framework.
+- `common/application`: lo que se repetía en cada use case. `SyncCycleRecorder`
+  abre y avanza el ciclo registrando métrica (antes 14 copias de
+  `beginCycle()`/`transition()`); `FeatureSyncPipeline<D>` es el recorrido por
+  feature `VALIDATING → VALID|INVALID → SENDING_SAP → SENT_SAP|SAP_ERROR` con
+  validador y puerto SAP inyectados (antes cuatro copias en `customer`).
 - `application`: use cases / features. Orquesta ports. **Sin Spring ni Micrometer**
   (ArchUnit `ApplicationPurityTest`): las métricas van por `MetricsPort` y el
   wiring vive en `bootstrap/*UseCaseConfig` (plan Fase 7, auditoría A4).

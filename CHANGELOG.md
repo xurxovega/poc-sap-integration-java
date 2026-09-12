@@ -20,9 +20,16 @@ identifican por fecha.
 
 ## [Sin publicar]
 
-### 2026-09-12 — Limpieza interna (Fase 7 de la auditoría, primera parte)
+### 2026-09-12 — Limpieza interna (Fase 7 de la auditoría)
 
 #### Cambiado
+
+- El recorrido que siguen las cuatro partes del cliente (dirección, fiscal,
+  contacto, banco) al validarse y enviarse a SAP estaba escrito cuatro veces;
+  ahora está una vez y las cuatro lo usan. Igual con el registro de cada paso
+  del proceso (catorce copias) y con la gestión de errores de la cola (dos).
+  Menos sitios donde equivocarse; el comportamiento no cambia y las mismas
+  pruebas lo demuestran.
 
 - La lógica de negocio deja de depender del framework: los casos de uso ya no
   conocen Spring ni la librería de métricas, y una regla automática impide que

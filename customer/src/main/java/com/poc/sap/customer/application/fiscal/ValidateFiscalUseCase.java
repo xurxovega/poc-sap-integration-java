@@ -1,45 +1,25 @@
 package com.poc.sap.customer.application.fiscal;
 
+import com.poc.sap.common.application.FeatureSyncPipeline;
 import com.poc.sap.common.domain.SyncState;
-import com.poc.sap.common.domain.port.SyncStateRepositoryPort;
-import com.poc.sap.common.domain.SyncStateTransition;
 import com.poc.sap.common.domain.port.MetricsPort;
+import com.poc.sap.common.domain.port.SyncStateRepositoryPort;
 import com.poc.sap.customer.domain.Customer;
+import com.poc.sap.customer.domain.CustomerFeature;
+import com.poc.sap.customer.domain.feature.fiscal.FiscalData;
 import com.poc.sap.customer.domain.feature.fiscal.FiscalValidator;
 
-import java.time.Instant;
-
-/** Use case de validacion aislada de la feature FISCAL. */
+/** Validacion aislada de la feature FISCAL sobre su linea de estado (sin envio a SAP). */
 public class ValidateFiscalUseCase {
 
-    private final SyncStateRepositoryPort stateRepo;
-    private final MetricsPort metrics;
+    private final FeatureSyncPipeline<FiscalData> pipeline;
 
     public ValidateFiscalUseCase(SyncStateRepositoryPort stateRepo, MetricsPort metrics) {
-        this.stateRepo = stateRepo;
-        this.metrics = metrics;
+        this.pipeline = new FeatureSyncPipeline<>("customer", CustomerFeature.FISCAL.name(),
+                FiscalValidator::validate, null, stateRepo, metrics);
     }
 
     public SyncState execute(Customer c, String payloadHash) {
-        String entityId = SyncFiscalUseCase.featureEntityId(c.id());
-        beginCycle(entityId, payloadHash, SyncState.VALIDATING);
-        var r = FiscalValidator.validate(c.fiscal());
-        SyncState target = r.valid() ? SyncState.VALID : SyncState.INVALID;
-        transition(entityId, payloadHash, SyncState.VALIDATING, target);
-        return target;
-    }
-
-    /** Abre un ciclo nuevo (sdd/common/maquina-de-estados.md R-3): legal desde cualquier estado previo. */
-    private void beginCycle(String entityId, String payloadHash, SyncState entry) {
-        stateRepo.beginCycle("customer", entityId, new SyncStateTransition(
-                entityId, "customer", null, entry, "fiscal", payloadHash, Instant.now()));
-        metrics.incrementState("customer", entry.name());
-    }
-
-    private void transition(String entityId, String payloadHash,
-                            SyncState from, SyncState to) {
-        stateRepo.transition("customer", entityId, new SyncStateTransition(
-                entityId, "customer", from, to, "fiscal", payloadHash, Instant.now()));
-        metrics.incrementState("customer", to.name());
+        return pipeline.validate(c.id(), payloadHash, c.fiscal());
     }
 }

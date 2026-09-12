@@ -1,14 +1,11 @@
 package com.poc.sap.customer.application.general;
 
+import com.poc.sap.common.application.SyncCycleRecorder;
 import com.poc.sap.common.domain.IngestionMessage;
 import com.poc.sap.common.domain.SyncState;
 import com.poc.sap.common.domain.port.SyncStateRepositoryPort;
-import com.poc.sap.common.domain.SyncStateTransition;
 import com.poc.sap.common.domain.port.MetricsPort;
-import com.poc.sap.customer.application.address.SyncAddressUseCase;
-import com.poc.sap.customer.application.banking.SyncBankingUseCase;
-import com.poc.sap.customer.application.contact.SyncContactUseCase;
-import com.poc.sap.customer.application.fiscal.SyncFiscalUseCase;
+import com.poc.sap.customer.application.CustomerFeatureSync;
 import com.poc.sap.customer.domain.Customer;
 import com.poc.sap.customer.domain.CustomerFeature;
 import com.poc.sap.customer.domain.CustomerValidations;
@@ -18,12 +15,10 @@ import com.poc.sap.customer.domain.port.CustomerLegacyRepositoryPort;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.time.Instant;
 import java.util.EnumSet;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import java.util.function.BiFunction;
 import java.util.function.Supplier;
 
 /**
@@ -46,25 +41,28 @@ public class SyncCustomerUseCase {
     private final SyncStateRepositoryPort stateRepo;
     private final MetricsPort metrics;
 
-    private final SyncAddressUseCase  address;
-    private final SyncFiscalUseCase  fiscal;
-    private final SyncContactUseCase  contact;
-    private final SyncBankingUseCase  banking;
+    private final SyncCycleRecorder cycle;
+
+    private final CustomerFeatureSync address;
+    private final CustomerFeatureSync fiscal;
+    private final CustomerFeatureSync contact;
+    private final CustomerFeatureSync banking;
 
     public SyncCustomerUseCase(CustomerLegacyRepositoryPort legacyRepo,
                               CustomerImageStorePort imageStore,
                               CustomerHistoryIndexerPort historyIndexer,
                               SyncStateRepositoryPort stateRepo,
                               MetricsPort metrics,
-                              SyncAddressUseCase address,
-                              SyncFiscalUseCase fiscal,
-                              SyncContactUseCase contact,
-                              SyncBankingUseCase banking) {
+                              CustomerFeatureSync address,
+                              CustomerFeatureSync fiscal,
+                              CustomerFeatureSync contact,
+                              CustomerFeatureSync banking) {
         this.legacyRepo = legacyRepo;
         this.imageStore = imageStore;
         this.historyIndexer = historyIndexer;
         this.stateRepo = stateRepo;
         this.metrics = metrics;
+        this.cycle = new SyncCycleRecorder(DOMAIN, stateRepo, metrics);
         this.address = address;
         this.fiscal = fiscal;
         this.contact = contact;
@@ -161,20 +159,20 @@ public class SyncCustomerUseCase {
     }
 
     private SyncState sendFeatures(Customer customer, String payloadHash, Set<CustomerFeature> features) {
-        Map<CustomerFeature, BiFunction<Customer, String, SyncState>> dispatch = Map.of(
-                CustomerFeature.ADDRESS, address::execute,
-                CustomerFeature.FISCAL,  fiscal::execute,
-                CustomerFeature.CONTACT, contact::execute,
-                CustomerFeature.BANKING, banking::execute);
+        Map<CustomerFeature, CustomerFeatureSync> dispatch = Map.of(
+                CustomerFeature.ADDRESS, address,
+                CustomerFeature.FISCAL,  fiscal,
+                CustomerFeature.CONTACT, contact,
+                CustomerFeature.BANKING, banking);
 
         boolean allOk = true;
         boolean anyInvalid = false;
         for (CustomerFeature f : features) {
-            BiFunction<Customer, String, SyncState> uc = dispatch.get(f);
+            CustomerFeatureSync uc = dispatch.get(f);
             if (uc == null) {
                 continue;
             }
-            SyncState s = uc.apply(customer, payloadHash);
+            SyncState s = uc.execute(customer, payloadHash);
             if (s == SyncState.INVALID) {
                 anyInvalid = true;
             } else if (s != SyncState.SENT_SAP) {
@@ -195,10 +193,7 @@ public class SyncCustomerUseCase {
     }
 
     private void beginCycle(IngestionMessage msg, SyncState entry) {
-        stateRepo.beginCycle(DOMAIN, msg.entityId(), new SyncStateTransition(
-                msg.entityId(), DOMAIN, null, entry,
-                msg.origin().name().toLowerCase(), msg.payloadHash(), Instant.now()));
-        metrics.incrementState(DOMAIN, entry.name());
+        cycle.beginCycle(msg.entityId(), msg.origin().name().toLowerCase(), msg.payloadHash(), entry);
     }
 
     /** R-6: registra ERROR sin enmascarar la excepcion original si el propio registro falla. */
@@ -211,9 +206,6 @@ public class SyncCustomerUseCase {
     }
 
     private void transition(IngestionMessage msg, SyncState from, SyncState to) {
-        stateRepo.transition(DOMAIN, msg.entityId(), new SyncStateTransition(
-                msg.entityId(), DOMAIN, from, to,
-                msg.origin().name().toLowerCase(), msg.payloadHash(), Instant.now()));
-        metrics.incrementState(DOMAIN, to.name());
+        cycle.advance(msg.entityId(), msg.origin().name().toLowerCase(), msg.payloadHash(), from, to);
     }
 }

@@ -1,45 +1,25 @@
 package com.poc.sap.customer.application.banking;
 
+import com.poc.sap.common.application.FeatureSyncPipeline;
 import com.poc.sap.common.domain.SyncState;
-import com.poc.sap.common.domain.port.SyncStateRepositoryPort;
-import com.poc.sap.common.domain.SyncStateTransition;
 import com.poc.sap.common.domain.port.MetricsPort;
+import com.poc.sap.common.domain.port.SyncStateRepositoryPort;
 import com.poc.sap.customer.domain.Customer;
+import com.poc.sap.customer.domain.CustomerFeature;
+import com.poc.sap.customer.domain.feature.banking.BankingData;
 import com.poc.sap.customer.domain.feature.banking.BankingValidator;
 
-import java.time.Instant;
-
-/** Use case de validacion aislada de la feature BANKING. */
+/** Validacion aislada de la feature BANKING sobre su linea de estado (sin envio a SAP). */
 public class ValidateBankingUseCase {
 
-    private final SyncStateRepositoryPort stateRepo;
-    private final MetricsPort metrics;
+    private final FeatureSyncPipeline<BankingData> pipeline;
 
     public ValidateBankingUseCase(SyncStateRepositoryPort stateRepo, MetricsPort metrics) {
-        this.stateRepo = stateRepo;
-        this.metrics = metrics;
+        this.pipeline = new FeatureSyncPipeline<>("customer", CustomerFeature.BANKING.name(),
+                BankingValidator::validate, null, stateRepo, metrics);
     }
 
     public SyncState execute(Customer c, String payloadHash) {
-        String entityId = SyncBankingUseCase.featureEntityId(c.id());
-        beginCycle(entityId, payloadHash, SyncState.VALIDATING);
-        var r = BankingValidator.validate(c.banking());
-        SyncState target = r.valid() ? SyncState.VALID : SyncState.INVALID;
-        transition(entityId, payloadHash, SyncState.VALIDATING, target);
-        return target;
-    }
-
-    /** Abre un ciclo nuevo (sdd/common/maquina-de-estados.md R-3): legal desde cualquier estado previo. */
-    private void beginCycle(String entityId, String payloadHash, SyncState entry) {
-        stateRepo.beginCycle("customer", entityId, new SyncStateTransition(
-                entityId, "customer", null, entry, "banking", payloadHash, Instant.now()));
-        metrics.incrementState("customer", entry.name());
-    }
-
-    private void transition(String entityId, String payloadHash,
-                            SyncState from, SyncState to) {
-        stateRepo.transition("customer", entityId, new SyncStateTransition(
-                entityId, "customer", from, to, "banking", payloadHash, Instant.now()));
-        metrics.incrementState("customer", to.name());
+        return pipeline.validate(c.id(), payloadHash, c.banking());
     }
 }

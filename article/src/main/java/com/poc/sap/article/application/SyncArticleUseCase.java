@@ -1,9 +1,9 @@
 package com.poc.sap.article.application;
 
+import com.poc.sap.common.application.SyncCycleRecorder;
 import com.poc.sap.common.domain.IngestionMessage;
 import com.poc.sap.common.domain.SyncState;
 import com.poc.sap.common.domain.port.SyncStateRepositoryPort;
-import com.poc.sap.common.domain.SyncStateTransition;
 import com.poc.sap.common.domain.ValidationResult;
 import com.poc.sap.common.domain.port.MetricsPort;
 import com.poc.sap.article.domain.Article;
@@ -15,7 +15,6 @@ import com.poc.sap.article.domain.port.ArticleSapOutboundPort;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.time.Instant;
 import java.util.Optional;
 import java.util.function.Supplier;
 
@@ -34,6 +33,7 @@ public class SyncArticleUseCase {
     private final ArticleSapOutboundPort sapOutbound;
     private final SyncStateRepositoryPort stateRepo;
     private final MetricsPort metrics;
+    private final SyncCycleRecorder cycle;
 
     public SyncArticleUseCase(ArticleLegacyRepositoryPort legacyRepo,
                               ArticleImageStorePort imageStore,
@@ -47,6 +47,7 @@ public class SyncArticleUseCase {
         this.sapOutbound = sapOutbound;
         this.stateRepo = stateRepo;
         this.metrics = metrics;
+        this.cycle = new SyncCycleRecorder(DOMAIN, stateRepo, metrics);
     }
 
     public SyncState execute(IngestionMessage message) {
@@ -132,10 +133,7 @@ public class SyncArticleUseCase {
     }
 
     private void beginCycle(IngestionMessage msg, SyncState entry) {
-        stateRepo.beginCycle(DOMAIN, msg.entityId(), new SyncStateTransition(
-                msg.entityId(), DOMAIN, null, entry,
-                msg.origin().name().toLowerCase(), msg.payloadHash(), Instant.now()));
-        metrics.incrementState(DOMAIN, entry.name());
+        cycle.beginCycle(msg.entityId(), msg.origin().name().toLowerCase(), msg.payloadHash(), entry);
     }
 
     private void markError(IngestionMessage msg, RuntimeException cause) {
@@ -147,9 +145,6 @@ public class SyncArticleUseCase {
     }
 
     private void transition(IngestionMessage msg, SyncState from, SyncState to) {
-        stateRepo.transition(DOMAIN, msg.entityId(), new SyncStateTransition(
-                msg.entityId(), DOMAIN, from, to,
-                msg.origin().name().toLowerCase(), msg.payloadHash(), Instant.now()));
-        metrics.incrementState(DOMAIN, to.name());
+        cycle.advance(msg.entityId(), msg.origin().name().toLowerCase(), msg.payloadHash(), from, to);
     }
 }

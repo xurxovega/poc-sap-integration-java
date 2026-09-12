@@ -132,6 +132,8 @@ reintentos.
 |---|---|---|
 | §6 tabla de transiciones (`advance`) | `common/domain/SyncStateMachine.java` | `SyncStateMachineTest` |
 | R-1/R-3 `beginCycle` y `ENTRY_STATES` | `SyncStateMachine.beginCycle` · `SyncStateRepositoryPort.beginCycle` | `SyncStateMachineTest#beginCycleOpensFromAnyCurrentStateForEveryEntryState` |
+| Registro del ciclo desde `application` (abrir/avanzar + métrica) | `common/application/SyncCycleRecorder.java` (único punto que construye `SyncStateTransition`) | `FeatureSyncPipelineTest` · tests de los orquestadores |
+| §6 línea de feature (`VALIDATING → … → SENT_SAP`) | `common/application/FeatureSyncPipeline.java` | `FeatureSyncPipelineTest` (4 tests con la máquina real) |
 | AC-11/12/13 secuencia y concurrencia | `common/adapters/persistence/MongoSyncStateRepository.java` (`seq`, índice único) | `MongoSyncStateRepositoryTest` |
 | AC-14 lo mismo contra Mongo real | `MongoSyncStateRepository` + `SyncStateDoc` (índice parcial `dom_ent_seq_uk`) | `SyncStateMongoIT` (Testcontainers `mongo:7.0`) |
 | §3 el `from` se lee del almacén | `common/adapters/persistence/MongoSyncStateRepository.java` | `MongoSyncStateRepositoryTest` |
@@ -141,6 +143,7 @@ reintentos.
 
 | Fecha | Cambio | PR |
 |---|---|---|
+| 2026-09-12 | Fase 7 (A5): `SyncCycleRecorder` y `FeatureSyncPipeline<D>` en `common/application` sustituyen a las 14 copias de `beginCycle()/transition()` y a los cuatro `Sync<Feature>UseCase` idénticos. Comportamiento sin cambios: los tests de cada use case siguen en verde | — |
 | 2026-09-12 | AC-14: la secuencia, la versión optimista y la convivencia con documentos legacy se prueban también contra un **Mongo real** con Testcontainers (`SyncStateMongoIT`), no solo contra el fake en memoria (Fase 2 de la auditoría, TEST-1 parcial) | — |
 | 2026-09-12 | Verificado en vivo el 2026-09-12: apertura desde `SAP_ERROR` y desde `SENDING_SAP` en vuelo; `seq` monótona entre escritores CDC y REST (1→24). El índice único tuvo que ser **parcial**, no `sparse`: sparse compuesto indexa si hay al menos una clave y los docs antiguos colisionaban en `seq=null` (E11000 al arrancar) | — |
 | 2026-09-11 | **Rediseño de raíz** (auditoría B1/B11/B14): se separa **abrir ciclo** (`beginCycle`, legal desde cualquier estado, por cuatro estados de entrada) de **avanzar** (`advance`, la tabla). Cierra el *fingerprint* `sync-state:reentrada-no-permitida` en su tercera recurrencia: `SAP_ERROR` y los estados intermedios eran sumideros, y la baja/indexación abrían por estados que la tabla no admitía. Test de propiedad estados × entradas. `SENDING_SAP → ERROR`. En el repositorio Mongo, orden por **secuencia** en vez de `timestamp` y **versión optimista** por índice único (`seq`) para varias instancias | — |

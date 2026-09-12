@@ -1,7 +1,7 @@
 package com.poc.sap.customer.application.general;
 
+import com.poc.sap.common.application.SyncCycleRecorder;
 import com.poc.sap.common.domain.SyncState;
-import com.poc.sap.common.domain.SyncStateTransition;
 import com.poc.sap.common.domain.port.SyncStateRepositoryPort;
 import com.poc.sap.common.domain.port.MetricsPort;
 import com.poc.sap.customer.domain.Customer;
@@ -10,7 +10,6 @@ import com.poc.sap.customer.domain.port.CustomerSapOutboundPort;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.time.Instant;
 
 /**
  * Baja de un cliente (sdd/customer/baja-cliente.md; OVERVIEW.md §2).
@@ -34,6 +33,7 @@ public class DeleteCustomerUseCase {
     private final CustomerSapOutboundPort sapOutbound;
     private final SyncStateRepositoryPort stateRepo;
     private final MetricsPort metrics;
+    private final SyncCycleRecorder cycle;
 
     public DeleteCustomerUseCase(CustomerImageStorePort imageStore,
                                  CustomerSapOutboundPort sapOutbound,
@@ -43,6 +43,7 @@ public class DeleteCustomerUseCase {
         this.sapOutbound = sapOutbound;
         this.stateRepo = stateRepo;
         this.metrics = metrics;
+        this.cycle = new SyncCycleRecorder(DOMAIN, stateRepo, metrics);
     }
 
     public SyncState execute(String customerId, String payloadHash) {
@@ -71,13 +72,10 @@ public class DeleteCustomerUseCase {
     }
 
     private void record(String entityId, String payloadHash, SyncState to, boolean opensCycle) {
-        SyncStateTransition t = new SyncStateTransition(
-                entityId, DOMAIN, null, to, ORIGIN, payloadHash, Instant.now());
         if (opensCycle) {
-            stateRepo.beginCycle(DOMAIN, entityId, t);
+            cycle.beginCycle(entityId, ORIGIN, payloadHash, to);
         } else {
-            stateRepo.transition(DOMAIN, entityId, t);
+            cycle.advance(entityId, ORIGIN, payloadHash, null, to);
         }
-        metrics.incrementState(DOMAIN, to.name());
     }
 }

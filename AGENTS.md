@@ -355,6 +355,11 @@ MinIO): `cd external-services && docker compose up -d`.
 - **Cambio en `SapClient`**: nuevo método HTTP → implementar en
   `RestClientSapClient` vía su `exchange()` interno y añadir el AC al spec
   `docs/sdd/common/resiliencia-cliente-sap.md`.
+- **Nueva feature de un dominio**: no copies un `Sync<Feature>UseCase`. Declara
+  el puerto SAP y el validador y construye un `FeatureSyncPipeline<D>`
+  (`common/application`); el orquestador la recibe como `CustomerFeatureSync`.
+  Abrir/avanzar ciclo siempre a través de `SyncCycleRecorder`, nunca con
+  `new SyncStateTransition(...)` a mano en `application`.
 - **Cambio en `common`**: bump semver y ejecutar `it/` **antes**; un
   `minor`/`major` obliga a re-desplegar todos los dominios.
 - **Banner por dominio**: cada app lleva `src/main/resources/banner.txt` con el

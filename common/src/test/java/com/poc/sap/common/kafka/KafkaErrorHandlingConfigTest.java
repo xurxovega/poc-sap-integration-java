@@ -1,4 +1,4 @@
-package com.poc.sap.customer.bootstrap.kafka;
+package com.poc.sap.common.kafka;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import org.junit.jupiter.api.Test;
@@ -11,7 +11,7 @@ import org.springframework.kafka.listener.DefaultErrorHandler;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Test de la {@link KafkaErrorHandlingConfig} (TECH.md §6). C5/B1 de la
+ * Test de la {@link KafkaErrorHandlingConfig} (TECH.md §6; compartida por todos los dominios desde la Fase 7). C5/B1 de la
  * auditoria: una transicion ilegal, un mensaje malformado o una operacion
  * desconocida no son fallos transitorios; reintentarlos tres veces con backoff
  * solo retrasa su llegada a la DLT y anade ruido.

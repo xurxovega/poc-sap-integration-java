@@ -1,76 +1,39 @@
 package com.poc.sap.customer.application.banking;
 
+import com.poc.sap.common.application.FeatureSyncPipeline;
 import com.poc.sap.common.domain.SyncState;
-import com.poc.sap.common.domain.port.SyncStateRepositoryPort;
-import com.poc.sap.common.domain.SyncStateTransition;
-import com.poc.sap.common.domain.ValidationResult;
 import com.poc.sap.common.domain.port.MetricsPort;
+import com.poc.sap.common.domain.port.SyncStateRepositoryPort;
+import com.poc.sap.customer.application.CustomerFeatureSync;
 import com.poc.sap.customer.domain.Customer;
 import com.poc.sap.customer.domain.CustomerFeature;
 import com.poc.sap.customer.domain.feature.banking.BankingData;
 import com.poc.sap.customer.domain.feature.banking.BankingValidator;
 import com.poc.sap.customer.domain.port.BankingSapPort;
 
-import java.time.Instant;
+/**
+ * Feature BANKING del cliente: valida y envia a SAP los datos bancarios sobre la linea de
+ * estado {@code customerId:BANKING} (sdd/customer/sincronizacion-datos-bancarios.md). El recorrido lo
+ * implementa {@link FeatureSyncPipeline}, comun a las cuatro features (Fase 7).
+ */
+public class SyncBankingUseCase implements CustomerFeatureSync {
 
-/** Use case de la feature BANKING: valida y envia a SAP los datos bancarios. */
-public class SyncBankingUseCase {
-
-    private static final String DOMAIN = "customer";
-    private static final String STAGE = "banking";
-
-    private final BankingSapPort sapPort;
-    private final SyncStateRepositoryPort stateRepo;
-    private final MetricsPort metrics;
+    private final FeatureSyncPipeline<BankingData> pipeline;
 
     public SyncBankingUseCase(BankingSapPort sapPort,
-                              SyncStateRepositoryPort stateRepo,
-                              MetricsPort metrics) {
-        this.sapPort = sapPort;
-        this.stateRepo = stateRepo;
-        this.metrics = metrics;
+                           SyncStateRepositoryPort stateRepo,
+                           MetricsPort metrics) {
+        this.pipeline = new FeatureSyncPipeline<>("customer", CustomerFeature.BANKING.name(),
+                BankingValidator::validate, sapPort, stateRepo, metrics);
     }
 
+    @Override
     public SyncState execute(Customer customer, String payloadHash) {
-        BankingData banking = customer.banking();
-        String featureEntityId = featureEntityId(customer.id());
-
-        ValidationResult v = BankingValidator.validate(banking);
-        // La linea de estado de la feature (<id>:FEATURE) es independiente de la
-        // del cliente agregado y no existe antes del primer sync: hay que
-        // registrar la entrada en VALIDATING, que es su estado inicial
-        // permitido (OVERVIEW.md §5). El repositorio calcula el 'from' del
-        // estado almacenado, no del declarado aqui.
-        beginCycle(featureEntityId, payloadHash, SyncState.VALIDATING);
-
-        transition(featureEntityId, payloadHash, SyncState.VALIDATING,
-                v.valid() ? SyncState.VALID : SyncState.INVALID);
-        if (!v.valid()) {
-            return SyncState.INVALID;
-        }
-
-        transition(featureEntityId, payloadHash, SyncState.VALID, SyncState.SENDING_SAP);
-        var response = sapPort.send(customer.id(), payloadHash, banking);
-        SyncState target = response.isSuccess() ? SyncState.SENT_SAP : SyncState.SAP_ERROR;
-        transition(featureEntityId, payloadHash, SyncState.SENDING_SAP, target);
-        return target;
+        return pipeline.sync(customer.id(), payloadHash, customer.banking());
     }
 
+    /** Identificador de la feature en el state repo: customerId:BANKING. */
     public static String featureEntityId(String customerId) {
-        return customerId + ":" + CustomerFeature.BANKING.name();
-    }
-
-    /** Abre un ciclo nuevo (sdd/common/maquina-de-estados.md R-3): legal desde cualquier estado previo. */
-    private void beginCycle(String entityId, String payloadHash, SyncState entry) {
-        stateRepo.beginCycle(DOMAIN, entityId, new SyncStateTransition(
-                entityId, DOMAIN, null, entry, STAGE, payloadHash, Instant.now()));
-        metrics.incrementState(DOMAIN, entry.name());
-    }
-
-    private void transition(String entityId, String payloadHash,
-                            SyncState from, SyncState to) {
-        stateRepo.transition(DOMAIN, entityId, new SyncStateTransition(
-                entityId, DOMAIN, from, to, STAGE, payloadHash, Instant.now()));
-        metrics.incrementState(DOMAIN, to.name());
+        return FeatureSyncPipeline.featureEntityId(customerId, CustomerFeature.BANKING.name());
     }
 }
