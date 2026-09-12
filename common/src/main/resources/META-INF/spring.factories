@@ -1,0 +1,2 @@
+# Guardas de arranque que deben correr antes de crear beans (autenticacion-sap R-5).
+org.springframework.boot.env.EnvironmentPostProcessor=com.poc.sap.common.config.LegacyCredentialsGuard

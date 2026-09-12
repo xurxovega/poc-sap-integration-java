@@ -12,7 +12,7 @@ class LegacyCredentialsGuardTest {
     /** Boot deja el placeholder literal si la variable no existe: eso es "sin credenciales". */
     @Test
     void unresolvedPlaceholderFailsAtStartupNamingTheVariables() {
-        assertThatThrownBy(new LegacyCredentialsGuard("${POSTGRES_USER}", "${POSTGRES_PASSWORD}")::validate)
+        assertThatThrownBy(() -> LegacyCredentialsGuard.check("${POSTGRES_USER}", "${POSTGRES_PASSWORD}"))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("placeholder sin resolver")
                 .hasMessageContaining("POSTGRES_USER/POSTGRES_PASSWORD")
@@ -21,13 +21,13 @@ class LegacyCredentialsGuardTest {
 
     @Test
     void blankCredentialsFailAtStartup() {
-        assertThatThrownBy(new LegacyCredentialsGuard("", "")::validate).isInstanceOf(IllegalStateException.class);
-        assertThatThrownBy(new LegacyCredentialsGuard("sa", "")::validate).isInstanceOf(IllegalStateException.class);
+        assertThatThrownBy(() -> LegacyCredentialsGuard.check("", "")).isInstanceOf(IllegalStateException.class);
+        assertThatThrownBy(() -> LegacyCredentialsGuard.check("sa", "")).isInstanceOf(IllegalStateException.class);
         assertThat(LegacyCredentialsGuard.missing(null)).isTrue();
     }
 
     @Test
     void realCredentialsPass() {
-        assertThatCode(new LegacyCredentialsGuard("sa", "S3cret!")::validate).doesNotThrowAnyException();
+        assertThatCode(() -> LegacyCredentialsGuard.check("sa", "S3cret!")).doesNotThrowAnyException();
     }
 }
