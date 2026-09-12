@@ -25,7 +25,10 @@ import static org.assertj.core.api.Assertions.assertThat;
         "spring.jpa.database-platform=org.hibernate.dialect.SQLServerDialect",
         "spring.sql.init.mode=never",
         "spring.data.mongodb.auto-index-creation=false",
-        "spring.kafka.listener.auto-startup=false"
+        "spring.kafka.listener.auto-startup=false",
+        // credenciales fuera del YAML y stub SAP explicito (sdd/common/autenticacion-sap.md AC-5)
+        "SQLSERVER_USER=test", "SQLSERVER_PASSWORD=test",
+        "sap.auth.allow-stub=true"
 })
 class CustomerMongoDatabaseConfigTest {
 

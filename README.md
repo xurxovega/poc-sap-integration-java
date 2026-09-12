@@ -89,6 +89,7 @@ Cada dominio sigue capas por paquete:
 mvn validate                              # validar reactor
 mvn -pl common install -DskipTests        # instalar shared kernel local
 mvn -pl customer package                  # empaquetar SOLO customer (jar ejecutable)
+set -a; source scripts/env/local.env; set +a   # credenciales de BD y allow-stub: sin ellas no arranca
 mvn -pl customer spring-boot:run          # arrancar customer en :8081
 mvn compile                               # compilar todos los módulos
 mvn test                                  # tests unitarios de todos los módulos

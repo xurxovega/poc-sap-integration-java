@@ -11,7 +11,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Smoke test de arranque: el contexto Spring completo de customer-app debe
- * levantar con la configuracion por defecto (sin infraestructura externa).
+ * levantar sin infraestructura externa, con las credenciales minimas que el
+ * YAML ya no trae por defecto (auditoria A8).
  * Detecta beans que faltan, YAML invalido y conflictos de wiring que los
  * tests unitarios con mocks no ven.
  */
@@ -24,6 +25,10 @@ import static org.assertj.core.api.Assertions.assertThat;
         "spring.sql.init.mode=never",
         // sin Mongo real: no crear indices en el arranque
         "spring.data.mongodb.auto-index-creation=false",
+        // credenciales fuera del YAML (auditoria A8): el contexto las exige
+        "SQLSERVER_USER=test", "SQLSERVER_PASSWORD=test",
+        // sin SAP real: token stub declarado de forma explicita
+        "sap.auth.allow-stub=true",
         // sin broker real: los listeners no arrancan
         "spring.kafka.listener.auto-startup=false"
 })

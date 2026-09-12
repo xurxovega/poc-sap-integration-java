@@ -347,6 +347,10 @@ Librería para levantar contenedores Docker en tests de integración. Ver [`TEST
 
 Contexto de ejecución del SDK que propaga tenant/principal. Requiere cuidado con operaciones `@Async`. Ver [Thread Context — Cloud SDK](https://sap.github.io/cloud-sdk/docs/java/features/multi-tenancy/thread-context).
 
+### Token stub (`sap.auth.allow-stub`)
+
+Credencial falsa (`stub-btp-token` / `stub-s4-token`) que los `SapAuthProvider` emiten **solo** si `sap.auth.allow-stub=true` (`SAP_AUTH_ALLOW_STUB`) y faltan credenciales reales; sirve únicamente contra el SAP simulado. Con el valor por defecto (`false`) la app no arranca sin credenciales, en vez de fallar con `401` en la primera llamada (auditoría A8). Ver [`autenticacion-sap.md`](sdd/common/autenticacion-sap.md).
+
 ## V
 
 ### VDM (Virtual Data Model)

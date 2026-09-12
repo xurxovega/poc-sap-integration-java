@@ -58,6 +58,7 @@
 | SEC-1 | **Autenticación en las APIs REST** de `customer` y `article` | proyecto | 📋 | Bloqueante para exponerlas a terceros o a un MCP |
 | SEC-2 | Rotación y gestión de secretos SAP (Vault o equivalente) | transversal | 💡 | Hoy van por variables de entorno; suficiente en local, no en test/producción |
 | SEC-3 | Ofuscación de PII en logs y en respuestas de consulta | proyecto | 💡 | Prerrequisito del MCP ([`tools-integrations/MCP.md`](tools-integrations/MCP.md)) |
+| SEC-5 | Sin fallback silencioso a token stub y sin secretos en los YAML empaquetados (auditoría A8) | proyecto | ✅ 2026-09-12 | `sap.auth.allow-stub` (default `false`) hace que la app no arranque sin credenciales SAP; usuario/clave de BD legacy y `trustServerCertificate` salen del jar y los aporta `scripts/env/*.env`. Adelantado de la Fase 4 como prerrequisito del tenant de test |
 | SEC-4 | Revisar `sap-sdk-client/`: tiene URL de tenant real, usuario y contraseña en claro | proyecto | 📋 | Es un spike desechable, pero la credencial hay que rotarla igualmente |
 
 ## Utillaje y experiencia de desarrollo

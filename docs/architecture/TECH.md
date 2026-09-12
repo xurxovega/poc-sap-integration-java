@@ -127,8 +127,12 @@ destino y con qué mapeo; los mapeos son parte del dominio, no del shared kernel
   `SapCircuitOpenException`; timeouts de conexión/respuesta configurables vía
   `sap.client.*` en `application-common.yml`.
 - OAuth2 client-credentials real con caché por expiración
-  (`OAuth2TokenClient`; xsuaa para BTP, token endpoint o basic para S/4) con
-  fallback a token stub cuando no hay credenciales configuradas (dev local).
+  (`OAuth2TokenClient`; xsuaa para BTP, token endpoint o basic para S/4). **Sin
+  credenciales la app no arranca**; el token stub solo existe con
+  `sap.auth.allow-stub=true` (SAP simulado) y se avisa en el log. Ningún secreto
+  (SAP ni BD legacy) tiene default en los YAML empaquetados: los aporta el
+  entorno (`scripts/env/*.env`). Spec
+  [`../sdd/common/autenticacion-sap.md`](../sdd/common/autenticacion-sap.md).
 - CSRF OData V2: fetch de `x-csrf-token` + cookies de sesión en escrituras
   S/4 (`sap.s4.csrf.enabled`). El fetch se autentica con la misma cabecera
   `Authorization` que la escritura; solo un 403 con `x-csrf-token: Required`

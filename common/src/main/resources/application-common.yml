@@ -31,6 +31,10 @@ sap:
     # falla con un mensaje claro en la primera llamada.
     creditor-id: ${SAP_SEPA_CREDITOR_ID:}
     application: ${SAP_SEPA_APPLICATION:F}
+  auth:
+    # false (por defecto): sin credenciales SAP la app NO arranca. true: token
+    # stub con aviso en el log; solo para el SAP simulado (scripts/env/local.env).
+    allow-stub: ${SAP_AUTH_ALLOW_STUB:false}
   btp:
     base-url: ${SAP_BTP_BASE_URL:https://default-tenant.example.eu10.xsuaa.hana.ondemand.com}
     xsuaa:

@@ -20,6 +20,19 @@ identifican por fecha.
 
 ## [Sin publicar]
 
+### 2026-09-12 — Sin credenciales, la aplicación no arranca (adelanto de la Fase 4 de la auditoría)
+
+#### Cambiado
+
+- Hasta ahora, si faltaban las credenciales de SAP, la aplicación arrancaba con
+  un token falso y fallaba en la primera llamada con un error indistinguible de
+  un problema de SAP. Ahora **se niega a arrancar** y dice qué falta. El token
+  falso sigue disponible para el SAP simulado, pero hay que pedirlo
+  expresamente.
+- Las contraseñas de las bases de datos de origen ya no viajan dentro del
+  paquete de la aplicación: se aportan desde el entorno. En local las trae el
+  fichero de arranque; en test hay que rellenarlas.
+
 ### 2026-09-12 — Cliente SAP sobre un transporte más simple (Fase 3.1 y 3.2 de la auditoría)
 
 #### Corregido (datos bancarios y mandatos, Fase 3.2)

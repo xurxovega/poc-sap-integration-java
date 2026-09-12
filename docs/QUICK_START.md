@@ -67,10 +67,12 @@ La migración a test es **servicio a servicio**: cada bloque que dejes comentado
 en `test.env` seguirá usando el default local. Puedes mover primero Kafka,
 después las bases de datos, y así sucesivamente.
 
-> Las apps leen toda su configuración de variables de entorno con default local
+> Las apps leen toda su configuración de variables de entorno
 > (ver [`common/src/main/resources/application-common.yml`](../common/src/main/resources/application-common.yml)
 > y el `application.yml` de cada dominio), así que **no hay perfiles Spring que
-> mantener**: apuntar a test es solo exportar variables distintas.
+> mantener**: apuntar a test es solo exportar variables distintas. Las URLs
+> tienen default local; las **credenciales no** (usuario/clave de BD y
+> `SAP_AUTH_ALLOW_STUB`): las aporta siempre el fichero `.env`.
 
 ---
 
@@ -121,7 +123,7 @@ mvn -pl common install -DskipTests
 Recomendable antes de arrancar nada — la suite no necesita Docker:
 
 ```bash
-mvn clean test                        # 281 tests (unit, slice, resiliencia, smoke de contexto)
+mvn clean test                        # 284 tests (unit, slice, resiliencia, smoke de contexto)
 ```
 
 Los smoke `CustomerApplicationContextTest` / `ArticleApplicationContextTest`
@@ -159,8 +161,18 @@ docker compose ps                     # espera a que todo esté healthy
 | MinIO (S3) | `minio` | `9000` / `9001` | Objetos (uso futuro) | `minioadmin` / `minioadmin123` |
 | MySQL | `mysql-sdd` | `3306` | **Registro de features SDD** (BD `sdd_registry`), no es una BD de la app | `sdd` / `sdd` |
 
-Las apps ya traen estos valores como **defaults**: en local no hace falta
-configurar nada.
+Las apps traen las **URLs** de estos servicios como defaults, pero **no las
+credenciales**: usuario y clave de SQL Server y PostgreSQL, y la autorización
+del token SAP stub (`SAP_AUTH_ALLOW_STUB=true`), vienen de
+[`scripts/env/local.env`](../scripts/env/local.env). `start-all.sh` lo carga
+solo; si arrancas una app a mano, exporta antes las variables:
+
+```bash
+set -a; source scripts/env/local.env; set +a
+```
+
+Sin ellas la app no arranca, a propósito (auditoría A8): un jar no debe llevar
+contraseñas ni caer en silencio a un token falso.
 
 > **SQL Server tarda**: el primer arranque puede llegar a varios minutos
 > (`start_period: 600s` en su healthcheck, por el upgrade interno de `msdb`).
@@ -216,9 +228,10 @@ Variables por bloque:
 | SAP S/4 | `SAP_S4_BASE_URL`, `SAP_S4_AUTH_TYPE`, `SAP_S4_TOKEN_URL`, `SAP_S4_CLIENT_ID`, `SAP_S4_CLIENT_SECRET`, `SAP_S4_CSRF_ENABLED` |
 | Timeouts | `SAP_CLIENT_CONNECT_TIMEOUT_MS`, `SAP_CLIENT_RESPONSE_TIMEOUT_MS` (súbelos contra remotos) |
 
-> **Sin credenciales OAuth2 los auth providers caen a un token stub.** Sirve
-> contra el mock, pero contra un tenant real devolverá 401: si apuntas a SAP de
-> test, rellena las credenciales **y** pon `SAP_S4_CSRF_ENABLED=true` (las
+> **Sin credenciales OAuth2 la app no arranca** (`SAP_AUTH_ALLOW_STUB=false`, el
+> default). Contra el mock, `local.env` autoriza el token stub con
+> `SAP_AUTH_ALLOW_STUB=true`. Si apuntas a SAP de test, rellena las credenciales,
+> deja `SAP_AUTH_ALLOW_STUB=false` **y** pon `SAP_S4_CSRF_ENABLED=true` (las
 > escrituras OData V2 lo exigen).
 
 ---
@@ -254,13 +267,11 @@ Cada dominio es una app Spring Boot independiente. Desde la raíz del repo:
 
 ```bash
 # customer-app (8081)
-SAP_BTP_BASE_URL=http://localhost:8090 \
-SAP_S4_BASE_URL=http://localhost:8090 \
+set -a; source scripts/env/local.env; set +a   # URLs del mock, credenciales y SAP_AUTH_ALLOW_STUB=true
 mvn -pl customer spring-boot:run
 
 # article-app (8082)
-SAP_S4_BASE_URL=http://localhost:8090 \
-mvn -pl article spring-boot:run
+mvn -pl article spring-boot:run          # mismas variables ya exportadas
 ```
 
 > **Sin `-am`.** Con `-am`, el goal `spring-boot:run` se ejecuta también sobre el
@@ -542,7 +553,9 @@ A mano: `Ctrl+C` en cada terminal de `spring-boot:run`, `docker stop mock-sap` y
 | Error de compilación por versión de Java | Instala JDK 25: es el mínimo del proyecto desde la Fase 2 de la auditoría |
 | `SENT_SAP` inmediato sin llamadas al mock | Dedupe por `payloadHash` idéntico: usa un hash distinto |
 | Estado `SAP_ERROR` | El mock no responde 2xx o no está levantado: revisa el stub y `SAP_*_BASE_URL` |
-| `401` contra SAP de test | Faltan credenciales OAuth2 → se usó el token stub. Rellena `SAP_S4_CLIENT_ID`/`SECRET`/`TOKEN_URL` en `test.env` |
+| La app no arranca: «Credenciales ... incompletas y sap.auth.allow-stub=false» | Es lo esperado sin credenciales SAP. Contra el mock: `SAP_AUTH_ALLOW_STUB=true` (ya en `local.env`). Contra SAP de test: rellena `SAP_S4_CLIENT_ID`/`SECRET`/`TOKEN_URL` en `test.env` |
+| La app no arranca: «Could not resolve placeholder 'SQLSERVER_PASSWORD'» | Falta cargar `scripts/env/local.env` (`set -a; source ...; set +a`) o rellenar `test.env` |
+| `401` contra SAP de test | Credenciales OAuth2 incorrectas o `SAP_AUTH_ALLOW_STUB=true` dejado de la opción A: pásalo a `false` y revisa `SAP_S4_CLIENT_ID`/`SECRET`/`TOKEN_URL` |
 | `403` en escrituras contra S/4 real | CSRF: pon `SAP_S4_CSRF_ENABLED=true` |
 | Los conectores Debezium no publican nada | Los triggers se crean después del seed: el estado inicial no genera eventos. Lanza un `UPDATE` |
 | Kibana no encuentra `customers_history` | El índice se crea en la primera escritura (`createIndex=false`): lanza un sync antes |

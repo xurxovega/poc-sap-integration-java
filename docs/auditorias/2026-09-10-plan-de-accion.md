@@ -475,7 +475,10 @@ hoy los de `it/` no tocan código de producción.
 Antes de apuntar a un tenant real, dos cosas de la Fase 4 se adelantan aunque el
 resto de seguridad espere: **quitar el fallback silencioso a token stub** (hoy,
 sin credenciales, no falla al arrancar: da 401 en la primera llamada) y **sacar
-los secretos de los YAML empaquetados**.
+los secretos de los YAML empaquetados**. **Hechas el 12-09-2026**: `sap.auth.allow-stub`
+(default `false`) y credenciales de BD sin default; spec
+`common/autenticacion-sap.md`. Para el tenant: `SAP_AUTH_ALLOW_STUB=false` en
+`test.env` y credenciales reales.
 
 > **Condición**: si el tenant de test se alimenta con **datos reales de cliente**,
 > la Fase 4 entera pasa por delante de la 3. El art. 32 aplica desde que se tratan
@@ -493,7 +496,7 @@ una sesión nueva sepa dónde estamos sin leer el historial de ninguna otra.
 | 1 · Inservible | ✅ hecha | 2026-09-12 | `84a9da4` | pendiente de verificación por otra sesión (verificación en vivo: 3/3 en esta sesión) |
 | 2 · Red de seguridad | ✅ hecha | 2026-09-12 | `299567a` | pendiente de verificación por otra sesión (`mvn verify` y `-pl it verify -Ddocker.available=true` en verde en esta sesión) |
 | 3 · SAP real | 🚧 en curso | | 3.1 transporte `RestClient` + CSRF (ADR-0001, `c07adb0`) · 3.2 contratos banco y mandato SEPA, hechos el 2026-09-12 | |
-| 4 · Seguridad | ⬜ pendiente | | | |
+| 4 · Seguridad | 🚧 parcial | | A8 adelantado el 2026-09-12 (sin stub silencioso, secretos fuera del YAML) como prerrequisito del tenant; B4 (auth REST/actuator) pendiente | |
 | 5 · Observabilidad | ⬜ pendiente | | | |
 | 6 · Consistencia | ⬜ pendiente | | | |
 | 7 · Refactor | ⬜ pendiente (desbloqueada: Fase 2 cerrada) | | | |

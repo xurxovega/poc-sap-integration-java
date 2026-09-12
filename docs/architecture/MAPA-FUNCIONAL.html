@@ -964,7 +964,7 @@ sequenceDiagram
     else sin token o caducado
         AU-&gt;&gt;XS: POST grant_type=client_credentials&lt;br/&gt;Basic con client-id y client-secret
         XS--&gt;&gt;AU: access_token y expires_in
-        Note over AU: renueva 60 s antes de caducar, TTL por defecto 5 min&lt;br/&gt;sin configuracion devuelve stub-btp-token o stub-s4-token
+        Note over AU: renueva 60 s antes de caducar, TTL por defecto 5 min&lt;br/&gt;sin configuracion NO arranca, salvo sap.auth.allow-stub=true (stub con aviso)
         AU--&gt;&gt;CL: Bearer nuevo
     end
     opt escritura a S4_NATIVE con sap.s4.csrf.enabled
@@ -1352,7 +1352,7 @@ sequenceDiagram
         <tr><td><code>sap.integration.mode</code></td><td><code>push</code></td><td><span class="badge gap">declarada pero no la lee ningún componente</span> — los valores <code>pull</code> y <code>both</code> no tienen efecto</td></tr>
         <tr><td><code>sap.s4.csrf.enabled</code></td><td><code>false</code></td><td>activa el fetch de <code>x-csrf-token</code> + cookies antes de cada escritura a <code>S4_NATIVE</code></td></tr>
         <tr><td><code>sap.s4.auth.type</code></td><td><code>oauth2</code></td><td><code>oauth2</code> (client_credentials) o <code>basic</code>; sin configurar devuelve <code>stub-s4-token</code></td></tr>
-        <tr><td><code>sap.btp.xsuaa.{client-id,client-secret,token-url}</code></td><td>vacíos</td><td>sin ellos, <code>BtpAuthProvider</code> devuelve <code>stub-btp-token</code></td></tr>
+        <tr><td><code>sap.btp.xsuaa.{client-id,client-secret,token-url}</code></td><td>vacíos</td><td>sin ellos la app no arranca; con <code>sap.auth.allow-stub=true</code> (solo mock) <code>BtpAuthProvider</code> devuelve <code>stub-btp-token</code> y avisa</td></tr>
         <tr><td><code>sap.client.connect-timeout-ms</code> / <code>response-timeout-ms</code></td><td><code>3000</code> / <code>20000</code></td><td>timeouts del WebClient</td></tr>
         <tr><td><code>sap.client.retry.max-attempts</code> / <code>initial-backoff-ms</code></td><td><code>3</code> / <code>500</code></td><td>retry con backoff exponencial ×2; solo ante 5xx y errores de transporte</td></tr>
         <tr><td><code>sap.client.circuit-breaker.*</code></td><td>50 % · ventana 10 · 30 s</td><td>umbral de fallo, tamaño de ventana deslizante y tiempo en abierto</td></tr>
@@ -1437,7 +1437,7 @@ sequenceDiagram
         <tr><td><code>docs/sdd/sap-api-catalog.md</code></td><td>catálogo de las specs OpenAPI oficiales de S/4HANA usadas o previstas</td></tr>
         
         <tr><td><code>docs/tools-integrations/MCP.md</code> · <code>SAP_CLOUD_SDK.md</code></td><td>propuesta del MCP y guía del SAP Cloud SDK</td></tr>
-        <tr><td><code>docs/testing/TESTING.md</code> · <code>GUIA-PRUEBAS.md</code></td><td>catálogo de la suite (281 tests) y guía práctica CP-01…CP-13</td></tr>
+        <tr><td><code>docs/testing/TESTING.md</code> · <code>GUIA-PRUEBAS.md</code></td><td>catálogo de la suite (284 tests) y guía práctica CP-01…CP-13</td></tr>
         <tr><td><code>external-services/README.md</code> · <code>debezium/README.md</code></td><td>infraestructura local y detalle de los conectores</td></tr>
         <tr><td><code>docs/GLOSSARY.md</code></td><td>glosario de términos y siglas SAP</td></tr>
       </tbody>
@@ -1651,7 +1651,7 @@ const PIEZAS = {
   },
   'auth': {
     titulo: 'Autenticación y CSRF', estado: 'impl',
-    rol: 'BtpAuthProvider (client_credentials contra xsuaa) y S4NativeAuthProvider (oauth2 o basic). OAuth2TokenClient cachea el token y lo renueva 60 s antes de caducar; sin configuración devuelve stub-btp-token / stub-s4-token. S4CsrfTokenProvider hace el fetch de x-csrf-token + cookies, con re-fetch y un único reintento ante 403. No hay mTLS.',
+    rol: 'BtpAuthProvider (client_credentials contra xsuaa) y S4NativeAuthProvider (oauth2 o basic). OAuth2TokenClient cachea el token y lo renueva 60 s antes de caducar; sin configuración la app no arranca; solo con sap.auth.allow-stub=true devuelve stub-btp-token / stub-s4-token (auditoría A8). S4CsrfTokenProvider hace el fetch de x-csrf-token + cookies, con re-fetch y un único reintento ante 403. No hay mTLS.',
     ficheros: ['common/src/main/java/com/poc/sap/common/sap/auth/', 'common/…/sap/odata/S4CsrfTokenProvider.java'],
     config: ['sap.btp.xsuaa.*', 'sap.s4.auth.type / token-url / client-id / client-secret / username / password', 'sap.s4.csrf.enabled / fetch-path'],
     conexiones: ['sapclient','s4'], diagramas: [['k1','K1']]

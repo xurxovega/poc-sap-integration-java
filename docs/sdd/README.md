@@ -112,6 +112,7 @@ Capacidades transversales del shared kernel, no features de negocio.
 | Máquina de estados de sincronización | [`maquina-de-estados.md`](common/maquina-de-estados.md) | ✅ | ✅ implementada (`SyncStateMachine`) |
 | Idempotencia y deduplicación por hash | `idempotencia-y-dedupe.md` | ⬜ | ✅ implementada (`alreadySent`, `Idempotency-Key`) |
 | Cliente SAP: transporte, resiliencia y CSRF | [`resiliencia-cliente-sap.md`](common/resiliencia-cliente-sap.md) | ✅ | ✅ implementada (`RestClientSapClient`, ADR-0001) |
+| Autenticación hacia SAP (OAuth2/basic, sin stub silencioso) | [`autenticacion-sap.md`](common/autenticacion-sap.md) | ✅ | ✅ implementada (`BtpAuthProvider`, `S4NativeAuthProvider`; `sap.auth.allow-stub`) |
 | Observabilidad: métricas por dominio y estado | `observabilidad.md` | ⬜ | ✅ implementada (`SyncMetrics`) |
 
 > Las features ya implementadas se escribieron antes de adoptar SDD. Regla de
@@ -148,6 +149,7 @@ Estado de las brechas detectadas sobre el código real.
 | **Transporte reactivo con `.block()` y Cloud SDK sin uso** (D-1) | `WebClientSapClient` → `RestClientSapClient` (`RestClient` sobre el `HttpClient` del JDK) detrás del mismo puerto; fuera `webflux`, Reactor, `sdk-core`, el `@ComponentScan("com.sap.cloud.sdk")` y el destino local del SDK. Mismo comportamiento observable: el test se portó íntegro. [ADR-0001](../architecture/adr/0001-transporte-http-sap-restclient.md); spec [`common/resiliencia-cliente-sap.md`](common/resiliencia-cliente-sap.md) | 2026-09-12 |
 | CSRF: fetch con Basic fijo, cualquier 403 tratado como CSRF, caché sin sincronizar (A6, C4) | El fetch usa la misma `Authorization` que la escritura; solo un 403 con `x-csrf-token: Required` refresca y reintenta; token y cookies son un único valor inmutable (`CsrfToken`) | 2026-09-12 |
 | **Contratos S/4 de banco y mandato incorrectos** (B3, parcial) | `S4BankingAdapter` enviaba a `API_CUSTOMER_MANDATE` (no existe) → `BtpBankingAdapter` en la familia BTP; `A_BusinessPartnerBank` llevaba el BIC en `BankIdentification` → ordinal `0001` + `BankCountryKey`, sin BIC; mandatos → `SepaMandateODataAdapter` sobre `API_APAR_SEPA_MANDATE_SRV` con `Creditor` por configuración, y la baja como `PATCH` de estado. Specs [`customer/sincronizacion-datos-bancarios.md`](customer/sincronizacion-datos-bancarios.md) y [`customer/baja-mandato-sepa.md`](customer/baja-mandato-sepa.md). Queda de B3: contacto (`A_AddressEmailAddress`/`A_AddressPhoneNumber`) y upsert con `AddressID`, ambos bloqueados por la comprobación contra el tenant | 2026-09-12 |
+| Fallback silencioso a token stub y secretos en el YAML empaquetado (A8) | `BtpAuthProvider`/`S4NativeAuthProvider` validan al arrancar: sin credenciales, `IllegalStateException` con las propiedades que faltan; el stub solo con `sap.auth.allow-stub=true` y aviso. `sa`/`SqlServer_Pa55w0rd!`, `postgres/postgres` y `trustServerCertificate=true` fuera de los YAML: los aporta `scripts/env/*.env`. Spec [`common/autenticacion-sap.md`](common/autenticacion-sap.md) | 2026-09-12 |
 | Listeners reintentaban fallos no transitorios (C5) | Tombstone, `operation` en minúsculas y operación desconocida producían 3 reintentos con backoff. Ahora: tombstone ignorado, operación normalizada, e `IllegalState/IllegalArgument/JsonProcessing` declaradas no reintentables en `KafkaErrorHandlingConfig` | 2026-09-11 |
 | Topic DLT documentado ≠ real | Toda la documentación decía `<topic>.DLT`; el `DeadLetterPublishingRecoverer` usa el sufijo por defecto de Spring Kafka y el topic real es **`<topic>-dlt`**. Corregidas las 23 ocurrencias; decisión en `MEJORAS-Y-PROPUESTAS.md` OPS-3 | 2026-09-11 |
 | Re-sync con cambios reales rompía el pipeline | Tras un primer ciclo, cada línea de feature quedaba en `SENT_SAP` y `SENT_SAP → VALIDATING` no era transición permitida: el segundo evento con cambios reales moría en la primera feature y acababa en la DLT. Añadida la **re-entrada de features** por `VALIDATING` desde `SENT_SAP`, `INVALID` y `SAP_ERROR`. Spec: [`common/maquina-de-estados.md`](common/maquina-de-estados.md) AC-4/AC-5 · verificado por CDC en vivo | 2026-09-10 |
@@ -175,8 +177,8 @@ Estado de las brechas detectadas sobre el código real.
 
 ## 7. Supuestos vigentes
 
-- **Auth SAP**: OAuth2 client-credentials vía variables de entorno; con
-  configuración incompleta se usa token stub (solo para mocks locales).
+- **Auth SAP**: OAuth2 client-credentials vía variables de entorno; sin
+  credenciales la app no arranca, salvo `sap.auth.allow-stub=true` (mock local).
 - **Cliente HTTP SAP definitivo**: `RestClientSapClient` ([ADR-0001](../architecture/adr/0001-transporte-http-sap-restclient.md)).
   `sap-sdk-client/` es un spike OpenAPI **desechable**, gitignored, fuera del reactor.
 - **Debezium/outbox**: cableado en `external-services/` (triggers + Kafka

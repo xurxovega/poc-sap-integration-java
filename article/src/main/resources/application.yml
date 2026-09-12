@@ -7,9 +7,11 @@ spring:
   config:
     import: "application-common.yml"
   datasource:
+    # Sin defaults de credenciales en el YAML empaquetado (auditoria A8): usuario
+    # y clave vienen SIEMPRE del entorno (scripts/env/local.env en local).
     url: ${POSTGRES_URL:jdbc:postgresql://localhost:5432/poc}
-    username: ${POSTGRES_USER:postgres}
-    password: ${POSTGRES_PASSWORD:postgres}
+    username: ${POSTGRES_USER}
+    password: ${POSTGRES_PASSWORD}
     driver-class-name: org.postgresql.Driver
   jpa:
     hibernate:

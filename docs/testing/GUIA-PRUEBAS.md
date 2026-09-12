@@ -18,7 +18,7 @@
 ## Nivel 1 — Suite automática (sin Docker)
 
 ```bash
-mvn clean test          # 281 tests: unit + slice + resiliencia + smoke de contexto
+mvn clean test          # 284 tests: unit + slice + resiliencia + smoke de contexto
 ```
 
 Qué valida cada bloque y dónde mirar si falla:
@@ -70,8 +70,7 @@ curl -s -X POST http://localhost:8090/__admin/mappings -d '{
 
 ```bash
 cd <raiz-del-repo>
-SAP_BTP_BASE_URL=http://localhost:8090 \
-SAP_S4_BASE_URL=http://localhost:8090 \
+set -a; source scripts/env/local.env; set +a   # URLs del mock, credenciales y SAP_AUTH_ALLOW_STUB=true
 mvn -pl customer spring-boot:run
 ```
 
