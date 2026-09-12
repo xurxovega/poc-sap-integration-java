@@ -465,7 +465,7 @@ una sesión nueva sepa dónde estamos sin leer el historial de ninguna otra.
 |---|---|---|---|---|
 | 0 · Higiene | ✅ hecha | 2026-09-11 | `b55f889` (.gitattributes) + `00bbbae` | pendiente de verificación por otra sesión |
 | 1 · Inservible | ✅ hecha | 2026-09-12 | `84a9da4` | pendiente de verificación por otra sesión (verificación en vivo: 3/3 en esta sesión) |
-| 2 · Red de seguridad | ✅ hecha | 2026-09-12 | commit de cierre de la Fase 2 (ver `git log`) | pendiente de verificación por otra sesión (`mvn verify` y `-pl it verify -Ddocker.available=true` en verde en esta sesión) |
+| 2 · Red de seguridad | ✅ hecha | 2026-09-12 | `299567a` | pendiente de verificación por otra sesión (`mvn verify` y `-pl it verify -Ddocker.available=true` en verde en esta sesión) |
 | 3 · SAP real | ⬜ pendiente | | | |
 | 4 · Seguridad | ⬜ pendiente | | | |
 | 5 · Observabilidad | ⬜ pendiente | | | |
