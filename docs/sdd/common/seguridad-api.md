@@ -48,7 +48,7 @@ valida contra las claves públicas del issuer (sin llamada por petición).
 | R-3 | **Cada endpoint declara quién puede llamarlo** con `@PreAuthorize` (el equivalente Java de los atributos de .NET). Un endpoint sin declaración rompe el build (`EndpointsDeclareAccessTest`, ArchUnit) | Un endpoint nuevo quedaría abierto sin que nadie lo notara |
 | R-4 | A quien solo tiene `external-read` se le devuelve la PII **enmascarada** antes de responder (IBAN y NIF/IVA con los últimos 4, email con inicial y dominio, teléfono/fax con los últimos 3) y se le niega el `diff` (valores campo a campo). Los productos no tienen PII: los lee completos | — |
 | R-5 | `health`, `info` y `prometheus` de actuator van sin token (sondas de Kubernetes y *scraping*); el resto de actuator exige `admin`. El ingress no expone `/actuator` | — |
-| R-6 | Con `app.security.enabled=false` todo queda abierto y se avisa al arrancar. Nunca en test ni producción (el ConfigMap de despliegue lo fija a `true`) | — |
+| R-6 | Con `app.security.enabled=false` todo queda abierto y se avisa al arrancar: el usuario anónimo recibe `superadmin` y `external-read` para que las declaraciones `@PreAuthorize` no bloqueen nada. Nunca en test ni producción (el ConfigMap de despliegue lo fija a `true`) | Visto en vivo el 2026-09-14: la cadena permitía todo pero los endpoints devolvían 403 |
 
 ## 5. Salida
 
@@ -80,6 +80,7 @@ token pero sin rol; fallo de arranque sin issuer.
 | AC-5 | Escribir exige `write`: `read` recibe `403`, `write` `200` | `ApiSecurityTest#writeRequiresWriteRole` · article `ApiSecurityTest` |
 | AC-6 | `admin` escribe, lee y ve `/actuator/metrics`; `write` no ve actuator | `ApiSecurityTest#adminInheritsWriteAndReadAndSeesActuator` |
 | AC-7 | Todo método con `@GetMapping`/`@PostMapping`/... lleva `@PreAuthorize` | `EndpointsDeclareAccessTest` (ArchUnit, customer y article) |
+| AC-11 | Con `app.security.enabled=false`, sin token: `sync` 200, histórico completo (`masked: false`), diff y actuator accesibles | `ApiSecurityDisabledTest#everythingIsOpenWithoutTokenWhenSecurityIsDisabled` |
 
 Aplican además los [criterios globales](../README.md#4-criterios-de-aceptación-globales).
 
@@ -103,4 +104,5 @@ desactivada. Los `401`/`403` los cuentan las métricas HTTP de Boot
 
 | Fecha | Cambio | PR |
 |---|---|---|
+| 2026-09-14 | R-6/AC-11: en modo abierto el anónimo lleva todos los roles; antes los `@PreAuthorize` devolvían 403 en local (visto en vivo) | — |
 | 2026-09-12 | Spec inicial (plan Fase 4, auditoría B4; decisión del usuario: Keycloak, roles por endpoint y filtrado de PII para lectura externa). Resource server JWT, cinco roles con jerarquía, `@PreAuthorize` obligatorio por ArchUnit, `PiiMasker`, actuator protegido, modo abierto solo en local | — |

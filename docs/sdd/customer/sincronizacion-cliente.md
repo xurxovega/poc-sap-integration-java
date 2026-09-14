@@ -111,6 +111,7 @@ un proceso murió a mitad.
 
 | Fecha | Cambio | PR |
 |---|---|---|
+| 2026-09-14 | **Verificación en vivo de R-9**: con el mock devolviendo 500 solo en `CustomerBanking` y un `UPDATE` en el legacy (CDC) y un `POST /sync`, el agregado terminó en `SAP_ERROR`, `GET /customers/CUST-001/state` mostró `ADDRESS/FISCAL/CONTACT=SENT_SAP` y `BANKING=SAP_ERROR`, se emitió el `WARN` y el mensaje `SYNC_PARTIAL_FAILURE` en `sap.sync.alerts`, `sap_sync_feature_result_total{feature="BANKING",result="SAP_ERROR"}=1` y la imagen no cambió; al restaurar el mock, `SENT_SAP` e imagen actualizada. Hallazgo colateral: en modo abierto los endpoints devolvían 403 (corregido, seguridad-api R-6/AC-11) | — |
 | 2026-09-14 | D-2 decidida ([ADR-0010](../../architecture/adr/0010-sin-compensacion-entre-features-marcar-y-avisar.md)): R-9, sin compensación; aviso por log + `sap.sync.alerts` + métrica por feature; `GET /customers/{id}/state`. AC-8, AC-9, AC-10 | — |
 | 2026-09-12 | Verificación en vivo de R-1 y R-8: ver [`../common/idempotencia-y-dedupe.md`](../common/idempotencia-y-dedupe.md) §10 (SAP_ERROR sin tocar la imagen, A→B→A reenviado) | — |
 | 2026-09-12 | Fase 6 del plan (A1, A31, imagen antes del ACK): R-1 dedupe contra el último `SENT_SAP`; R-8 imagen solo tras `SENT_SAP` e histórico con un documento por intento. AC-7 | — |

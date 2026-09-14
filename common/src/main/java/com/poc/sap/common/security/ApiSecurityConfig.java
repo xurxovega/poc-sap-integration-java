@@ -72,7 +72,11 @@ public class ApiSecurityConfig {
     public SecurityFilterChain openSecurity(HttpSecurity http) throws Exception {
         log.warn("Seguridad de API DESACTIVADA (app.security.enabled=false): todos los endpoints abiertos. "
                 + "Solo valido para el entorno local con el SAP simulado");
+        // Sin token no hay roles y los @PreAuthorize devolverian 403 aunque la cadena
+        // permita todo (visto en vivo el 14-09-2026): el usuario anonimo lleva aqui el
+        // rol mas alto y el externo para que la matriz de acceso no bloquee nada.
         http.csrf(csrf -> csrf.disable())
+            .anonymous(a -> a.authorities("ROLE_" + ApiRoles.SUPERADMIN, "ROLE_" + ApiRoles.EXTERNAL_READ))
             .authorizeHttpRequests(auth -> auth.anyRequest().permitAll());
         return http.build();
     }

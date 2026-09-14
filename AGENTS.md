@@ -406,6 +406,7 @@ si algo ya está escrito, enlázalo.
 | probar a fondo (CDC, resiliencia, tenant real) | [`docs/testing/GUIA-PRUEBAS.md`](docs/testing/GUIA-PRUEBAS.md) |
 | SAP Cloud SDK (VDM): opción aparcada por ADR-0001, guía para cuando se reevalúe | [`docs/tools-integrations/SAP_CLOUD_SDK.md`](docs/tools-integrations/SAP_CLOUD_SDK.md) |
 | propuesta de servidor MCP para agentes IA | [`docs/tools-integrations/MCP.md`](docs/tools-integrations/MCP.md) |
+| **lo pendiente accionable y quién lo desbloquea** | [`TODO.md`](TODO.md) |
 | mejoras e ideas pendientes (backlog, no defectos) | [`docs/MEJORAS-Y-PROPUESTAS.md`](docs/MEJORAS-Y-PROPUESTAS.md) |
 | **qué cambia para negocio** en cada revisión | [`CHANGELOG.md`](CHANGELOG.md) (raíz) |
 | cambios de las features de un subproyecto | `docs/sdd/<subproyecto>/CHANGELOG.md` |
