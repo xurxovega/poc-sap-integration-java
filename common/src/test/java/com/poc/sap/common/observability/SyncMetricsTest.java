@@ -58,6 +58,17 @@ class SyncMetricsTest {
                 .isNotNull();
     }
 
+    /** ADR-0010: el resultado por feature es visible como metrica. */
+    @Test
+    void featureResultsAreCountedPerFeatureAndResult() {
+        metrics.incrementFeatureResult("customer", "BANKING", "SAP_ERROR");
+        metrics.incrementFeatureResult("customer", "BANKING", "SAP_ERROR");
+
+        assertThat(registry.get("sap_sync_feature_result_total")
+                .tag("domain", "customer").tag("feature", "BANKING").tag("result", "SAP_ERROR")
+                .counter().count()).isEqualTo(2.0);
+    }
+
     @Test
     void incrementStateIsSafeWhenCounterAlreadyRegistered() {
         metrics.incrementState("supplier", "ERROR");

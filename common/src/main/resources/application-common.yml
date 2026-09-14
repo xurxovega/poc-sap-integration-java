@@ -2,6 +2,12 @@
 # Cada dominio sobreescribe lo que necesite en su application.yml.
 
 app:
+  notifications:
+    # Alertas de sincronizacion parcial (ADR-0010): ademas del WARN en el log, un
+    # mensaje JSON por entidad en este topic para quien tenga que actuar.
+    topic: ${SYNC_ALERTS_TOPIC:sap.sync.alerts}
+    kafka:
+      enabled: ${SYNC_ALERTS_KAFKA_ENABLED:true}
   security:
     # true (por defecto): las APIs exigen un JWT de Keycloak y cada endpoint declara
     # con @PreAuthorize quien puede llamarlo. false: todo abierto, solo para el

@@ -2,6 +2,7 @@ package com.poc.sap.customer.application.general;
 
 import com.poc.sap.common.domain.IngestionMessage;
 import com.poc.sap.common.domain.SyncState;
+import com.poc.sap.common.domain.port.SyncNotificationPort;
 import com.poc.sap.common.domain.port.SyncStateRepositoryPort;
 import com.poc.sap.common.domain.port.ImageStorePort;
 import com.poc.sap.common.domain.port.HistoryIndexerPort;
@@ -28,6 +29,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 import com.poc.sap.customer.application.InMemoryStateRepo;
@@ -49,6 +51,7 @@ class SyncCustomerUseCaseTest {
     @Mock CustomerHistoryIndexerPort historyIndexer;
     @Mock SyncStateRepositoryPort stateRepo;
     @Mock MetricsPort metrics;
+    @Mock SyncNotificationPort notifications;
     @Mock CustomerFeatureSync address;   // puerto de feature, no la clase concreta (A20)
     @Mock CustomerFeatureSync fiscal;   // puerto de feature, no la clase concreta (A20)
     @Mock CustomerFeatureSync contact;   // puerto de feature, no la clase concreta (A20)
@@ -59,7 +62,7 @@ class SyncCustomerUseCaseTest {
     @BeforeEach
     void setUp() {
         useCase = new SyncCustomerUseCase(
-                legacyRepo, imageStore, historyIndexer, stateRepo, metrics,
+                legacyRepo, imageStore, historyIndexer, stateRepo, metrics, notifications,
                 address, fiscal, contact, banking);
         lenient().when(stateRepo.alreadySent(anyString(), anyString(), anyString()))
                 .thenReturn(false);
@@ -152,6 +155,23 @@ class SyncCustomerUseCaseTest {
         // cambia porque SAP no tiene el dato (antes se guardaba antes de enviar).
         verify(historyIndexer).index(eq("C-1"), eq(c), anyString());
         verify(imageStore, never()).save(anyString(), any());
+        // R-9 / AC-8 (ADR-0010): se avisa de que parte entro y que parte no
+        verify(notifications).partialFailure(eq("customer"), eq("C-1"), anyString(),
+                argThat(r -> r.get("CONTACT") == SyncState.SAP_ERROR && r.get("ADDRESS") == SyncState.SENT_SAP && r.size() == 4));
+        verify(metrics).incrementFeatureResult("customer", "CONTACT", "SAP_ERROR");
+    }
+
+    /** AC-8: con todas las partes en SENT_SAP no hay aviso. */
+    @Test
+    void fullSuccessDoesNotNotify() {
+        Customer c = CustomerFixtures.validCustomer();
+        when(legacyRepo.fetch("C-1")).thenReturn(Optional.of(c));
+        allFeaturesSucceed();
+
+        useCase.execute(CustomerFixtures.ingestionMessage());
+
+        verify(notifications, never()).partialFailure(any(), any(), any(), any());
+        verify(metrics).incrementFeatureResult("customer", "BANKING", "SENT_SAP");
     }
 
     @Test
@@ -234,7 +254,7 @@ class SyncCustomerUseCaseTest {
 
     private SyncCustomerUseCase withRealStateMachine(InMemoryStateRepo repo) {
         return new SyncCustomerUseCase(
-                legacyRepo, imageStore, historyIndexer, repo, metrics,
+                legacyRepo, imageStore, historyIndexer, repo, metrics, notifications,
                 address, fiscal, contact, banking);
     }
 

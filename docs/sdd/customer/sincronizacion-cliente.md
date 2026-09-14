@@ -43,6 +43,7 @@ mensaje no se usa como fuente de datos, solo el hash para idempotencia.
 | R-5 | **Un evento nuevo siempre abre ciclo**, sea cual sea el estado anterior (`SENT_SAP`, `SAP_ERROR`, `ERROR`, o uno intermedio si el proceso murió) | — |
 | R-6 | **Cualquier fallo de infraestructura tras `VALID`** (Mongo, ES, HTTP) deja la entidad en `ERROR`, nunca colgada en un estado intermedio, y se propaga para que la ingesta reintente | `ERROR` + excepción |
 | R-7 | El estado final del ciclo lo deciden las features: alguna `INVALID` → `INVALID`; todas `SENT_SAP` → `SENT_SAP`; en otro caso `SAP_ERROR` | — |
+| R-9 | **Sin compensación** ([ADR-0010](../../architecture/adr/0010-sin-compensacion-entre-features-marcar-y-avisar.md)): si alguna parte no llega a `SENT_SAP`, las que entraron se quedan en SAP, el agregado termina en `SAP_ERROR`/`INVALID`, cada línea de feature conserva su estado, y se **avisa** (`WARN` con partes OK y fallidas, mensaje en `sap.sync.alerts`, métrica `sap_sync_feature_result_total`). El siguiente evento reenvía todas | Sin aviso nadie sabría que SAP tiene un cliente a medias |
 | R-8 | La **imagen** se persiste **solo** cuando el ciclo termina en `SENT_SAP`; el **histórico** registra el snapshot antes de enviar, un documento por intento ([`../common/idempotencia-y-dedupe.md`](../common/idempotencia-y-dedupe.md) R-4, R-5) | Antes la imagen se guardaba antes de enviar y un `SAP_ERROR` dejaba «SAP tiene X» siendo falso |
 
 ## 5. Salida
@@ -50,7 +51,9 @@ mensaje no se usa como fuente de datos, solo el hash para idempotencia.
 Documento en `customers_history` con el snapshot íntegro **por intento** (id
 `customerId-hash-epochMillis`; propósito: **auditar qué se envió a SAP en
 cualquier momento**), una llamada a SAP por feature, e imagen en
-`customers_current` **solo tras `SENT_SAP`** (la imagen es lo que SAP tiene). El histórico conserva el snapshot completo por
+`customers_current` **solo tras `SENT_SAP`** (la imagen es lo que SAP tiene).
+`GET /customers/{id}/state` devuelve el estado del agregado y de cada parte
+(último estado, hash e instante) para saber dónde se quedó un ciclo. El histórico conserva el snapshot completo por
 decisión explícita; ver retención en el plan de acción.
 
 ## 6. Estados y errores
@@ -81,6 +84,9 @@ RECEIVED → FETCHING → VALIDATING → VALID → INDEXING → INDEXED → SEND
 | AC-5 | Dado un fallo de infraestructura tras `VALID` (p. ej. el indexador lanza), entonces el estado queda en `ERROR` y la excepción se propaga | `SyncCustomerUseCaseTest#infrastructureFailureAfterValidMarksErrorAndPropagates` |
 | AC-6 | Dado un agregado que quedó en `SENDING_SAP` porque el proceso murió, cuando llega un evento nuevo, entonces abre ciclo en vez de fallar | `SyncCustomerUseCaseTest#reopensCycleWhenPreviousOneWasLeftInFlight` |
 | AC-7 | Dado que una feature acaba en `SAP_ERROR` o `INVALID`, entonces el histórico registra el intento y la imagen **no** cambia; con todas en `SENT_SAP`, la imagen se guarda | `SyncCustomerUseCaseTest#returnsSapErrorWhenAnyFeatureSapError` · `#returnsInvalidWhenAnyFeatureReturnsInvalid` · `#happyPathReturnsSentSapWhenAllFeaturesSucceed` |
+| AC-8 | Dado que alguna parte no llega a `SENT_SAP`, entonces se notifica con el resultado de **cada** parte y se cuenta por feature; con todas en `SENT_SAP` no hay aviso | `SyncCustomerUseCaseTest#returnsSapErrorWhenAnyFeatureSapError` · `#fullSuccessDoesNotNotify` · `SyncMetricsTest#featureResultsAreCountedPerFeatureAndResult` |
+| AC-9 | La notificación es un `WARN` con partes OK/fallidas y un JSON `SYNC_PARTIAL_FAILURE` en `sap.sync.alerts`; sin Kafka o con él caído, solo el `WARN`, sin romper el ciclo | `KafkaSyncNotificationAdapterTest` (2) |
+| AC-10 | `GET /customers/{id}/state` devuelve el último estado, hash e instante del agregado y de cada feature con historial | `CustomerStateUseCaseTest` (2) |
 
 Aplican además los [criterios globales](../README.md#4-criterios-de-aceptación-globales).
 
@@ -98,12 +104,14 @@ un proceso murió a mitad.
 | R-5 apertura de ciclo | `SyncStateRepositoryPort.beginCycle` → `SyncStateMachine.beginCycle` | `SyncCustomerUseCaseTest#resyncsCustomerStuckInSapError` |
 | R-6 fallo tras `VALID` → `ERROR` | `SyncCustomerUseCase.execute` (bloque protegido) | `SyncCustomerUseCaseTest#infrastructureFailureAfterValidMarksErrorAndPropagates` |
 | R-7 estado final | `SyncCustomerUseCase.execute` | `SyncCustomerUseCaseTest#partialValidationSkipsInvalidFeatures` |
+| R-9 sin compensación: aviso y estado por parte | `SyncCustomerUseCase.sendFeatures` · `common/domain/port/SyncNotificationPort` · `common/kafka/KafkaSyncNotificationAdapter` · `application/general/CustomerStateUseCase` · `bootstrap/web/CustomerStateController` | `SyncCustomerUseCaseTest` · `KafkaSyncNotificationAdapterTest` · `CustomerStateUseCaseTest` |
 | R-8 imagen tras ACK / histórico por intento | `SyncCustomerUseCase.execute` · `adapters/index/CustomerHistoryDoc.from` | `SyncCustomerUseCaseTest#returnsSapErrorWhenAnyFeatureSapError` · `ElasticsearchCustomerIndexerTest#retriesWithTheSameHashKeepBothVersions` |
 
 ## 10. Cambios
 
 | Fecha | Cambio | PR |
 |---|---|---|
+| 2026-09-14 | D-2 decidida ([ADR-0010](../../architecture/adr/0010-sin-compensacion-entre-features-marcar-y-avisar.md)): R-9, sin compensación; aviso por log + `sap.sync.alerts` + métrica por feature; `GET /customers/{id}/state`. AC-8, AC-9, AC-10 | — |
 | 2026-09-12 | Verificación en vivo de R-1 y R-8: ver [`../common/idempotencia-y-dedupe.md`](../common/idempotencia-y-dedupe.md) §10 (SAP_ERROR sin tocar la imagen, A→B→A reenviado) | — |
 | 2026-09-12 | Fase 6 del plan (A1, A31, imagen antes del ACK): R-1 dedupe contra el último `SENT_SAP`; R-8 imagen solo tras `SENT_SAP` e histórico con un documento por intento. AC-7 | — |
 | 2026-09-12 | **Verificación en vivo** de AC-4 y AC-6: `CUST-001` atascado en `SENDING_SAP` se re-sincronizó abriendo ciclo; con SAP devolviendo 500 un cambio real por CDC terminó en `SAP_ERROR` y el evento siguiente abrió ciclo (`RECEIVED`, seq 17) y llegó a `SENT_SAP` (seq 24). Antes moría en la DLT | — |

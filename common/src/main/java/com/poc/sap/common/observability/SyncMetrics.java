@@ -54,6 +54,18 @@ public class SyncMetrics implements MetricsPort {
                 .record(java.time.Duration.ofMillis(durationMillis));
     }
 
+    @Override
+    public void incrementFeatureResult(String domain, String feature, String result) {
+        stateCounters.computeIfAbsent(
+                key(domain, "feature:" + feature + ":" + result),
+                k -> Counter.builder("sap_sync_feature_result_total")
+                        .tag("domain", domain)
+                        .tag("feature", feature)
+                        .tag("result", result)
+                        .register(registry))
+                .increment();
+    }
+
     private static String key(String a, String b) {
         return a + ":" + b;
     }

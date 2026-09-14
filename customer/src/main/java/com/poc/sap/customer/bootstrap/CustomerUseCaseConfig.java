@@ -1,6 +1,7 @@
 package com.poc.sap.customer.bootstrap;
 
 import com.poc.sap.common.domain.port.MetricsPort;
+import com.poc.sap.common.domain.port.SyncNotificationPort;
 import com.poc.sap.common.domain.port.SyncStateRepositoryPort;
 import com.poc.sap.customer.application.address.SyncAddressUseCase;
 import com.poc.sap.customer.application.address.ValidateAddressUseCase;
@@ -12,6 +13,7 @@ import com.poc.sap.customer.application.contact.ValidateContactUseCase;
 import com.poc.sap.customer.application.fiscal.SyncFiscalUseCase;
 import com.poc.sap.customer.application.fiscal.ValidateFiscalUseCase;
 import com.poc.sap.customer.application.general.CustomerHistoryUseCase;
+import com.poc.sap.customer.application.general.CustomerStateUseCase;
 import com.poc.sap.customer.application.general.DeleteCustomerUseCase;
 import com.poc.sap.customer.application.general.SyncCustomerUseCase;
 import com.poc.sap.customer.application.general.ValidateCustomerUseCase;
@@ -49,9 +51,9 @@ public class CustomerUseCaseConfig {
     @Bean
     SyncCustomerUseCase syncCustomerUseCase(CustomerLegacyRepositoryPort legacy, CustomerImageStorePort image,
                                             CustomerHistoryIndexerPort history, SyncStateRepositoryPort state, MetricsPort metrics,
-                                            SyncAddressUseCase address, SyncFiscalUseCase fiscal,
+                                            SyncNotificationPort notifications, SyncAddressUseCase address, SyncFiscalUseCase fiscal,
                                             SyncContactUseCase contact, SyncBankingUseCase banking) {
-        return new SyncCustomerUseCase(legacy, image, history, state, metrics, address, fiscal, contact, banking);
+        return new SyncCustomerUseCase(legacy, image, history, state, metrics, notifications, address, fiscal, contact, banking);
     }
 
     @Bean
@@ -63,6 +65,11 @@ public class CustomerUseCaseConfig {
     DeleteCustomerUseCase deleteCustomerUseCase(CustomerImageStorePort image, CustomerSapOutboundPort sap,
                                                 SyncStateRepositoryPort state, MetricsPort metrics) {
         return new DeleteCustomerUseCase(image, sap, state, metrics);
+    }
+
+    @Bean
+    CustomerStateUseCase customerStateUseCase(SyncStateRepositoryPort state) {
+        return new CustomerStateUseCase(state);
     }
 
     @Bean

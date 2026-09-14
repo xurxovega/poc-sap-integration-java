@@ -13,4 +13,8 @@ public interface MetricsPort {
 
     /** Registra la duracion de una etapa del pipeline (fetch, validate, index, send). */
     void recordStageDuration(String domain, String stage, long durationMillis);
+
+    /** Resultado de cada parte (feature) enviada por separado: sap_sync_feature_result_total (ADR-0010). */
+    default void incrementFeatureResult(String domain, String feature, String result) {
+    }
 }

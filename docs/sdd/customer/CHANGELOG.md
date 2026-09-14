@@ -7,6 +7,7 @@
 
 | Fecha | Feature | Cambio |
 |---|---|---|
+| 2026-09-14 | [Sincronización del cliente](sincronizacion-cliente.md) | D-2 (ADR-0010): sin compensación; aviso de sincronización parcial (log, `sap.sync.alerts`, métrica) y `GET /customers/{id}/state` con el estado de cada parte |
 | 2026-09-12 | [Sincronización del cliente](sincronizacion-cliente.md) | Fase 6: R-1 dedupe contra el último `SENT_SAP`; R-8 imagen solo tras `SENT_SAP`, histórico con un documento por intento (AC-7) |
 | 2026-09-12 | [Sincronización de datos bancarios](sincronizacion-datos-bancarios.md) | Spec inicial (Fase 3.2, B3). `S4BankingAdapter` → `BtpBankingAdapter`; en S/4 el BIC sale de `BankIdentification` (ordinal `0001`) y se añade `BankCountryKey`; alta de mandato SEPA con el contrato real de `API_APAR_SEPA_MANDATE_SRV` |
 | 2026-09-12 | [Baja de mandato SEPA](baja-mandato-sepa.md) | Spec inicial (Fase 3.2, B3/A18). La baja revoca por `PATCH` de estado (`SEPAMandateStatus=3`) vía `MandateSapOutboundPort.revoke`; antes enviaba un payload bancario ficticio a una API inexistente |

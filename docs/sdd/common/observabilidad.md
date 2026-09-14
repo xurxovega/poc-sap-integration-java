@@ -39,6 +39,7 @@ por configuración.
 | `spring.kafka.consumer.properties.max.poll.interval.ms` | `KAFKA_MAX_POLL_INTERVAL_MS` | `900000` | Margen antes de que Kafka expulse al consumidor |
 | `sap.client.calls-per-message` | `SAP_CLIENT_CALLS_PER_MESSAGE` | `5` | Llamadas a SAP que puede provocar un mensaje (cabecera + 4 features) |
 | `logging.structured.format.console` | `LOGGING_STRUCTURED_FORMAT_CONSOLE` | *(vacío: consola legible)* | `ecs` para JSON (Loki/ELK) |
+| `app.notifications.topic` / `app.notifications.kafka.enabled` | `SYNC_ALERTS_TOPIC` / `SYNC_ALERTS_KAFKA_ENABLED` | `sap.sync.alerts` / `true` | destino de las alertas de sincronización parcial |
 | `management.tracing.enabled` | `TRACING_ENABLED` | `false` | trazas OTLP con el starter oficial de OTel (ADR-0009) |
 | `management.otlp.tracing.endpoint` | `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` | `http://localhost:4318/v1/traces` | Tempo o colector |
 
@@ -48,6 +49,7 @@ por configuración.
 |---|---|---|
 | R-1 | Cada transición de estado incrementa `sap_sync_state_total{domain,state}` | Sin ella no se sabe cuántas entidades hay en `SAP_ERROR` |
 | R-2 | Cada etapa del orquestador (`fetch`, `validate`, `index`, `send`) registra su duración en `sap_sync_stage_duration{domain,stage}` (p50/p95/p99), también cuando la etapa falla | Auditoría A9: el timer existía y nunca se invocaba |
+| R-2b | Cada parte enviada por separado cuenta en `sap_sync_feature_result_total{domain,feature,result}`; un ciclo con alguna parte fallida emite además un `WARN` «ALERTA sincronizacion parcial» y un mensaje en `sap.sync.alerts` ([ADR-0010](../../architecture/adr/0010-sin-compensacion-entre-features-marcar-y-avisar.md)) | Sin ello, un cliente a medias en SAP pasa desapercibido |
 | R-3 | Cada intento HTTP hacia SAP deja una muestra en `sap_client_request_duration{destination,method,outcome}` (`2xx`/`4xx`/`5xx`/`transport_error`; los reintentos cuentan cada uno), y el retry y el circuit breaker `sap` exponen sus métricas Resilience4j (`resilience4j_retry_calls`, `resilience4j_circuitbreaker_state`...) | Auditoría A9: el `WebClient.builder()` estático no registraba nada y el estado del circuito era invisible |
 | R-4 | El **presupuesto de reintentos por mensaje** (`calls-per-message × (intentos × timeout + backoff)`) debe ser **menor** que `max.poll.interval.ms`. Se comprueba al arrancar (`RetryBudgetGuard`) y si no cuadra la app no arranca, con el cálculo en el mensaje | Auditoría A10: con los defaults (5,1 min contra 5 min) un SAP degradado provocaba rebalanceos en cascada |
 | R-5 | La parada es **ordenada**: se dejan terminar las peticiones HTTP y los mensajes en curso hasta `timeout-per-shutdown-phase` | Un mensaje a medias deja la entidad en un estado en vuelo (que la Fase 1 ya recupera, pero no hace falta provocarlo) |
@@ -96,6 +98,7 @@ Este spec **es** la observabilidad del sistema. Lo que falta está en §2 (fuera
 
 | Fecha | Cambio | PR |
 |---|---|---|
+| 2026-09-14 | R-2b (ADR-0010): métrica por feature y alerta de sincronización parcial (`SyncNotificationPort`, `KafkaSyncNotificationAdapter`) | — |
 | 2026-09-12 | D-7 (ADR-0009): `spring-boot-starter-opentelemetry` apagado por defecto; `TRACING_ENABLED`/`OTEL_EXPORTER_OTLP_TRACES_ENDPOINT`; exportación OTLP de métricas desactivada (Prometheus por scraping) | — |
 | 2026-09-12 | Fase 7: `MetricsPort` en el dominio; `application` deja de importar Micrometer | — |
 | 2026-09-12 | Spec inicial (plan Fase 5 parcial, auditoría A9/A10). Timer de etapas cableado en ambos orquestadores; timer por intento HTTP y binder de Resilience4j en el cliente SAP; tag `application` por app; `RetryBudgetGuard` con `max.poll.interval.ms` a 15 min; parada ordenada; formato ECS de log por variable de entorno. Trazas: pendientes de D-7 | — |

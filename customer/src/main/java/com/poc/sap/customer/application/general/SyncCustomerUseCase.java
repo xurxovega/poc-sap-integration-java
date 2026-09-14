@@ -3,6 +3,7 @@ package com.poc.sap.customer.application.general;
 import com.poc.sap.common.application.SyncCycleRecorder;
 import com.poc.sap.common.domain.IngestionMessage;
 import com.poc.sap.common.domain.SyncState;
+import com.poc.sap.common.domain.port.SyncNotificationPort;
 import com.poc.sap.common.domain.port.SyncStateRepositoryPort;
 import com.poc.sap.common.domain.port.MetricsPort;
 import com.poc.sap.customer.application.CustomerFeatureSync;
@@ -40,6 +41,7 @@ public class SyncCustomerUseCase {
     private final CustomerHistoryIndexerPort historyIndexer;
     private final SyncStateRepositoryPort stateRepo;
     private final MetricsPort metrics;
+    private final SyncNotificationPort notifications;
 
     private final SyncCycleRecorder cycle;
 
@@ -53,6 +55,7 @@ public class SyncCustomerUseCase {
                               CustomerHistoryIndexerPort historyIndexer,
                               SyncStateRepositoryPort stateRepo,
                               MetricsPort metrics,
+                              SyncNotificationPort notifications,
                               CustomerFeatureSync address,
                               CustomerFeatureSync fiscal,
                               CustomerFeatureSync contact,
@@ -62,6 +65,7 @@ public class SyncCustomerUseCase {
         this.historyIndexer = historyIndexer;
         this.stateRepo = stateRepo;
         this.metrics = metrics;
+        this.notifications = notifications;
         this.cycle = new SyncCycleRecorder(DOMAIN, stateRepo, metrics);
         this.address = address;
         this.fiscal = fiscal;
@@ -141,7 +145,7 @@ public class SyncCustomerUseCase {
             transition(message, SyncState.INDEXING, SyncState.INDEXED);
 
             transition(message, SyncState.INDEXED, SyncState.SENDING_SAP);
-            SyncState finalState = timed("send", () -> sendFeatures(customer, message.payloadHash(), features));
+            SyncState finalState = timed("send", () -> sendFeatures(message, customer, features));
             if (finalState == SyncState.SENT_SAP) {
                 // La imagen es "lo que SAP tiene": se persiste solo tras el ACK de todas
                 // las features (idempotencia-y-dedupe R-4). Antes se guardaba antes de
@@ -158,28 +162,36 @@ public class SyncCustomerUseCase {
         }
     }
 
-    private SyncState sendFeatures(Customer customer, String payloadHash, Set<CustomerFeature> features) {
+    /**
+     * Envia cada parte por su propia linea de estado y decide el estado del agregado
+     * (R-7). No hay compensacion (ADR-0010, D-2): si una parte falla, las que
+     * entraron se quedan en SAP, el agregado termina en SAP_ERROR o INVALID, cada
+     * linea de feature dice que paso, y se AVISA (R-9). El siguiente evento reenvia.
+     */
+    private SyncState sendFeatures(IngestionMessage message, Customer customer, Set<CustomerFeature> features) {
         Map<CustomerFeature, CustomerFeatureSync> dispatch = Map.of(
                 CustomerFeature.ADDRESS, address,
                 CustomerFeature.FISCAL,  fiscal,
                 CustomerFeature.CONTACT, contact,
                 CustomerFeature.BANKING, banking);
 
-        boolean allOk = true;
-        boolean anyInvalid = false;
+        Map<String, SyncState> results = new java.util.LinkedHashMap<>();
         for (CustomerFeature f : features) {
             CustomerFeatureSync uc = dispatch.get(f);
             if (uc == null) {
                 continue;
             }
-            SyncState s = uc.execute(customer, payloadHash);
-            if (s == SyncState.INVALID) {
-                anyInvalid = true;
-            } else if (s != SyncState.SENT_SAP) {
-                allOk = false;
-            }
+            SyncState s = uc.execute(customer, message.payloadHash());
+            results.put(f.name(), s);
+            metrics.incrementFeatureResult(DOMAIN, f.name(), s.name());
         }
-        return anyInvalid ? SyncState.INVALID : (allOk ? SyncState.SENT_SAP : SyncState.SAP_ERROR);
+        boolean anyInvalid = results.containsValue(SyncState.INVALID);
+        boolean allOk = results.values().stream().allMatch(s -> s == SyncState.SENT_SAP);
+        SyncState finalState = anyInvalid ? SyncState.INVALID : (allOk ? SyncState.SENT_SAP : SyncState.SAP_ERROR);
+        if (!allOk) {
+            notifications.partialFailure(DOMAIN, message.entityId(), message.payloadHash(), results);
+        }
+        return finalState;
     }
 
     /** Duracion de cada etapa en sap_sync_stage_duration (sdd/common/observabilidad.md R-2). */

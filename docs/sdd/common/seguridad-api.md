@@ -57,7 +57,7 @@ Matriz de acceso por endpoint:
 | Endpoint | `external-read` | `read` | `write` | `admin` / `superadmin` |
 |---|---|---|---|---|
 | `POST /customers/sync`, `/customers/validate`, `POST /articles/sync` | ✗ 403 | ✗ 403 | ✓ | ✓ |
-| `GET /customers/{id}/history` (`full=false`) | ✓ | ✓ | ✓ | ✓ |
+| `GET /customers/{id}/history` (`full=false`), `GET /customers/{id}/state` | ✓ | ✓ | ✓ | ✓ |
 | `GET /customers/{id}/history?full=true` | ✓ **enmascarado** (`masked: true`) | ✓ completo | ✓ | ✓ |
 | `GET /customers/{id}/history/diff` | ✗ 403 | ✓ | ✓ | ✓ |
 | `GET /articles/{id}/history[/diff]` | ✓ | ✓ | ✓ | ✓ |
