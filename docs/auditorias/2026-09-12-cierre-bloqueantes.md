@@ -35,14 +35,13 @@ el tenant (B3).
 | 3 SAP real | 🚧 3.1 y 3.2 hechas; resto bloqueado por el tenant | `c07adb0`, `e012376` |
 | 4 Seguridad | ✅ A8 + B4 (Keycloak) | `b4a8736`, commit de la Fase 4 |
 | 5 Observabilidad | ✅ (trazas apagadas hasta tener Tempo, ADR-0009) | `f6d0af4` |
-| 6 Consistencia | ✅ verificada en vivo, salvo compensación (D-2) | `2c532a7`, `9e7fd6c` |
+| 6 Consistencia | ✅ verificada en vivo; D-2 decidida (ADR-0010) | `2c532a7`, `9e7fd6c` |
 | 7 Refactor | ⬜ pendiente (única fase que no ha empezado) | — |
 | 8 Supply chain | ✅ + despliegue k8s (ADR-0008) | `16b0336` |
 | 9 Documentación y cierre | 🚧 ADRs, incidencias, runbooks, aptitud, checklist del tenant, registro desde specs hechos; quedan las decisiones de negocio | este documento |
 
 ## Decisiones que siguen abiertas
 
-D-2 compensación (propuesta: ninguna, reenvío + upsert idempotente) · D-3
-Debezium Server/SMT · D-4 OData V4 · alcance de `supplier` · retención, SLOs,
+D-3 Debezium Server/SMT (D-2 decidida el 2026-09-14: sin compensación, ADR-0010) · D-4 OData V4 · alcance de `supplier` · retención, SLOs,
 RTO/RPO, gestión de secretos en el clúster y quién opera
 ([`../operacion/APTITUD-PRODUCCION.md`](../operacion/APTITUD-PRODUCCION.md)).

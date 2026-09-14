@@ -20,6 +20,23 @@ identifican por fecha.
 
 ## [Sin publicar]
 
+### 2026-09-14 — Cuando una parte del cliente no llega a SAP, se sabe cuál y se avisa (decisión D-2)
+
+#### Cambiado
+
+- Decidido **no deshacer** lo que ya entró en SAP cuando falla una de las partes
+  de un cliente: deshacer sería otra modificación más, con su propio rastro y su
+  propio riesgo de fallar. En su lugar, el cliente queda marcado como error, se
+  conserva el estado de cada parte y el siguiente cambio lo reenvía entero.
+
+#### Añadido
+
+- **Aviso de sincronización parcial**: un mensaje en el canal `sap.sync.alerts`
+  y una entrada en el registro con las partes que entraron y las que no, más un
+  contador por parte para los paneles. Falta quien lo escuche (correo, ticket).
+- Consulta `GET /customers/{id}/state`: estado del cliente y de cada una de sus
+  partes, con el último cambio que lo produjo. Es la respuesta a «¿dónde falló?».
+
 ### 2026-09-12 — Las APIs exigen identidad; camino al despliegue (Fase 4 y decisiones D-7/D-9)
 
 #### Añadido

@@ -365,7 +365,7 @@ Suite ERP de SAP. En este proyecto se sincronizan datos maestros con **SAP S/4HA
 
 ### Saga / compensación
 
-Patrón para mantener consistencia entre varias operaciones sin transacción distribuida: si una falla, se **compensan** las anteriores. Aplica al cliente con cuatro features enviadas por separado (OPS-5, decisión D-2: Spring Modulith, saga propia o ninguna).
+Patrón para mantener consistencia entre varias operaciones sin transacción distribuida: si una falla, se **compensan** las anteriores. **Descartado** aquí (D-2, [ADR-0010](architecture/adr/0010-sin-compensacion-entre-features-marcar-y-avisar.md)): deshacer en SAP sería otra modificación con su rastro y su propio riesgo de fallo; se marca, se localiza y se avisa.
 
 ### SAP Cloud SDK for Java
 
@@ -402,6 +402,10 @@ Módulo `common` con primitivas de dominio, máquina de estados, clientes SAP y 
 ### «Sin cambios reales» (corta-circuito)
 
 Optimización del pipeline agregado: si el ciclo anterior terminó en `SENT_SAP` y el snapshot re-leído del legacy es idéntico a la **imagen** (que desde la Fase 6 es exactamente lo que SAP aceptó), no se reenvía a SAP y se transiciona `VALID → SENT_SAP` directamente. Ese `SENT_SAP` significa «SAP está en sincronía con este payload». Ver [`idempotencia-y-dedupe.md`](sdd/common/idempotencia-y-dedupe.md) R-3.
+
+### Sincronización parcial (alerta `SYNC_PARTIAL_FAILURE`)
+
+Ciclo de un cliente en el que alguna de sus partes (dirección, fiscal, contacto, banco) no llegó a `SENT_SAP` mientras otras sí. No se compensa ([ADR-0010](architecture/adr/0010-sin-compensacion-entre-features-marcar-y-avisar.md)): el agregado queda en error, cada parte conserva su línea de estado (`GET /customers/{id}/state`) y se emite un `WARN` y un mensaje JSON en el topic `sap.sync.alerts` con las partes OK y fallidas. El siguiente evento reenvía todo.
 
 ### Slice Test
 

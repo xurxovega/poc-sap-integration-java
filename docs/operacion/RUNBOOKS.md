@@ -20,7 +20,11 @@ guardias: pendiente ([`APTITUD-PRODUCCION.md`](APTITUD-PRODUCCION.md)).
 **Detección**: `sap_sync_state_total{state="SAP_ERROR"}` sube; o alguien pregunta
 por un cliente que «no llegó a SAP».
 
-**Confirmar**:
+**Confirmar** (con token `sap-read`): `GET /customers/CUST-001/state` devuelve el
+estado del agregado y de **cada parte** con su último hash e instante: la parte
+en `SAP_ERROR` es donde falló. La alerta `SYNC_PARTIAL_FAILURE` del topic
+`sap.sync.alerts` (y el `WARN` «ALERTA sincronizacion parcial» en Loki) ya
+lista las partes OK y fallidas. Sin token, directo en Mongo:
 ```bash
 MSYS_NO_PATHCONV=1 docker exec mongodb mongosh --quiet customer --eval \
   'db.sync_state.find({entityId:"CUST-001"}).sort({seq:-1}).limit(5).forEach(x=>print(x.seq,x.stateCode,x.payloadHash,x.timestamp))'
@@ -28,8 +32,9 @@ MSYS_NO_PATHCONV=1 docker exec mongodb mongosh --quiet customer --eval \
 Estados: 9 = `SENT_SAP`, 10 = `SAP_ERROR`, 99 = `ERROR`; 1-8 son intermedios
 ([`../sdd/common/maquina-de-estados.md`](../sdd/common/maquina-de-estados.md) §6).
 
-**Qué hacer**: nada especial. Desde la Fase 1 **un evento nuevo siempre abre
-ciclo**, venga la entidad de `SAP_ERROR`, `ERROR` o de un estado intermedio
+**Qué hacer**: no se compensa ([ADR-0010](../architecture/adr/0010-sin-compensacion-entre-features-marcar-y-avisar.md)): las
+partes que entraron se quedan en SAP y el siguiente evento reenvía todas. Desde
+la Fase 1 **un evento nuevo siempre abre ciclo**, venga la entidad de `SAP_ERROR`, `ERROR` o de un estado intermedio
 (proceso muerto a mitad). Provoca el evento:
 - por CDC: un `UPDATE` inocuo en el legacy (`UPDATE dbo.customers SET updated_at = SYSDATETIME() WHERE id='CUST-001'`), o
 - por REST: `POST /customers/sync` con un `payloadHash` **nuevo** (uno repetido

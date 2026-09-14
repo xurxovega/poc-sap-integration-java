@@ -14,7 +14,7 @@ Estado a 2026-09-12: ✅ hecho · 🚧 en curso · ⬜ pendiente · 🧭 decisi�
 |---|---|---|
 | Todo el pipeline verificado contra el **tenant SAP de test** (upsert, contacto, bloqueo del BP, mandatos) | ⬜ | Fase 3 del plan; checklist en [`../testing/CHECKLIST-TENANT-SAP.md`](../testing/CHECKLIST-TENANT-SAP.md) |
 | Ninguna entidad puede quedar atascada | ✅ | Fase 1, verificado en vivo |
-| Un fallo parcial entre features no deja SAP inconsistente | 🧭 | D-2 (compensación) |
+| Un fallo parcial entre features se marca, se localiza por parte y se avisa (no se compensa) | ✅ decidido | ADR-0010; falta el consumidor de `sap.sync.alerts` (OPS-8) |
 | `supplier` entra o sale del alcance | 🧭 | decisión de producto (PRD-1) |
 
 ## 2. Seguridad y datos personales

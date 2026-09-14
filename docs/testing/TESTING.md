@@ -8,7 +8,7 @@
 
 ## 1. Resumen ejecutivo
 
-Total: **307 tests** declarados (medido el 12-09-2026 con JDK 25, `mvn clean test`).
+Total: **313 tests** declarados (medido el 12-09-2026 con JDK 25, `mvn clean test`).
 
 La cifra es de `@Test` **declarados** en `src/test/java` de todos los módulos; la vigila
 `TestCountMatchesDocsTest` (módulo `it`) y el build falla si diverge. Los IT gateados
@@ -17,8 +17,8 @@ El módulo `it` sigue ejecutando los contract dos veces — ver §8 issue 3.
 
 | Módulo     | Tests aprox. | Contenido principal |
 |------------|--------------|---------------------|
-| common     | 100          | dominio (máquina de estados con estado inicial/re-sync, ValidationResult acumulativo), `FeatureSyncPipelineTest` (recorrido por feature con la máquina real), `KafkaErrorHandlingConfigTest` (compartido), Mongo repo (dedupe `alreadySent`), auth providers, **`RestClientSapClientTest`** (retry 5xx, no-retry 4xx, cabeceras, PATCH/DELETE, CSRF completo con auth del destino y 403 sin `Required` contra WireMock) |
-| customer   | 146          | unit + slice + **`CustomerApplicationContextTest`** (smoke de contexto Spring completo) |
+| common     | 103          | dominio (máquina de estados con estado inicial/re-sync, ValidationResult acumulativo), `FeatureSyncPipelineTest` (recorrido por feature con la máquina real), `KafkaErrorHandlingConfigTest` (compartido), Mongo repo (dedupe `alreadySent`), auth providers, **`RestClientSapClientTest`** (retry 5xx, no-retry 4xx, cabeceras, PATCH/DELETE, CSRF completo con auth del destino y 403 sin `Required` contra WireMock) |
+| customer   | 149          | unit + slice + **`CustomerApplicationContextTest`** (smoke de contexto Spring completo) |
 | article    | 45           | unit + slice + **`ArticleApplicationContextTest`** (smoke de contexto) |
 | it         | 16           | contract (WireMock, adaptadores **reales**, failsafe) + `TestCountMatchesDocsTest` + `SyncStateMongoIT`/`InfrastructureSmokeIT` (skip sin `-Ddocker.available=true`) |
 | supplier   | 0            | placeholder |
@@ -205,6 +205,8 @@ JDK 25 (`C:\Program Files\Java\jdk-25.0.3`). **JDK 25 es el mínimo**: el reacto
   `ApplicationPurityTest` (customer, article): `..application..` no depende de
   Spring, Micrometer ni Jackson (plan Fase 7; el wiring está en
   `bootstrap/*UseCaseConfig`). Las reglas `@ArchTest` no cuentan como `@Test`.
+- **Sincronización parcial (ADR-0010)**: `KafkaSyncNotificationAdapterTest`,
+  `CustomerStateUseCaseTest` y las aserciones de aviso en `SyncCustomerUseCaseTest`.
 - **Seguridad de la API**: `ApiSecurityTest` (customer y article) levanta el contexto
   completo con la cadena de seguridad activa e inyecta JWT con `spring-security-test`
   (401 sin token, 403 sin rol, PII enmascarada para `external-read`);
