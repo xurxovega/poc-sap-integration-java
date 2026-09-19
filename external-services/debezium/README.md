@@ -138,5 +138,18 @@ docker exec -it kafka-broker kafka-console-consumer \
   los contenedores levantados de antes, la outbox no tendrá la columna `message`
   y el conector fallará: recrea los volúmenes (`docker compose down -v`) o
   añade la columna y recrea el trigger a mano.
+- **Base recreada ⇒ offsets viejos del conector.** Kafka Connect guarda el
+  último LSN/LSN de commit en su topic de offsets, no en la base. Si recreas el
+  volumen de SQL Server pero no el de Kafka, el conector arranca `RUNNING`,
+  ve «snapshot ya completado», reanuda desde un LSN que la base nueva no ha
+  alcanzado y **no emite nada** (comprobado el 2026-09-19). Arreglo sin tocar
+  Kafka: `PUT /connectors/<nombre>/stop` → `DELETE /connectors/<nombre>/offsets`
+  → `DELETE /connectors/<nombre>` → borrar el topic `schemahistory.<outbox>` →
+  registrar de nuevo. Si además la tarea sale `FAILED` con «Unable to get last
+  available log position», es este mismo caso.
+- **Topics ya existentes no se reparticionan.** `kafka-init-topics` usa
+  `--create --if-not-exists`: un topic creado antes con 1 partición se queda
+  con 1. Para subirlo: `kafka-topics --alter --topic outbox.CUSTOMER --partitions 12`
+  (y lo mismo para `-dlt` y `outbox.ARTICLE`); comprueba con `--describe`.
 - La outbox no se purga (PoC). En producción habría que borrar filas ya
   capturadas (job de retención) y valorar el SMT `EventRouter` oficial de Debezium.

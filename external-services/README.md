@@ -36,7 +36,9 @@ docker compose up -d
 El servicio `kafka-init-topics` crea `outbox.CUSTOMER`, `outbox.CUSTOMER-dlt`,
 `outbox.ARTICLE` y `outbox.ARTICLE-dlt` con 12 particiones
 (`KAFKA_TOPIC_PARTITIONS`, por defecto 12) en cuanto `kafka-broker` está sano,
-y termina (`restart: "no"`); las apps **no** crean topics
+y termina (`restart: "no"`). Solo actúa sobre topics que **no existan**: uno
+creado antes con 1 partición hay que ampliarlo a mano con `kafka-topics --alter`
+(ver [`debezium/README.md`](debezium/README.md)). Las apps **no** crean topics
 (`APP_KAFKA_TOPICS_CREATE=false`, ver [`../deploy/README.md`](../deploy/README.md)).
 
 ## CDC end-to-end (Debezium)

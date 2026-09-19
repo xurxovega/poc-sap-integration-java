@@ -99,11 +99,12 @@ identifican por fecha.
   diseño.
 - La decisión sobre **qué servicio de autenticación** usar queda en
   propuesta, pendiente de quien es dueño del proyecto.
-- Las pruebas que necesitan un entorno con contenedores no se han podido
-  ejecutar en esta máquina.
-- El registro histórico de features (quién pidió qué y cuándo) sigue sin
-  actualizarse con el trabajo de hoy: su base de datos no está disponible en
-  esta máquina.
+- ~~Las pruebas que necesitan un entorno con contenedores no se han podido
+  ejecutar en esta máquina.~~ Ejecutadas el 2026-09-19: todas en verde, y el
+  aviso de cambio sin datos personales comprobado de punta a punta (base legacy
+  → captura de cambios → cola de mensajes) en clientes y artículos.
+- ~~El registro histórico de features sigue sin actualizarse.~~ Al día el
+  2026-09-19.
 
 ### 2026-09-14 — Cuando una parte del cliente no llega a SAP, se sabe cuál y se avisa (decisión D-2)
 

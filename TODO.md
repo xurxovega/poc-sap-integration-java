@@ -64,9 +64,10 @@
 
 ## Ejecución y registro de la revisión 3 (2026-09-18)
 
-- [ ] Ejecutar `./mvnw -pl it -am verify -Ddocker.available=true` en una máquina con Docker: valida los IT nuevos de Mongo (traza por ciclo, lectura desfasada, fencing por `cycleId`), no ejecutables en esta sesión.
-- [ ] Registrar en `feature_evento` de `sdd_registry` los eventos de las features tocadas hoy (sin MySQL levantado en esta máquina): `upsert-idempotente-sap` (ALTA), `sincronizacion-contacto` (ALTA), `maquina-de-estados`, `resiliencia-cliente-sap`, `idempotencia-y-dedupe`, `seguridad-api`, `sincronizacion-cliente`, `sincronizacion-direccion`, `sincronizacion-datos-bancarios` (MODIFICACION), `contrato-openapi-rest` (ALTA); después pasar `python scripts/sdd-registry-check.py` sin diferencias.
-- [ ] Registrar en `feature_evento` de `sdd_registry` los eventos del 2026-09-19 (mensaje fino, ADR-0013): `contrato-mensaje-de-cambio` (**ALTA**); `idempotencia-y-dedupe`, `sincronizacion-cliente`, `sincronizacion-articulo` (**MODIFICACION**); despues `python scripts/sdd-registry-check.py` sin diferencias.
+- [x] ~~Ejecutar `./mvnw -pl it -am verify -Ddocker.available=true`~~ — hecho el 2026-09-19 con Docker: 26/26 IT de `it/` en verde, ninguno omitido (`SyncStateMongoIT` con traza por ciclo, lectura desfasada y fencing contra Mongo real).
+- [x] ~~Registrar en `feature_evento` los eventos del 18-09 y del 19-09~~ — hecho el 2026-09-19: 14 eventos (4 ALTA, 10 MODIFICACION), `sdd-registry-check.py` sin diferencias (18 features).
+- [x] ~~Probar triggers y Debezium en vivo (ADR-0013)~~ — hecho el 2026-09-19: los dos triggers emiten el aviso fino (`message`, `payload` NULL) y llega a `outbox.CUSTOMER` / `outbox.ARTICLE` vía Debezium sin datos personales. Dos trampas documentadas en `external-services/debezium/README.md`: offsets viejos del conector al recrear la base, y topics existentes que `--if-not-exists` no reparticiona.
+- [ ] Arrancar las apps contra el entorno local y verificar un ciclo completo con el mensaje fino (relectura del legacy, hash calculado, lookup previo contra el mock): no hecho todavía.
 
 ## Método
 

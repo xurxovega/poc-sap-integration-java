@@ -119,4 +119,5 @@ señal de que alguien sigue publicando el formato antiguo.
 
 | Fecha | Cambio | PR |
 |---|---|---|
-| 2026-09-19 | Spec inicial. El aviso de cambio pasa de llevar la entidad entera a llevar solo su identidad ([ADR-0013](../../architecture/adr/0013-outbox-mensaje-fino-sin-payload.md)). Los triggers y el conector Debezium se han cambiado y revisado leyendo el SQL, **sin ejecutarlos**: no había Docker disponible en la sesión | — |
+| 2026-09-19 | **Verificación en vivo** (Docker): con volúmenes recreados, `UPDATE` en SQL Server y en PostgreSQL → fila en la outbox con `message` fino y `payload` NULL → Debezium → `outbox.CUSTOMER` / `outbox.ARTICLE` con `{"entityId","operation","occurredAt"}` (Postgres añade `version`). Hallazgo colateral: al recrear la base, el conector reanuda desde offsets viejos y no emite nada hasta resetearlos (`external-services/debezium/README.md`) | — |
+| 2026-09-19 | Spec inicial. El aviso de cambio pasa de llevar la entidad entera a llevar solo su identidad ([ADR-0013](../../architecture/adr/0013-outbox-mensaje-fino-sin-payload.md)). Los triggers y el conector Debezium se han cambiado y revisado leyendo el SQL, sin ejecutarlos en ese momento (verificados en vivo después, fila anterior) | — |
