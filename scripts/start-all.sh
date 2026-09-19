@@ -201,6 +201,15 @@ if [[ "$ENV_NAME" == "local" ]]; then
         -d '{"priority":10,"request":{"method":"ANY","urlPattern":".*"},
              "response":{"status":201,"jsonBody":{"ok":true}}}' >/dev/null
     ok "stub catch-all registrado (201 a cualquier petición)"
+
+    # Verificación previa (lookup): con sap.client.lookup.enabled=true (por
+    # defecto) cada escritura hace antes un GET. Contra el catch-all ese GET
+    # respondería 201 y el adaptador creería que SAP ya tiene la subentidad. Este
+    # stub, más específico, hace que el GET devuelva 404 = "SAP no lo tiene", que
+    # es la verdad en un mock vacío: el flujo local sigue siendo el de alta.
+    curl -fsS -X POST "http://localhost:${MOCK_SAP_PORT:-8090}/__admin/mappings"         -H 'Content-Type: application/json'         -d '{"priority":5,"request":{"method":"GET","urlPattern":"/sap/opu/odata/.*"},
+             "response":{"status":404,"jsonBody":{"error":{"message":"not found (mock)"}}}}' >/dev/null
+    ok "stub de verificación previa registrado (GET OData -> 404)"
 else
     step "Entorno 'test': no se levantan contenedores"
     warn "las apps se conectarán a los servicios de test definidos en scripts/env/test.env"

@@ -29,7 +29,7 @@ Cuando termine, el smoke test:
 ```bash
 curl -s -X POST http://localhost:8081/customers/sync \
   -H "Content-Type: application/json" \
-  -d '{"entityId":"CUST-001","operation":"UPDATE","payloadHash":"quickstart-1","payload":"{}"}'
+  -d '{"entityId":"CUST-001","operation":"UPDATE"}'
 # → {"entityId":"CUST-001","state":"SENT_SAP"}
 ```
 
@@ -127,7 +127,7 @@ mvn -pl common install -DskipTests
 Recomendable antes de arrancar nada — la suite no necesita Docker:
 
 ```bash
-mvn clean test                        # 314 tests (unit, slice, resiliencia, smoke de contexto)
+mvn clean test                        # 447 tests (unit, slice, resiliencia, smoke de contexto)
 ```
 
 Los smoke `CustomerApplicationContextTest` / `ArticleApplicationContextTest`
@@ -257,6 +257,26 @@ curl -s -X POST http://localhost:8090/__admin/mappings \
 }'
 ```
 
+> **No te quedes solo con este stub.** Por defecto
+> `SAP_CLIENT_LOOKUP_ENABLED=true`: antes de dar de alta, cada feature hace un
+> `GET` de verificación previa a SAP, y con solo el catch-all de arriba ese
+> `GET` también responde 201 (=  "SAP ya lo tiene"), así que el pipeline hace
+> `PATCH` en vez de `POST` (alta). Añade también, con prioridad mayor, el
+> stub de verificación previa (el mismo que registra `scripts/start-all.sh`):
+>
+> ```bash
+> curl -s -X POST http://localhost:8090/__admin/mappings \
+>   -H 'Content-Type: application/json' -d '{
+>   "priority": 5,
+>   "request": { "method": "GET", "urlPattern": "/sap/opu/odata/.*" },
+>   "response": { "status": 404, "jsonBody": { "error": { "message": "not found (mock)" } } }
+> }'
+> ```
+>
+> o arranca con `SAP_CLIENT_LOOKUP_ENABLED=false` para saltarte el `GET` y
+> replicar el comportamiento anterior a 2026-09-18. Detalle completo en
+> [`testing/GUIA-PRUEBAS.md`](testing/GUIA-PRUEBAS.md#22-mock-de-sap-wiremock-en-docker).
+
 Para ver qué recibió el "SAP":
 
 ```bash
@@ -303,6 +323,8 @@ curl -s http://localhost:8082/actuator/health
 | `ES_URL` | `http://localhost:9200` | Histórico |
 | `KAFKA_BOOTSTRAP` | `localhost:9092` | Broker |
 | `SAP_ODATA_*_ENABLED` | `false` | Conmuta cada adaptador OData S/4 (por defecto se usa la ruta BTP) |
+| `SAP_CLIENT_LOOKUP_ENABLED` | `true` | Verificación previa (`GET`) antes de dar de alta en SAP (upsert idempotente). Con `false`, alta directa como antes de 2026-09-18 — ver §4 |
+| `KAFKA_TOPIC_PARTITIONS` | `12` | Particiones de los topics `outbox.*` que crea `kafka-init-topics` en `docker compose` |
 
 Lista completa con sus defaults en [`scripts/env/local.env`](../scripts/env/local.env).
 
@@ -316,7 +338,7 @@ El endpoint REST reusa exactamente el mismo pipeline que CDC. El use case
 ```bash
 curl -s -X POST http://localhost:8081/customers/sync \
   -H "Content-Type: application/json" \
-  -d '{"entityId":"CUST-001","operation":"UPDATE","payloadHash":"quickstart-1","payload":"{}"}'
+  -d '{"entityId":"CUST-001","operation":"UPDATE"}'
 # → {"entityId":"CUST-001","state":"SENT_SAP"}
 ```
 
@@ -340,16 +362,17 @@ curl -s http://localhost:8081/customers/CUST-001/history | jq
 curl -s http://localhost:8081/customers/CUST-001/history/diff | jq
 ```
 
-Repetir el mismo `curl` con el **mismo** `payloadHash` responde `SENT_SAP` al
-instante sin llamar a SAP (dedupe por idempotencia). Cambia el hash para forzar
-el ciclo completo otra vez.
+Repetir el mismo `curl` responde `SENT_SAP` al instante sin llamar a SAP: el
+dedupe compara el hash **del estado actual del legacy** (ADR-0013), y si nada
+cambió no hay nada que enviar. Para forzar el ciclo completo otra vez, cambia el
+dato en el legacy (por ejemplo `UPDATE poc.dbo.customers SET name = ...`).
 
 Equivalente para article:
 
 ```bash
 curl -s -X POST http://localhost:8082/articles/sync \
   -H "Content-Type: application/json" \
-  -d '{"entityId":"ART-001","operation":"UPDATE","payloadHash":"quickstart-art-1","payload":"{}"}'
+  -d '{"entityId":"ART-001","operation":"UPDATE"}'
 ```
 
 ---
@@ -402,7 +425,7 @@ Colección lista para importar:
 
 | Carpeta | Qué trae |
 |---|---|
-| **Customer** | sync (genera un `payloadHash` único en cada envío para no toparse con el dedupe), validate, histórico, diff, health, métricas |
+| **Customer** | sync (aviso fino: solo `entityId` y `operation`; el servicio relee el legacy), validate, histórico, diff, health, métricas |
 | **Article** | equivalentes del dominio article |
 | **SAP simulado** | ver peticiones recibidas, borrar el registro, stub catch-all 201, **stub de error 500** para provocar retry/circuit breaker, reset |
 | **Infraestructura** | estado de los conectores Debezium, salud de ES, búsqueda del histórico |
@@ -413,6 +436,37 @@ el entorno y cambia los hosts.
 
 Alternativas con el mismo contrato: `curl` (todos los ejemplos de esta guía),
 Insomnia o Bruno importando la misma colección.
+
+### Probar la API con el OpenAPI
+
+Cada servicio publica su contrato REST completo —rutas, parámetros, cuerpos,
+códigos, ejemplos y el rol que exige cada operación— en un fichero estándar que
+se importa en cualquier herramienta:
+
+| Servicio | Fichero |
+|---|---|
+| customer (8081) | [`customer/src/main/resources/openapi.yml`](../customer/src/main/resources/openapi.yml) |
+| article (8082) | [`article/src/main/resources/openapi.yml`](../article/src/main/resources/openapi.yml) |
+
+Tres pasos:
+
+1. **Importarlo**. Postman: *Import → File →* el `.yml` (crea una colección con
+   todas las peticiones). Bruno: *Import Collection → OpenAPI V3*. Swagger UI:
+   `docker run -p 8088:8080 -e SWAGGER_JSON=/spec/openapi.yml -v "$PWD/customer/src/main/resources:/spec" swaggerapi/swagger-ui`.
+2. **Elegir el servidor**. `http://localhost:8081` (o `:8082`) para local; para
+   test, rellenar la variable `host` del segundo servidor con el host real, o
+   `kubectl port-forward svc/customer 8081:8081` y seguir usando el local
+   (todavía no hay Ingress definido).
+3. **Poner el token**. *Authorization → Bearer Token* con un JWT de Keycloak de
+   un usuario que tenga el rol indicado en `x-required-role` de la operación
+   (`sap-write` para las de `/sync` y `/validate`, `sap-read` para el diff…).
+   Cómo obtenerlo: [`tools-integrations/KEYCLOAK.md`](tools-integrations/KEYCLOAK.md).
+
+El contrato no envejece: un test por módulo compara el YAML con los
+controladores y rompe el build si divergen
+([`sdd/common/contrato-openapi-rest.md`](sdd/common/contrato-openapi-rest.md)).
+La colección de Postman de arriba sigue siendo útil y es complementaria: además
+de la API trae las peticiones al SAP simulado y a la infraestructura.
 
 ### DBeaver (o cualquier cliente SQL) — los legacy
 
@@ -557,7 +611,7 @@ A mano: `Ctrl+C` en cada terminal de `spring-boot:run`, `docker stop mock-sap` y
 | `elasticsearch` se reinicia en bucle | `sudo sysctl -w vm.max_map_count=262144` |
 | Puerto `8083` ocupado | Lo usa Kafka Connect. Es también el default de `supplier` (no desplegable); si necesitas ese puerto, para el compose o cambia el mapeo |
 | Error de compilación por versión de Java | Instala JDK 25: es el mínimo del proyecto desde la Fase 2 de la auditoría |
-| `SENT_SAP` inmediato sin llamadas al mock | Dedupe por `payloadHash` idéntico: usa un hash distinto |
+| `SENT_SAP` inmediato sin llamadas al mock | Dedupe: el legacy tiene el mismo estado que SAP ya recibió. Cambia el dato en el legacy para forzar el ciclo |
 | Estado `SAP_ERROR` | El mock no responde 2xx o no está levantado: revisa el stub y `SAP_*_BASE_URL` |
 | La app no arranca: «Credenciales ... incompletas y sap.auth.allow-stub=false» | Es lo esperado sin credenciales SAP. Contra el mock: `SAP_AUTH_ALLOW_STUB=true` (ya en `local.env`). Contra SAP de test: rellena `SAP_S4_CLIENT_ID`/`SECRET`/`TOKEN_URL` en `test.env` |
 | La app no arranca: «Credenciales del legacy sin resolver ... placeholder sin resolver» | Falta cargar `scripts/env/local.env` (`set -a; source ...; set +a`) o rellenar `test.env` |

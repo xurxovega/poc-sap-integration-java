@@ -5,9 +5,17 @@
 
 ## A
 
+### `412 Precondition Failed`
+
+Respuesta de SAP a un `PATCH` cuyo `If-Match` ya no coincide: significa que el recurso **cambió desde nuestra lectura**, y obliga a releer antes de reintentar. No es un error de datos: es la señal de que otro proceso tocó el mismo Business Partner entremedias. Se permite un re-lookup y un segundo `PATCH`; si vuelve a fallar, `SAP_ERROR`. Ver [`upsert-idempotente-sap.md`](sdd/common/upsert-idempotente-sap.md) R-7.
+
 ### A2X (Application-to-Cross-Application)
 
 Etiqueta de SAP para las APIs OData de S/4 Public Cloud pensadas para integrarse desde fuera con un communication user (`API_BUSINESS_PARTNER (A2X)`, `API_PRODUCT_SRV (A2X)`). Son las que consume la familia OData de adaptadores. Ver [`sdd/sap-api-catalog.md`](sdd/sap-api-catalog.md).
+
+### `AddressID` / `RelationshipNumber`
+
+Claves que **asigna SAP** a las subentidades de un Business Partner (la dirección y la relación con una persona de contacto). No son deducibles desde nuestros datos, así que hay que persistirlas de nuestro lado —colección `sap_keys`, no la imagen— o cada ciclo crea un duplicado en vez de actualizar. El `AddressID` es además la clave de las cuatro entidades de comunicación (email, teléfono, fax, web). Ver [`upsert-idempotente-sap.md`](sdd/common/upsert-idempotente-sap.md) R-4.
 
 ### Adapter (Adaptador)
 
@@ -27,9 +35,17 @@ Portal oficial de SAP para descubrir APIs y especificaciones OData/OpenAPI de SA
 
 ### ArchUnit
 
-Librería de tests que verifica reglas de arquitectura sobre el bytecode. En el repo, `DomainPurityTest` (common, customer, article) prohíbe que `..domain..` dependa de Spring, Jackson, Mongo, Kafka, Micrometer o JPA. La misma regla sobre `application` está en el backlog (TEST-7, Fase 7). Ver [`TESTING.md`](testing/TESTING.md) §6.
+Librería de tests que verifica reglas de arquitectura sobre el bytecode. En el repo, `DomainPurityTest` (common, customer, article) prohíbe que `..domain..` dependa de Spring, Jackson, Mongo, Kafka, Micrometer o JPA; `ApplicationPurityTest` hace lo propio con `..application..` y `EndpointsDeclareAccessTest` exige `@PreAuthorize` en cada endpoint. Con JUnit Platform 6 (Spring Boot 4) hay que usar el módulo `archunit-junit6` y surefire ≥ 3.6.0: con `archunit-junit5` las reglas no se ejecutaban (hallazgo del 2026-09-18). Ver [`TESTING.md`](testing/TESTING.md) §6.
+
+### `aud` (audiencia)
+
+Claim del token JWT que dice **para qué servicio** se emitió. Hoy el resource server (`ApiSecurityConfig`) solo valida `issuer-uri`: no hay ningún `OAuth2TokenValidator` de audiencia en el repo (hallazgo 2A-1). Sin validarlo, cualquier token del mismo emisor con un rol `sap-*` entra, aunque se haya emitido para otra aplicación. Ver [`SERVICIO-AUTENTICACION.md`](tools-integrations/SERVICIO-AUTENTICACION.md) y [ADR-0012](architecture/adr/0012-servicio-externo-de-autenticacion-idp.md).
 
 ## B
+
+### `BusinessPartnerReadPort`
+
+Puerto de lectura (GET/search OData) del Business Partner, implementado por `BusinessPartnerReadAdapter`. Se activa (`BusinessPartnerReadEnabled`) cuando `sap.odata.read.enabled=true` **o** cuando `sap.odata.customer.enabled=true`: el upsert idempotente por OData necesita el lector aunque nadie haya pedido consultas explícitas, así que un interruptor de "solo lectura" ya no puede ser el único que lo controla. Ver [`upsert-idempotente-sap.md`](sdd/common/upsert-idempotente-sap.md) §3.
 
 ### `BankIdentification` (A_BusinessPartnerBank)
 
@@ -45,7 +61,7 @@ Interfaz estándar de SAP para acceder a procesos de negocio. En Java se invoca 
 
 ### BTP (Business Technology Platform)
 
-Plataforma cloud de SAP. En este proyecto se usa para desplegar apps y resolver destinos/autenticación vía Destination Service y XSUAA/IAS.
+Plataforma cloud de SAP. En este proyecto, una de las tres vías hacia SAP (ver [`INTEGRATION-PATTERNS.md`](architecture/INTEGRATION-PATTERNS.md) "Las tres vías con SAP"): el servicio BTP intermedio existe y **se ha probado en el espacio del propietario**, pero no se ha integrado con esta aplicación — ni SAP llamando a nuestro servicio ni nuestro servicio llamando a SAP a través de BTP se ha probado extremo a extremo (D-10, [ADR-0004](architecture/adr/0004-dos-familias-de-adaptadores-btp-y-odata.md) §5). El lado plataforma (`Btp*Adapter`) sí está implementado y activo por defecto (riesgo abierto 2B-4, [`MEJORAS-Y-PROPUESTAS.md`](MEJORAS-Y-PROPUESTAS.md)).
 
 ### `$batch` (OData) / changeset
 
@@ -63,11 +79,19 @@ Entidad maestra de SAP S/4HANA que agrupa datos de cliente, proveedor y socio. E
 
 ### Callback
 
-Endpoint REST propio que recibe notificaciones de SAP. Se modela como entrada alternativa en el puerto `IngestionPort`. Ver [`TECH.md`](architecture/TECH.md#6-entradas).
+Endpoint REST propio que recibiría notificaciones de SAP. Sería una entrada alternativa al mismo caso de uso que hoy alimentan CDC y REST síncrono (`IngestionMessage`); no hay puerto `IngestionPort` (borrado, auditoría A18) ni callback implementado. Ver [`TECH.md`](architecture/TECH.md#6-entradas).
 
 ### CDC (Change Data Capture)
 
 Captura de cambios en bases de datos legacy. En este proyecto: triggers → tabla outbox → Debezium → Kafka. Ver [`TECH.md`](architecture/TECH.md#6-entradas).
+
+### Cero confianza (estado del agregado)
+
+Convención por la que un ciclo que no dejó a SAP exactamente como se pidió termina en `SAP_ERROR` aunque parte del envío haya ido bien, para obligar a revisión y reenvío en vez de afirmar una sincronía que no existe. Solo si **ninguna** parte llegó a llamar a SAP el agregado puede decir `INVALID`. Decisión D-14; ver [`sincronizacion-cliente.md`](sdd/customer/sincronizacion-cliente.md) R-7.
+
+### Ciclo de sincronización (`cycleId`)
+
+Identificador único del intento completo de llevar una entidad a SAP, compartido por la línea del agregado y las de sus features, y que es lo que permite reconstruir la **traza de pasos** de un envío con una sola consulta. Se genera al abrir ciclo y viaja en cada transición y en el aviso de fallo parcial. Ver [`maquina-de-estados.md`](sdd/common/maquina-de-estados.md) §5.
 
 ### Ciclo en vuelo
 
@@ -76,6 +100,10 @@ Ciclo de sincronización que quedó a medias porque el proceso murió entre `REC
 ### Circuit Breaker
 
 Patrón de resiliencia que abre el circuito tras fallos consecutivos para evitar sobrecargar el sistema downstream. Implementado con **Resilience4j**. Ver [`TECH.md`](architecture/TECH.md#8-clientes-sap).
+
+### `client_credentials`
+
+Flujo OAuth2 en el que un **sistema** (no una persona) obtiene un token con su identificador y su secreto, sin usuario de por medio. Es el grant que usarían el CDC, SAP BTP en modo pull y un lector externo con Keycloak. Ver [`KEYCLOAK.md`](tools-integrations/KEYCLOAK.md) §3 y [`SERVICIO-AUTENTICACION.md`](tools-integrations/SERVICIO-AUTENTICACION.md).
 
 ### Cloud Connector
 
@@ -87,7 +115,15 @@ Configuración en S/4HANA Public Cloud que habilita un escenario de API (p. ej. 
 
 ### `ConcurrentTransitionException`
 
-Dos instancias intentaron escribir la misma secuencia de estado para la misma entidad; la primera gana y la segunda recibe esta excepción en lugar de pisar el estado. La produce el índice único `dom_ent_seq_uk` sobre `(domain, entityId, seq)`. Es transitoria: se reintenta releyendo. Ver **Secuencia de estado**.
+Dos escrituras concurrentes intentaron avanzar el estado de la misma entidad; la primera gana y la segunda recibe esta excepción en lugar de pisar el estado. Se detecta de tres formas: secuencia duplicada (índice único `dom_ent_seq_uk` sobre `(domain, entityId, seq)`), **cabecera movida** (el `from` declarado ya no es el real) y **ciclo ajeno** (**fencing token**). Es transitoria y está **declarada reintentable** en `KafkaErrorHandlingConfig.RETRYABLE` (no por omisión): se reintenta releyendo, en el REST síncrono se traduce a `409 Conflict`, y por eso nunca extiende `IllegalStateException`, que está declarada no reintentable y mandaría el mensaje a la DLT. Ver **Secuencia de estado**, **Fencing token** y [ADR-0011](architecture/adr/0011-concurrencia-entre-instancias-fencing-sin-lease.md).
+
+### Clave de partición (`entity_id`)
+
+Campo por el que Kafka reparte los mensajes en particiones. Al ser el identificador de la entidad, garantiza que todos los eventos de un cliente o artículo caen en la **misma partición** y se procesan en orden y sin solaparse; es la pieza que hace innecesario un *lease* por entidad. La fija el conector Debezium (`message.key.columns` + `ExtractField$Key`). Ver [ADR-0011](architecture/adr/0011-concurrencia-entre-instancias-fencing-sin-lease.md).
+
+### Consumer group compartido entre clústeres
+
+Un único grupo de consumo por dominio (`customer-consumer`, `article-consumer`) para todas las instancias de **todos** los clústeres, de modo que cada mensaje lo procese exactamente un consumidor. Grupos separados por clúster harían que cada clúster escribiera el mismo cambio en el mismo S/4. Ver [ADR-0011](architecture/adr/0011-concurrencia-entre-instancias-fencing-sin-lease.md).
 
 ### Contract test (test de contrato)
 
@@ -121,6 +157,10 @@ Topic `<original>-dlt` al que el `DefaultErrorHandler` publica un mensaje que si
 
 ## E
 
+### ETag / `If-Match`
+
+Huella de la versión de un recurso OData que SAP devuelve en el `GET` (cabecera `ETag` o `__metadata.etag`) y que se reenvía en la cabecera `If-Match` del `PATCH`, para que la actualización falle con [`412`](#412-precondition-failed) si alguien lo modificó entretanto. Tiene un efecto colateral importante: **un `PATCH` con `If-Match` es idempotente** —un segundo intento con el ETag ya consumido da 412, no una doble escritura— y por eso se puede reintentar como una lectura. El ETag **no se persiste**: envejece. Ver [`resiliencia-cliente-sap.md`](sdd/common/resiliencia-cliente-sap.md) R-9.
+
 ### ECS (Elastic Common Schema)
 
 Formato JSON estándar de logs de Elastic. Spring Boot lo emite de forma nativa con `logging.structured.format.console=ecs` (variable `LOGGING_STRUCTURED_FORMAT_CONSOLE`); en local se deja la consola legible. Es el primer paso de OBS-4; el `traceId` llegará con las trazas (D-7).
@@ -135,9 +175,21 @@ Los cuatro puntos reales por los que arranca un pipeline y por los que `beginCyc
 
 ### Event Mesh / Advanced Event Mesh
 
-Broker de eventos de SAP BTP por el que se distribuyen los Business Events de S/4 hacia consumidores externos (webhook o AMQP). Candidato a transporte del patrón 5 de [`INTEGRATION-PATTERNS.md`](architecture/INTEGRATION-PATTERNS.md).
+Broker de eventos de SAP BTP por el que se distribuirían los Business Events de S/4 hacia consumidores externos (webhook o AMQP). Es la tercera vía con SAP, junto a BTP y la API OData directa (ver tabla en [`INTEGRATION-PATTERNS.md`](architecture/INTEGRATION-PATTERNS.md)): **sentido SAP → plataforma** (a diferencia de las otras dos, que son *push*), **sin código** en el reactor y sin diseño cerrado — Patrón 5, propuesta pendiente de que el equipo SAP confirme el mecanismo de publicación.
 
 ## F
+
+### Fail-open / fail-closed
+
+Cómo se comporta un control de seguridad cuando le falta información para decidir. **Fail-open** concede el acceso por defecto; es lo que hoy hace `AccessScope.canSeeSensitiveData(null)`, que devuelve `true` y sirve PII sin enmascarar cuando no hay autenticación (hallazgo 2A-2). **Fail-closed** deniega por defecto, que es la regla correcta en seguridad. Ver [`SERVICIO-AUTENTICACION.md`](tools-integrations/SERVICIO-AUTENTICACION.md).
+
+### Fencing token
+
+Testigo monótono —aquí, el identificador del ciclo de sincronización que escribió la cabecera de estado— que impide que un proceso «zombi», uno que perdió la carrera sin enterarse, siga escribiendo sobre el trabajo de otro. Se eligió frente al *lease* por coste cero por mensaje. Ver [ADR-0011](architecture/adr/0011-concurrencia-entre-instancias-fencing-sin-lease.md).
+
+### Fallo antes de enviar / tras enviar
+
+Clasificación de un error de transporte según si la petición HTTP llegó a salir. **Antes de enviar**: conexión rechazada, timeout de *conexión*, host que no resuelve, sin ruta — la petición no salió, así que reintentarla no puede duplicar nada. **Tras enviar**: timeout de *respuesta*, conexión reseteada, error de E/S — la petición salió y no sabemos qué hizo SAP con ella. Solo la primera permite reintentar una escritura. Ante la duda, se trata como «tras enviar»: equivocarse hacia el otro lado duplica datos maestros. Ver [`resiliencia-cliente-sap.md`](sdd/common/resiliencia-cliente-sap.md) R-8.
 
 ### Feature (spec SDD)
 
@@ -151,11 +203,19 @@ En el dominio `customer`, cada parte del aggregate que puede sincronizarse de fo
 
 Base de datos MySQL (contenedor `mysql-sdd`) donde se registra la información ampliada de cada feature solicitada — quién la pidió, cuándo, en qué estado — y su ciclo de vida: un evento `ALTA`, `MODIFICACION` o `BAJA` por cada cambio. **No es una base de datos de la aplicación**: ningún módulo del reactor se conecta a ella. Ver [`sdd/README.md`](sdd/README.md#8-registro-de-features-mysql).
 
+### Fencing token
+
+Testigo que impide que un proceso «zombi» —uno que perdió la carrera sin enterarse— siga escribiendo sobre el trabajo de otro. Aquí es el `cycleId` de la cabecera de estado: una instancia solo avanza si la cabecera es de **su** ciclo; si no, recibe una `ConcurrentTransitionException` reintentable. Protege *nuestro* estado, no SAP: que no se escriba dos veces en SAP depende de la verificación previa. Ver [`maquina-de-estados.md`](sdd/common/maquina-de-estados.md) R-8.
+
 ### Fingerprint (incidencias)
 
 Identificador estable de la *causa raíz* de un defecto, no de su síntoma, para reconocer recurrencias. El primero del proyecto es `sync-state:reentrada-no-permitida`: tres arreglos «fila a fila» de la máquina de estados que fallaron igual (`IllegalStateException` → 3 reintentos → DLT) hasta el rediseño de raíz. Convención propuesta en `docs/incidencias/`.
 
 ## H
+
+### Hash del snapshot (`payloadHash`)
+
+Huella SHA-256 (hexadecimal) que el consumidor calcula sobre una **forma canónica** del agregado que acaba de leer del legacy: componentes del `record` en orden de declaración, claves de mapa ordenadas, orden de lista respetado y nulos marcados. Identifica **el contenido**, no el intento, y es lo que decide el dedupe, lo que se escribe en cada transición del ciclo y el `Idempotency-Key` hacia SAP. Desde [ADR-0013](architecture/adr/0013-outbox-mensaje-fino-sin-payload.md) ya no viaja en el mensaje. Implementación: `common/domain/PayloadHasher`.
 
 ### Hexagonal Architecture
 
@@ -174,6 +234,10 @@ Propiedad que garantiza que reintentar una operación no produce efectos duplica
 ### IAS (Identity Authentication Service)
 
 Servicio de autenticación de SAP BTP, alternativa a XSUAA.
+
+### IdP (Identity Provider, proveedor de identidad)
+
+Servicio externo que autentica a personas y a sistemas, y emite tokens firmados que las aplicaciones verifican sin autenticar a nadie ellas mismas (ver **Resource server**). Hoy es Keycloak, ya operado por la empresa; la app lo consume como resource server OAuth2 ([ADR-0007](architecture/adr/0007-keycloak-como-proveedor-de-identidad-de-las-apis.md)). [ADR-0012](architecture/adr/0012-servicio-externo-de-autenticacion-idp.md) (estado: propuesta) evalúa mantenerlo o sustituirlo. Ver [`SERVICIO-AUTENTICACION.md`](tools-integrations/SERVICIO-AUTENTICACION.md).
 
 ### iFlow / Integration Suite
 
@@ -217,11 +281,19 @@ Herramienta nativa de `kubectl` (`kubectl apply -k`) para componer manifiestos: 
 
 ## L
 
+### Lease (arrendamiento) por entidad
+
+Bloqueo con caducidad (TTL) que una instancia toma sobre una entidad para trabajar en exclusiva. **Descartado** en este proyecto: su TTL debería superar el presupuesto de reintentos a SAP (~5 min) y una instancia caída bloquearía la entidad ese tiempo, mientras que un TTL corto produciría dos dueños simultáneos. En su lugar se usa el **fencing token**. Ver [ADR-0011](architecture/adr/0011-concurrencia-entre-instancias-fencing-sin-lease.md) §2.
+
 ### Línea de estado por feature
 
 Historia de estados propia de cada feature de una entidad, con clave `<entityId>:<FEATURE>` (p. ej. `CUST-001:ADDRESS`), independiente de la del agregado. Entra por `VALIDATING` en vez de por `RECEIVED`, porque el pipeline por feature valida y envía sin indexar. Ver [`maquina-de-estados.md`](sdd/common/maquina-de-estados.md).
 
 ## M
+
+### Mensaje fino / notificación de cambio (*claim check*)
+
+Aviso que publica la outbox cuando algo cambia en un legacy: dice **qué entidad cambió y cuándo** (`entityId`, `operation`, `occurredAt`), y **no lleva datos ni PII**. Quien lo recibe va a buscar el estado actual al legacy: el mensaje es el resguardo (*claim check*) y la consigna es la propia base de datos de origen. Ver [`contrato-mensaje-de-cambio.md`](sdd/common/contrato-mensaje-de-cambio.md) y [ADR-0013](architecture/adr/0013-outbox-mensaje-fino-sin-payload.md).
 
 ### Mandato SEPA (`SEPAMandate`, `Creditor`)
 
@@ -265,17 +337,25 @@ Estándar construido **encima de REST** que fija por contrato lo que REST deja a
 
 Dos versiones del estándar con formato distinto: **V2** envuelve las respuestas en `{"d":...}` (y `d.results` en listas), pagina con `$skip` y exige fetch de token CSRF en escrituras; **V4** devuelve la entidad en la raíz, usa `value` + `@odata.nextLink` y no usa el CSRF clásico (OAuth2 puro). Las APIs `API_*` del proyecto son V2; las `CE_*` (bancos, activos fijos, números de serie) son V4. Detalle y ejemplos en [`SAP_CLOUD_SDK.md` § OData V2 vs V4](tools-integrations/SAP_CLOUD_SDK.md#odata-v2-vs-v4); versión de cada API en el [catálogo](sdd/sap-api-catalog.md#catálogo).
 
+### OIDC (OpenID Connect)
+
+Capa de identidad construida sobre OAuth2: además del token de acceso, define cómo autenticar usuarios (`id_token`) y cómo publicar las claves de verificación (ver **JWKS** en `SERVICIO-AUTENTICACION.md`, sección "Requisitos"). Keycloak, Zitadel y authentik lo implementan; es el protocolo que usa esta aplicación como resource server. Ver [`SERVICIO-AUTENTICACION.md`](tools-integrations/SERVICIO-AUTENTICACION.md).
+
 ### OpenAPI
 
 Especificación estándar para APIs REST. SAP publica especificaciones OpenAPI en API Business Hub. Se generan clientes Java con el plugin de Cloud SDK. Ver [`SAP_CLOUD_SDK.md`](tools-integrations/SAP_CLOUD_SDK.md#2-apis-rest-propias-de-sap--callbacks--openapi).
 
+### OpenAPI (contrato REST)
+
+Aquí, además de lo anterior, el **contrato de las APIs propias**: cada módulo con controladores REST publica su `openapi.yml` (OpenAPI 3.1) en `src/main/resources/`, de modo que viaja dentro del jar. Dice rutas, métodos, parámetros, cuerpos, códigos y ejemplos, y añade por operación `x-required-role` (el rol del `@PreAuthorize`) y si la respuesta se enmascara para lectura externa. No se genera en runtime ni se sirve por HTTP: se importa en Postman, Bruno o Swagger UI. `OpenApiMatchesControllersTest` rompe el build si el contrato y los controladores divergen. Ver [`contrato-openapi-rest.md`](sdd/common/contrato-openapi-rest.md).
+
 ### OpenTelemetry (OTel)
 
-Estándar de observabilidad para trazas distribuidas. Se integra con el **javaagent** en el arranque de la JVM (el starter Spring de OTel 2.x no soporta Boot 4). Ver [`TECH.md`](architecture/TECH.md#9-observabilidad).
+Estándar de observabilidad para trazas distribuidas. El proyecto usa el **starter oficial** de Boot 4, `spring-boot-starter-opentelemetry` (`common/pom.xml`), no el javaagent: decisión [ADR-0009](architecture/adr/0009-trazas-con-el-starter-oficial-de-opentelemetry.md), apagado por defecto (`TRACING_ENABLED=true` cuando exista un destino). Ver [`TECH.md`](architecture/TECH.md#9-observabilidad).
 
 ### OTLP
 
-*OpenTelemetry Protocol*: protocolo con el que las apps exportan trazas y métricas a un colector (`OTEL_EXPORTER_OTLP_ENDPOINT`). Sin colector ni starter decidido (D-7) no hay trazas distribuidas (OBS-2).
+*OpenTelemetry Protocol*: protocolo con el que las apps exportarían trazas y métricas a un colector (`OTEL_EXPORTER_OTLP_TRACES_ENDPOINT`). El starter ya está decidido y en el `pom.xml` (ADR-0009, D-7 cerrada); lo que falta es el **destino** (Tempo, OBS-2): sin él, `TRACING_ENABLED` sigue en `false` y no hay trazas ni `traceId` en los logs.
 
 ### Outbox Pattern
 
@@ -351,7 +431,19 @@ Cliente HTTP **síncrono** de Spring Framework 6.1+, con la API fluida de `WebCl
 
 ### Retry
 
-Reintentos con backoff exponencial ante fallos transitorios. Ver [`OVERVIEW.md`](architecture/OVERVIEW.md#9-requisitos-no-funcionales).
+Reintentos con backoff exponencial ante fallos transitorios. La política **no es uniforme**: lecturas (GET/DELETE) reintentan cualquier 5xx o error de transporte; escrituras (POST/PATCH, `sap-write`) solo reintentan el fallo de transporte **anterior al envío** — un 5xx ya recibido por SAP no se reintenta a ciegas, para no duplicar el alta. La calcula `RetryBudgetGuard` por tipo de llamada. Ver [`resiliencia-cliente-sap.md`](sdd/common/resiliencia-cliente-sap.md) y [`OVERVIEW.md`](architecture/OVERVIEW.md#9-requisitos-no-funcionales).
+
+### `RetryBudgetGuard`
+
+Calcula, para cada tipo de llamada a SAP (lectura, escritura) y para el backoff de reentrega de Kafka, el presupuesto de tiempo que puede consumir un mensaje antes de que expire el `max.poll.interval.ms` del consumidor. Ver **Presupuesto de reintentos** y [`observabilidad.md`](sdd/common/observabilidad.md).
+
+### `SapOutboundPort`
+
+Puerto de envío a SAP por feature (`domain/port`). Además de `send` (alta), define `lookup`/`update` como métodos `default` para el upsert idempotente: antes de escribir se pregunta a SAP qué tiene (`lookup`); si lo tiene se actualiza (`update`, `PATCH` con `If-Match`); si no, se da de alta (`send`); si el lookup no concluye, no se escribe nada. Ver [`upsert-idempotente-sap.md`](sdd/common/upsert-idempotente-sap.md).
+
+### `SapResponse`
+
+Respuesta normalizada de una llamada a SAP (`httpStatus`, `body`, `location`, `etag`). `httpStatus=0` significa fallo de transporte (no hubo respuesta de SAP). Vive en `SapOutboundPort`.
 
 ### RFC (Remote Function Call)
 
@@ -450,7 +542,15 @@ Contexto de ejecución del SDK que propaga tenant/principal. Requiere cuidado co
 
 Credencial falsa (`stub-btp-token` / `stub-s4-token`) que los `SapAuthProvider` emiten **solo** si `sap.auth.allow-stub=true` (`SAP_AUTH_ALLOW_STUB`) y faltan credenciales reales; sirve únicamente contra el SAP simulado. Con el valor por defecto (`false`) la app no arranca sin credenciales, en vez de fallar con `401` en la primera llamada (auditoría A8). Ver [`autenticacion-sap.md`](sdd/common/autenticacion-sap.md).
 
+### Traza de pasos de un envío
+
+Secuencia ordenada de las transiciones que comparten un mismo `cycleId` a lo largo de todas las líneas de la entidad (agregado y features), con el estado y el **motivo** de cada parte. Es lo que devuelve `GET /customers/{id}/state` en `lastCycle` y lo que viaja en el aviso `SYNC_PARTIAL_FAILURE` de `sap.sync.alerts`. Responde a «¿dónde ha dado el error?» sin ir a los logs. Ver [`sincronizacion-cliente.md`](sdd/customer/sincronizacion-cliente.md) R-9.
+
 ## V
+
+### Verificación previa (lookup)
+
+`GET` a SAP **inmediatamente antes** de escribir, para saber si la subentidad ya existe y decidir alta o actualización. La regla que la hace útil: solo un `404` significa «SAP no la tiene»; un 5xx, un fallo de transporte o una respuesta ambigua son «no lo sé», y con «no lo sé» **no se escribe nada**. Ver [`upsert-idempotente-sap.md`](sdd/common/upsert-idempotente-sap.md).
 
 ### VDM (Virtual Data Model)
 
@@ -459,6 +559,10 @@ Modelo de datos tipado generado por SAP Cloud SDK a partir de metadatos OData de
 ### Virtual Threads
 
 Hilos ligeros de Java 21+. El proyecto los usa para concurrencia de Kafka/REST. Ver [`TECH.md`](architecture/TECH.md#1-plataforma).
+
+### Upsert
+
+Escritura que **crea si no existe y actualiza si existe**. Aquí no es una operación de SAP, sino una secuencia nuestra: [verificación previa](#verificación-previa-lookup) + `POST` o `PATCH` con [`If-Match`](#etag--if-match). Es lo que impide que sincronizar dos veces el mismo cliente cree dos clientes. Ver [`upsert-idempotente-sap.md`](sdd/common/upsert-idempotente-sap.md).
 
 ## W
 

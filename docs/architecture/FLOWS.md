@@ -28,14 +28,21 @@ Kafka topic outbox.CUSTOMER
   │
   ▼
 customer/bootstrap/kafka/CustomerKafkaListener.java
-  │  recibe ConsumerRecord → IngestionMessage
+  │  recibe ConsumerRecord → IngestionMessage (aviso FINO: entityId, operation,
+  │  occurredAt; sin datos ni hash — ADR-0013). Acepta también el formato antiguo
   │  decide qué features ejecutar (todas)
   ▼
 customer/application/general/SyncCustomerUseCase.java
+  │  aggregateStateOf() calcula el estado del agregado a partir del resultado
+  │  de cada feature (sendFeatures); reintentos ya enviados se relanzan igual
   │
-  ├─[1] CustomerLegacyRepositoryPort.fetch(entityId)
+  ├─[1] CustomerLegacyRepositoryPort.fetch(entityId)   ← UNICA fuente de datos
   │      └→ customer/adapters/persistence/SqlServerCustomerRepository.java
   │         consulta tabla dbo.customers en SQL Server
+  │
+  ├─[1b] PayloadHasher.hash(customer)  → payloadHash del ciclo
+  │      └→ common/domain/PayloadHasher.java (SHA-256 sobre la forma canonica)
+  │         con el se deduplica (alreadySent) y con el se escribe todo el ciclo
   │
   ├─[2] CustomerValidations.validate(customer, features)
   │      └→ customer/domain/CustomerValidations.java
@@ -49,32 +56,64 @@ customer/application/general/SyncCustomerUseCase.java
   │      └→ customer/adapters/index/ElasticsearchCustomerIndexer.java
   │         indexa en Elasticsearch
   │
-  └─[5] SyncAddressUseCase (ejemplo de feature)
-         │  customer/application/address/SyncAddressUseCase.java
+  └─[5] FeatureSyncPipeline<AddressData>.sync(entityId, cycleId, payloadHash, address)
+         │  common/application/FeatureSyncPipeline.java — un pipeline por
+         │  feature (ADDRESS/FISCAL/CONTACT/BANKING), la línea de estado es
+         │  "<entityId>:<FEATURE>" y hereda el cycleId del agregado
          │
-         ├─ AddressValidator.validate(address)
-         ├─ AddressSapPort.send(entityId, payloadHash, address)
-         │   │  customer/domain/port/AddressSapPort.java
+         ├─ validator.apply(address)  (p.ej. AddressValidator) → VALID | INVALID
+         ├─ write(entityId, payloadHash, address)   — upsert idempotente
+         │   │  (spec docs/sdd/common/upsert-idempotente-sap.md)
          │   │
-         │   └→ customer/adapters/sap/BtpAddressAdapter.java  (ruta BTP)
-         │      │  customer/adapters/sap/dto/BtpAddressDto.from(address)
-         │      │  common/sap/json/SapJsonMapper.write(dto)
-         │      │  common/sap/SapClient.send(BTP, path, ...)
-         │      │
-         │      └→ common/sap/RestClientSapClient.java  (ADR-0001)
-         │         │  exchange(POST, ...) → RestClient.method(POST)
-         │         │  Resilience4j retry + circuit breaker
-         │         │  auth via SapAuthProvider → Bearer token
-         │         └→ SAP BTP API
+         │   ├─ AddressSapPort.lookup(entityId, address)   (GET, opcional)
+         │   │   └→ SapOutboundPort.SapLookup: FOUND / NOT_FOUND / UNAVAILABLE /
+         │   │      NOT_SUPPORTED (los adaptadores Btp* no lo implementan: van
+         │   │      directos a send() como antes de 2026-09-18)
+         │   │
+         │   ├─ si FOUND  → AddressSapPort.update(entityId, hash, address, found)
+         │   │                (PATCH con If-Match)
+         │   ├─ si NOT_FOUND/NOT_SUPPORTED → AddressSapPort.send(entityId, hash, address)
+         │   │                (POST)
+         │   └─ si UNAVAILABLE → no se escribe nada; lanza SapLookupUnavailableException
+         │       │  customer/domain/port/AddressSapPort.java
+         │       │
+         │       └→ customer/adapters/sap/BtpAddressAdapter.java  (ruta BTP)
+         │          │  customer/adapters/sap/dto/BtpAddressDto.from(address)
+         │          │  common/sap/json/SapJsonMapper.write(dto)
+         │          │  common/sap/SapClient.send/get/patch(BTP, path, ...)
+         │          │
+         │          └→ common/sap/RestClientSapClient.java  (ADR-0001)
+         │             │  exchange(POST/GET/PATCH, ...) → RestClient.method(...)
+         │             │  Resilience4j retry (por método/fase, ver §5.1 de
+         │             │  GUIA-PRUEBAS.md) + circuit breaker
+         │             │  auth via SapAuthProvider → Bearer token
+         │             └→ SAP BTP API
+         │
+         ├─ resultado → FeatureOutcome(feature, SyncState, detail, instant)
+         │   estados: SENT_SAP | SAP_ERROR (HTTP recibido) |
+         │   COMMUNICATION_ERROR (circuito abierto / lookup no concluyente /
+         │   transporte agotado) — nunca relanza el fallo de SAP (ADR-0010);
+         │   la única excepción que sí sube es ConcurrentTransitionException
+         │   (otro ciclo con distinto `from`/`cycleId` movió la cabecera antes:
+         │   el llamante REST recibe 409, SyncCustomerController)
          │
          └─ common/adapters/persistence/MongoSyncStateRepository.java
-            persiste transición en colección sync_state
+            persiste cada transición (con cycleId y detail) en sync_state;
+            si el lookup encontró clave/ETag, se guarda en la colección
+            sap_keys (MongoSapKeyStore) para el próximo ciclo
 ```
+
+Si una o varias features fallan (`SyncPartialFailure`), el agregado queda
+marcado para revisión con la traza completa de qué parte llegó y cuál no —
+consultable con `GET /customers/{id}/state`
+(`CustomerStateController` → `CustomerStateUseCase`, que expone `LineState`
+por feature con su `CycleTrace` de `Step`s).
 
 **Puntos de entrada para debuggear:**
 - `CustomerKafkaListener` — breakpoint en el consumer
-- `SyncCustomerUseCase.java:89` — inicio del pipeline
-- `BtpAddressAdapter.java:31` — antes de enviar a SAP
+- `SyncCustomerUseCase.java` — inicio del pipeline (`sendFeatures`/`aggregateStateOf`)
+- `FeatureSyncPipeline.sync()` — antes/después de `write()` (lookup + send/update)
+- `BtpAddressAdapter` — antes de enviar a SAP
 ---
 
 ## Flujo 2 — Mapa de rutas (BTP / OData directo)

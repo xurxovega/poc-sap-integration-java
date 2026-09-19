@@ -9,14 +9,16 @@ import com.poc.sap.customer.domain.CustomerFeature;
 import com.poc.sap.customer.domain.feature.fiscal.FiscalData;
 import com.poc.sap.customer.domain.feature.fiscal.FiscalValidator;
 
+import java.time.Clock;
+
 /** Validacion aislada de la feature FISCAL sobre su linea de estado (sin envio a SAP). */
 public class ValidateFiscalUseCase {
 
     private final FeatureSyncPipeline<FiscalData> pipeline;
 
-    public ValidateFiscalUseCase(SyncStateRepositoryPort stateRepo, MetricsPort metrics) {
+    public ValidateFiscalUseCase(SyncStateRepositoryPort stateRepo, MetricsPort metrics, Clock clock) {
         this.pipeline = new FeatureSyncPipeline<>("customer", CustomerFeature.FISCAL.name(),
-                FiscalValidator::validate, null, stateRepo, metrics);
+                FiscalValidator::validate, null, stateRepo, metrics, clock);
     }
 
     public SyncState execute(Customer c, String payloadHash) {

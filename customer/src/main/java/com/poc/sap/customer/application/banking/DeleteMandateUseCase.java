@@ -1,10 +1,13 @@
 package com.poc.sap.customer.application.banking;
 
 import com.poc.sap.common.application.SyncCycleRecorder;
+import com.poc.sap.common.application.SyncCycleRecorder.Cycle;
 import com.poc.sap.common.domain.SyncState;
 import com.poc.sap.common.domain.port.SyncStateRepositoryPort;
 import com.poc.sap.common.domain.port.MetricsPort;
 import com.poc.sap.customer.domain.port.MandateSapOutboundPort;
+
+import java.time.Clock;
 
 
 /**
@@ -26,27 +29,21 @@ public class DeleteMandateUseCase {
 
     public DeleteMandateUseCase(MandateSapOutboundPort sapPort,
                                 SyncStateRepositoryPort stateRepo,
-                                MetricsPort metrics) {
+                                MetricsPort metrics,
+                                Clock clock) {
         this.sapPort = sapPort;
         this.stateRepo = stateRepo;
         this.metrics = metrics;
-        this.cycle = new SyncCycleRecorder(DOMAIN, stateRepo, metrics);
+        this.cycle = new SyncCycleRecorder(DOMAIN, stateRepo, metrics, clock);
     }
 
     public SyncState execute(String mandateId, String customerId, String payloadHash) {
         String entityId = customerId + ":" + "BANKING";
-        beginCycle(entityId, payloadHash, SyncState.SENDING_SAP);
+        Cycle c = cycle.beginCycle(entityId, STAGE, payloadHash, SyncState.SENDING_SAP);
         var response = sapPort.revoke(mandateId, payloadHash);
         SyncState target = response.isSuccess() ? SyncState.SENT_SAP : SyncState.SAP_ERROR;
-        transition(entityId, payloadHash, SyncState.SENDING_SAP, target);
+        cycle.advance(c, SyncState.SENDING_SAP, target,
+                response.isSuccess() ? null : "HTTP " + response.httpStatus() + " revocando el mandato");
         return target;
-    }
-
-    private void beginCycle(String entityId, String payloadHash, SyncState entry) {
-        cycle.beginCycle(entityId, STAGE, payloadHash, entry);
-    }
-
-    private void transition(String entityId, String payloadHash, SyncState from, SyncState to) {
-        cycle.advance(entityId, STAGE, payloadHash, from, to);
     }
 }

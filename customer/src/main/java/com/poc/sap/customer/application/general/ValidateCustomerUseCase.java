@@ -1,12 +1,14 @@
 package com.poc.sap.customer.application.general;
 
 import com.poc.sap.common.application.SyncCycleRecorder;
+import com.poc.sap.common.application.SyncCycleRecorder.Cycle;
 import com.poc.sap.common.domain.SyncState;
 import com.poc.sap.common.domain.port.SyncStateRepositoryPort;
 import com.poc.sap.common.domain.port.MetricsPort;
 import com.poc.sap.customer.domain.CustomerValidations;
 import com.poc.sap.customer.domain.port.CustomerLegacyRepositoryPort;
 
+import java.time.Clock;
 import java.util.EnumSet;
 import java.util.Optional;
 
@@ -24,11 +26,12 @@ public class ValidateCustomerUseCase {
 
     public ValidateCustomerUseCase(CustomerLegacyRepositoryPort legacyRepo,
                                    SyncStateRepositoryPort stateRepo,
-                                   MetricsPort metrics) {
+                                   MetricsPort metrics,
+                                   Clock clock) {
         this.legacyRepo = legacyRepo;
         this.stateRepo = stateRepo;
         this.metrics = metrics;
-        this.cycle = new SyncCycleRecorder(DOMAIN, stateRepo, metrics);
+        this.cycle = new SyncCycleRecorder(DOMAIN, stateRepo, metrics, clock);
     }
 
     public SyncState execute(String entityId, String payloadHash) {
@@ -37,23 +40,16 @@ public class ValidateCustomerUseCase {
 
     public SyncState execute(String entityId, String payloadHash,
                               java.util.Set<com.poc.sap.customer.domain.CustomerFeature> features) {
-        beginCycle(entityId, payloadHash, SyncState.VALIDATING);
+        Cycle c = cycle.beginCycle(entityId, "rest", payloadHash, SyncState.VALIDATING);
         var fetched = legacyRepo.fetch(entityId);
         if (fetched.isEmpty()) {
-            transition(entityId, payloadHash, SyncState.VALIDATING, SyncState.ERROR);
+            cycle.advance(c, SyncState.VALIDATING, SyncState.ERROR, "no existe en el legacy");
             return SyncState.ERROR;
         }
         var r = CustomerValidations.validate(fetched.get(), features);
         SyncState target = r.valid() ? SyncState.VALID : SyncState.INVALID;
-        transition(entityId, payloadHash, SyncState.VALIDATING, target);
+        cycle.advance(c, SyncState.VALIDATING, target,
+                r.valid() ? null : String.join("; ", r.errors()));
         return target;
-    }
-
-    private void beginCycle(String entityId, String payloadHash, SyncState entry) {
-        cycle.beginCycle(entityId, "rest", payloadHash, entry);
-    }
-
-    private void transition(String entityId, String payloadHash, SyncState from, SyncState to) {
-        cycle.advance(entityId, "rest", payloadHash, from, to);
     }
 }

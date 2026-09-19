@@ -6,7 +6,7 @@
 | **Estado** | ⚠️ implementado con brechas: los mandatos no llegan del legacy y los contratos S/4 están pendientes de validar contra el tenant de test |
 | **Entradas** | CDC (`outbox.CUSTOMER`) y REST `POST /customers/sync`, siempre a través de `SyncCustomerUseCase` → `SyncBankingUseCase` |
 | **Destino SAP** | BTP (por defecto) o S/4 nativo (`sap.odata.banking.enabled=true`); el mandato SEPA siempre va a S/4 (`API_APAR_SEPA_MANDATE_SRV`) |
-| **Última revisión** | 2026-09-12 |
+| **Última revisión** | 2026-09-18 |
 
 ## 1. Objetivo
 
@@ -56,6 +56,15 @@ estados.
 | R-4 | El **mandato SEPA** se da de alta en `API_APAR_SEPA_MANDATE_SRV/SEPAMandateSet` con la clave `(Creditor, SEPAMandate)`. `Creditor` es el identificador de acreedor SEPA de la empresa (`sap.sepa.creditor-id`); si no está configurado el adaptador **falla antes de llamar a SAP** con un mensaje que lo dice | Sin acreedor la API no puede identificar el mandato |
 | R-5 | Correspondencia de estados hacia `SEPAMandateStatus`: `ACTIVE → 1`, `REVOKED → 3` (cancelado), `EXPIRED → 4` (completado). **Pendiente de validar** contra el tenant de test | — |
 | R-6 | Un `Mandate` nulo no se envía: es un error de programación, no una baja | — |
+
+
+**Claves de lookup de esta feature**: la cuenta bancaria se verifica por
+`(BusinessPartner, BankIdentification)` y el mandato por `(Creditor, SEPAMandate)`.
+Las dos son **deterministas** hoy, así que no se persiste nada: la identificación
+bancaria es el ordinal fijo `0001` y el acreedor es configuración. **En cuanto
+haya varias cuentas por cliente dejará de serlo** y habrá que guardar el mapa
+IBAN → `BankIdentification` en `sap_keys`. Mecanismo:
+[`../common/upsert-idempotente-sap.md`](../common/upsert-idempotente-sap.md).
 
 ## 5. Salida
 
@@ -138,4 +147,5 @@ del cliente SAP con método, destino y `entityId` al agotar reintentos.
 
 | Fecha | Cambio | PR |
 |---|---|---|
+| 2026-09-18 | Verificación previa de la cuenta bancaria y del mandato SEPA por su clave compuesta: lo que SAP ya tiene se actualiza con `If-Match`. §3 avisa de que con varias cuentas la clave deja de ser determinista | — |
 | 2026-09-12 | Spec inicial (plan Fase 3.2, auditoría B3). `S4BankingAdapter` → `BtpBankingAdapter` (misma familia BTP que el resto; antes apuntaba a `API_CUSTOMER_MANDATE`, inexistente). En S/4, `BankIdentification` deja de llevar el BIC y se añade `BankCountryKey`. Alta de mandato SEPA con el contrato real de `API_APAR_SEPA_MANDATE_SRV` y `Creditor` obligatorio por configuración | — |

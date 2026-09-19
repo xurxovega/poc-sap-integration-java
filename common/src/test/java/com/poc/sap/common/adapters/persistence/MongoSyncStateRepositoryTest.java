@@ -149,16 +149,16 @@ class MongoSyncStateRepositoryTest {
     }
 
     /**
-     * idempotencia-y-dedupe AC-1 (auditoria A1): el dedupe mira el ULTIMO SENT_SAP.
-     * Secuencia A -> B -> A: el tercer evento (hash A) NO esta deduplicado porque
-     * SAP tiene B; solo lo esta si el ultimo envio fue exactamente A.
+     * idempotencia-y-dedupe AC-1 (auditoria A1): el dedupe mira el ULTIMO estado
+     * final del agregado. Secuencia A -> B -> A: el tercer evento (hash A) NO esta
+     * deduplicado porque SAP tiene B; solo lo esta si el ultimo envio fue A.
      */
     @Test
     void alreadySentOnlyMatchesTheLatestSentSap() {
         SyncStateTransition sentB = new SyncStateTransition("A-1", "article",
                 SyncState.SENDING_SAP, SyncState.SENT_SAP, "cdc", "hash-B", Instant.now());
-        when(mongo.findFirstByDomainAndEntityIdAndStateCodeOrderBySeqDescTimestampDesc(
-                "article", "A-1", SyncState.SENT_SAP.code()))
+        when(mongo.findFirstByDomainAndEntityIdAndStateCodeInOrderBySeqDescTimestampDesc(
+                eq("article"), eq("A-1"), any()))
                 .thenReturn(Optional.of(SyncStateDoc.from("article", "A-1", sentB, SyncState.SENT_SAP.code(), 9L)));
 
         assertThat(repo.alreadySent("article", "A-1", "hash-A")).isFalse();
@@ -166,6 +166,25 @@ class MongoSyncStateRepositoryTest {
         assertThat(repo.alreadySent("article", "A-1", null)).isFalse();
         assertThat(repo.alreadySent("article", "A-1", "")).isFalse();
         verify(mongo, never()).existsByDomainAndEntityIdAndPayloadHashAndStateCode(any(), any(), any(), anyInt());
+    }
+
+    /**
+     * idempotencia-y-dedupe AC-14 (auditoria 2026-09-18 N4, 2A-5): tras un ciclo
+     * que termino en fallo parcial, SAP tiene una MEZCLA. Aunque el ultimo
+     * SENT_SAP lleve este hash, el dedupe no puede afirmar que SAP este en
+     * sincronia: si el ultimo estado final del agregado no es SENT_SAP, se reenvia.
+     */
+    @Test
+    void dedupeIsHonestWhenTheLastCycleEndedInPartialFailure() {
+        SyncStateTransition partial = new SyncStateTransition("A-1", "article",
+                SyncState.SENDING_SAP, SyncState.SAP_ERROR, "cdc", "hash-B", Instant.now(),
+                "cyc-2", "HTTP 400: rechazado");
+        when(mongo.findFirstByDomainAndEntityIdAndStateCodeInOrderBySeqDescTimestampDesc(
+                eq("article"), eq("A-1"), any()))
+                .thenReturn(Optional.of(SyncStateDoc.from("article", "A-1", partial, SyncState.SAP_ERROR.code(), 20L)));
+
+        assertThat(repo.alreadySent("article", "A-1", "hash-A")).isFalse();
+        assertThat(repo.alreadySent("article", "A-1", "hash-B")).isFalse();
     }
 
     /**
@@ -199,7 +218,8 @@ class MongoSyncStateRepositoryTest {
         when(mongo.save(any())).thenThrow(new DuplicateKeyException("seq"));
 
         assertThatThrownBy(() -> repo.transition("article", "A-1",
-                transition(SyncState.FETCHING, Instant.now())))
+                new SyncStateTransition("A-1", "article", SyncState.RECEIVED, SyncState.FETCHING,
+                        "cdc", "h-1", Instant.now())))
                 .isInstanceOf(ConcurrentTransitionException.class);
     }
 
@@ -217,5 +237,161 @@ class MongoSyncStateRepositoryTest {
         ArgumentCaptor<SyncStateDoc> save = ArgumentCaptor.forClass(SyncStateDoc.class);
         verify(mongo).save(save.capture());
         assertThat(save.getValue().seq()).isEqualTo(8L);
+    }
+
+    /**
+     * AC-18 (sdd/common/maquina-de-estados.md): el ciclo y el motivo del error se
+     * persisten en el documento y se recuperan al leerlo. Sin eso no hay traza de
+     * pasos que reconstruir.
+     */
+    @Test
+    void everyLineOfACycleSharesTheCycleId() {
+        when(mongo.findFirstByDomainAndEntityIdOrderBySeqDescTimestampDesc("article", "A-1"))
+                .thenReturn(Optional.empty());
+        SyncStateTransition t = new SyncStateTransition("A-1", "article", null, SyncState.RECEIVED,
+                "cdc", "h-1", Instant.now(), "cyc-7", null);
+
+        repo.beginCycle("article", "A-1", t);
+
+        ArgumentCaptor<SyncStateDoc> save = ArgumentCaptor.forClass(SyncStateDoc.class);
+        verify(mongo).save(save.capture());
+        assertThat(save.getValue().getCycleId()).isEqualTo("cyc-7");
+        assertThat(save.getValue().toTransition().cycleId()).isEqualTo("cyc-7");
+    }
+
+    /**
+     * AC-18: las lineas de un ciclo son entityId distintos (A-1, A-1:ADDRESS), asi
+     * que {@code history} no las cruza. La consulta por ciclo las devuelve todas de
+     * una sola vez, ordenadas.
+     */
+    @Test
+    void cycleReturnsTheTransitionsOfEveryLine() {
+        SyncStateTransition agg = new SyncStateTransition("A-1", "article",
+                SyncState.INDEXED, SyncState.SENDING_SAP, "cdc", "h-1", Instant.now(), "cyc-7", null);
+        SyncStateTransition line = new SyncStateTransition("A-1:ADDRESS", "article",
+                SyncState.SENDING_SAP, SyncState.SAP_ERROR, "address", "h-1", Instant.now(),
+                "cyc-7", "HTTP 400: falta ciudad");
+        when(mongo.findByDomainAndCycleIdOrderBySeqAscTimestampAsc("article", "cyc-7"))
+                .thenReturn(List.of(SyncStateDoc.from("article", "A-1", agg, SyncState.SENDING_SAP.code(), 3L),
+                        SyncStateDoc.from("article", "A-1:ADDRESS", line, SyncState.SAP_ERROR.code(), 4L)));
+
+        List<SyncStateTransition> steps = repo.cycle("article", "cyc-7");
+
+        assertThat(steps).extracting(SyncStateTransition::entityId).containsExactly("A-1", "A-1:ADDRESS");
+        assertThat(steps).extracting(SyncStateTransition::detail)
+                .containsExactly(null, "HTTP 400: falta ciudad");
+    }
+
+    /**
+     * AC-18 (auditoria N8): saber donde esta una linea no puede costar leerse su
+     * historial entero; {@code lastTransition} lee solo la cabecera.
+     */
+    @Test
+    void lastTransitionDoesNotReadTheWholeHistory() {
+        SyncStateTransition last = new SyncStateTransition("A-1", "article",
+                SyncState.SENDING_SAP, SyncState.SAP_ERROR, "cdc", "h-1", Instant.now(), "cyc-7", "HTTP 500");
+        when(mongo.findFirstByDomainAndEntityIdOrderBySeqDescTimestampDesc("article", "A-1"))
+                .thenReturn(Optional.of(SyncStateDoc.from("article", "A-1", last, SyncState.SAP_ERROR.code(), 9L)));
+
+        Optional<SyncStateTransition> t = repo.lastTransition("article", "A-1");
+
+        assertThat(t).isPresent();
+        assertThat(t.get().to()).isEqualTo(SyncState.SAP_ERROR);
+        assertThat(t.get().detail()).isEqualTo("HTTP 500");
+        assertThat(t.get().cycleId()).isEqualTo("cyc-7");
+        verify(mongo, never()).findByDomainAndEntityIdOrderBySeqAscTimestampAsc(any(), any());
+    }
+
+    /**
+     * AC-20 (sdd/common/maquina-de-estados.md; auditoria N2, 2B-2): si la cabecera
+     * se movio bajo nuestros pies, la transicion no es un error de programacion:
+     * es una colision, y debe ser reintentable. Antes salia IllegalStateException,
+     * declarada NO reintentable, y el mensaje iba directo a la DLT.
+     */
+    @Test
+    void staleHeadIsReportedAsConcurrentNotIllegal() {
+        SyncStateDoc head = SyncStateDoc.from("article", "A-1",
+                new SyncStateTransition("A-1", "article", null, SyncState.RECEIVED, "cdc", "h-2",
+                        Instant.now(), "cyc-B", null),
+                SyncState.RECEIVED.code(), 3L);
+        when(mongo.findFirstByDomainAndEntityIdOrderBySeqDescTimestampDesc("article", "A-1"))
+                .thenReturn(Optional.of(head));
+
+        // Esta instancia cree venir de FETCHING; otra ya abrio un ciclo nuevo en RECEIVED.
+        SyncStateTransition mine = new SyncStateTransition("A-1", "article",
+                SyncState.FETCHING, SyncState.VALIDATING, "cdc", "h-1", Instant.now(), "cyc-A", null);
+
+        assertThatThrownBy(() -> repo.transition("article", "A-1", mine))
+                .isInstanceOf(ConcurrentTransitionException.class)
+                .isNotInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("FETCHING")
+                .hasMessageContaining("RECEIVED");
+        verify(mongo, never()).save(any());
+    }
+
+    /**
+     * AC-21: fencing por cycleId. Aunque el estado coincida, la cabecera puede ser
+     * de OTRO ciclo: un proceso que perdio la carrera sin enterarse no escribe
+     * sobre el trabajo del que la gano.
+     */
+    @Test
+    void advancingOverAnotherCyclesHeadIsRejected() {
+        SyncStateDoc head = SyncStateDoc.from("article", "A-1",
+                new SyncStateTransition("A-1", "article", null, SyncState.FETCHING, "cdc", "h-2",
+                        Instant.now(), "cyc-B", null),
+                SyncState.FETCHING.code(), 5L);
+        when(mongo.findFirstByDomainAndEntityIdOrderBySeqDescTimestampDesc("article", "A-1"))
+                .thenReturn(Optional.of(head));
+
+        SyncStateTransition mine = new SyncStateTransition("A-1", "article",
+                SyncState.FETCHING, SyncState.VALIDATING, "cdc", "h-1", Instant.now(), "cyc-A", null);
+
+        assertThatThrownBy(() -> repo.transition("article", "A-1", mine))
+                .isInstanceOf(ConcurrentTransitionException.class)
+                .hasMessageContaining("cyc-A")
+                .hasMessageContaining("cyc-B");
+        verify(mongo, never()).save(any());
+    }
+
+    /**
+     * AC-20: {@code from == null} significa "no compruebes". Marcar ERROR tras un
+     * fallo (SyncCustomerUseCase.markError) no puede fallar a su vez por una
+     * colision, o el estado se quedaria sin cerrar.
+     */
+    @Test
+    void nullDeclaredFromSkipsTheCheckSoMarkErrorStillWorks() {
+        SyncStateDoc head = SyncStateDoc.from("article", "A-1",
+                new SyncStateTransition("A-1", "article", null, SyncState.INDEXING, "cdc", "h-2",
+                        Instant.now(), "cyc-B", null),
+                SyncState.INDEXING.code(), 5L);
+        when(mongo.findFirstByDomainAndEntityIdOrderBySeqDescTimestampDesc("article", "A-1"))
+                .thenReturn(Optional.of(head));
+
+        SyncStateTransition mark = new SyncStateTransition("A-1", "article",
+                null, SyncState.ERROR, "cdc", "h-1", Instant.now(), "cyc-A", "Elasticsearch caido");
+
+        assertThat(repo.transition("article", "A-1", mark)).isEqualTo(SyncState.ERROR);
+        verify(mongo).save(any());
+    }
+
+    /**
+     * AC-22: una transicion realmente imposible sigue siendo un error de
+     * programacion. Solo la discrepancia con la cabecera es colision.
+     */
+    @Test
+    void anIllegalTransitionIsStillAnIllegalStateException() {
+        SyncStateDoc head = SyncStateDoc.from("article", "A-1",
+                new SyncStateTransition("A-1", "article", null, SyncState.RECEIVED, "cdc", "h-1",
+                        Instant.now(), "cyc-A", null),
+                SyncState.RECEIVED.code(), 1L);
+        when(mongo.findFirstByDomainAndEntityIdOrderBySeqDescTimestampDesc("article", "A-1"))
+                .thenReturn(Optional.of(head));
+
+        SyncStateTransition impossible = new SyncStateTransition("A-1", "article",
+                SyncState.RECEIVED, SyncState.SENT_SAP, "cdc", "h-1", Instant.now(), "cyc-A", null);
+
+        assertThatThrownBy(() -> repo.transition("article", "A-1", impossible))
+                .isInstanceOf(IllegalStateException.class)
+                .isNotInstanceOf(ConcurrentTransitionException.class);
     }
 }

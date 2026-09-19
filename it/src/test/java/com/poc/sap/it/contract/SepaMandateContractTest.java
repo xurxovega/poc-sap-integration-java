@@ -1,6 +1,7 @@
 package com.poc.sap.it.contract;
 
 import com.poc.sap.common.domain.port.SapOutboundPort.SapResponse;
+import com.poc.sap.common.sap.SapUpsertSettings;
 import com.poc.sap.customer.adapters.sap.odata.SepaMandateODataAdapter;
 import com.poc.sap.customer.domain.Mandate;
 import org.junit.jupiter.api.Test;
@@ -28,7 +29,7 @@ class SepaMandateContractTest extends AbstractSapContractTest {
     private static final String CREDITOR = "ES98ZZZ12345678901";
 
     private SepaMandateODataAdapter adapter() {
-        return new SepaMandateODataAdapter(sapClient, PATH, CREDITOR, "F");
+        return new SepaMandateODataAdapter(sapClient, PATH, CREDITOR, "F", SapUpsertSettings.defaults());
     }
 
     @Test

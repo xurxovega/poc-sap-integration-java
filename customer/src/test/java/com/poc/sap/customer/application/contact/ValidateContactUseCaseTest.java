@@ -1,5 +1,6 @@
 package com.poc.sap.customer.application.contact;
 
+import java.time.Clock;
 import com.poc.sap.common.domain.SyncState;
 import com.poc.sap.common.domain.SyncStateTransition;
 import com.poc.sap.common.domain.port.SyncStateRepositoryPort;
@@ -29,7 +30,7 @@ class ValidateContactUseCaseTest {
 
     @BeforeEach
     void setUp() {
-        useCase = new ValidateContactUseCase(stateRepo, metrics);
+        useCase = new ValidateContactUseCase(stateRepo, metrics, Clock.systemUTC());
     }
 
     private Customer invalidContact() {

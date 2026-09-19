@@ -34,8 +34,8 @@
         <jacoco.version>0.8.13</jacoco.version>
         <otel.version>1.44.0</otel.version>
         <otel-instrumentation.version>2.13.3</otel-instrumentation.version>
-        <failsafe.version>3.5.3</failsafe.version>
-        <surefire.version>3.5.3</surefire.version>
+        <failsafe.version>3.6.0</failsafe.version>
+        <surefire.version>3.6.0</surefire.version>
         <archunit.version>1.5.0</archunit.version>
         <!-- Suelo de cobertura de lineas en **/domain/** (JaCoCo check). Solo sube. -->
         <jacoco.domain.line-minimum>0.75</jacoco.domain.line-minimum>
@@ -113,7 +113,7 @@
 
             <dependency>
                 <groupId>com.tngtech.archunit</groupId>
-                <artifactId>archunit-junit5</artifactId>
+                <artifactId>archunit-junit6</artifactId>
                 <version>${archunit.version}</version>
                 <scope>test</scope>
             </dependency>

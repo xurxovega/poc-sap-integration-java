@@ -1,5 +1,6 @@
 package com.poc.sap.customer.application.banking;
 
+import java.time.Clock;
 import com.poc.sap.common.domain.SyncState;
 import com.poc.sap.common.domain.port.SyncStateRepositoryPort;
 import com.poc.sap.common.domain.port.SapOutboundPort.SapResponse;
@@ -26,7 +27,7 @@ class DeleteMandateUseCaseTest {
 
     @BeforeEach
     void setUp() {
-        useCase = new DeleteMandateUseCase(sapPort, stateRepo, metrics);
+        useCase = new DeleteMandateUseCase(sapPort, stateRepo, metrics, Clock.systemUTC());
     }
 
     /** AC-1: la baja revoca el mandato (no envia un payload bancario ni borra nada). */

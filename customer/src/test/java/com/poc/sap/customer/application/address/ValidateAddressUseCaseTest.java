@@ -1,5 +1,6 @@
 package com.poc.sap.customer.application.address;
 
+import java.time.Clock;
 import com.poc.sap.common.domain.SyncState;
 import com.poc.sap.common.domain.SyncStateTransition;
 import com.poc.sap.common.domain.port.SyncStateRepositoryPort;
@@ -30,7 +31,7 @@ class ValidateAddressUseCaseTest {
 
     @BeforeEach
     void setUp() {
-        useCase = new ValidateAddressUseCase(stateRepo, metrics);
+        useCase = new ValidateAddressUseCase(stateRepo, metrics, Clock.systemUTC());
     }
 
     @Test

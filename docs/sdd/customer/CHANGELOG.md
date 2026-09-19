@@ -7,6 +7,11 @@
 
 | Fecha | Feature | Cambio |
 |---|---|---|
+| 2026-09-19 | [Sincronizacion de cliente](sincronizacion-cliente.md) | La entrada pasa a ser el aviso **fino**: ni el payload ni el hash del mensaje son fuente de nada. El use case relee SQL Server y calcula el hash sobre ese snapshot, que es el del dedupe, el del ciclo y el que va a SAP (ADR-0013) |
+| 2026-09-18 | [Sincronización de contacto](sincronizacion-contacto.md) | Spec inicial (2B-5). El payload que se enviaba a SAP no llevaba **ni un solo dato** de contacto. Email, teléfono, fax y web pasan a las entidades de comunicación de la dirección del cliente (`A_AddressEmailAddress`, `A_AddressPhoneNumber`, `A_AddressFaxNumber`, `A_AddressHomePageURL`), colgadas del `AddressID` |
+| 2026-09-18 | [Sincronización de dirección](sincronizacion-direccion.md) | Verificación previa y `AddressID` persistido: una dirección ya existente se **actualiza** en vez de crear una nueva en cada ciclo (2B-6) |
+| 2026-09-18 | [Sincronización del cliente](sincronizacion-cliente.md) | Verificación previa del Business Partner: si SAP ya lo tiene se actualiza con `If-Match`; si el `GET` no responde no se escribe nada |
+| 2026-09-18 | [Sincronización del cliente](sincronizacion-cliente.md) | El fallo parcial se marca y se avisa siempre, con el motivo de cada parte y la traza de pasos del ciclo en `sap.sync.alerts` y en `GET /customers/{id}/state`; el agregado adopta la regla de cero confianza (D-14) y solo se reintenta el mensaje cuando es demostrable que nada llegó a SAP (D-15) |
 | 2026-09-14 | [Sincronización del cliente](sincronizacion-cliente.md) | D-2 (ADR-0010): sin compensación; aviso de sincronización parcial (log, `sap.sync.alerts`, métrica) y `GET /customers/{id}/state` con el estado de cada parte |
 | 2026-09-12 | [Sincronización del cliente](sincronizacion-cliente.md) | Fase 6: R-1 dedupe contra el último `SENT_SAP`; R-8 imagen solo tras `SENT_SAP`, histórico con un documento por intento (AC-7) |
 | 2026-09-12 | [Sincronización de datos bancarios](sincronizacion-datos-bancarios.md) | Spec inicial (Fase 3.2, B3). `S4BankingAdapter` → `BtpBankingAdapter`; en S/4 el BIC sale de `BankIdentification` (ordinal `0001`) y se añade `BankCountryKey`; alta de mandato SEPA con el contrato real de `API_APAR_SEPA_MANDATE_SRV` |

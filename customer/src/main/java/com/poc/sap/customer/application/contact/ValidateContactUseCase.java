@@ -9,14 +9,16 @@ import com.poc.sap.customer.domain.CustomerFeature;
 import com.poc.sap.customer.domain.feature.contact.ContactData;
 import com.poc.sap.customer.domain.feature.contact.ContactValidator;
 
+import java.time.Clock;
+
 /** Validacion aislada de la feature CONTACT sobre su linea de estado (sin envio a SAP). */
 public class ValidateContactUseCase {
 
     private final FeatureSyncPipeline<ContactData> pipeline;
 
-    public ValidateContactUseCase(SyncStateRepositoryPort stateRepo, MetricsPort metrics) {
+    public ValidateContactUseCase(SyncStateRepositoryPort stateRepo, MetricsPort metrics, Clock clock) {
         this.pipeline = new FeatureSyncPipeline<>("customer", CustomerFeature.CONTACT.name(),
-                ContactValidator::validate, null, stateRepo, metrics);
+                ContactValidator::validate, null, stateRepo, metrics, clock);
     }
 
     public SyncState execute(Customer c, String payloadHash) {

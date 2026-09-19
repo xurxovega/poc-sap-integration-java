@@ -187,16 +187,17 @@ bootstrap  →  adapters  →  application  →  domain
 Kafka outbox.CUSTOMER / outbox.ARTICLE   (CDC: triggers legacy → outbox → Debezium)
   │            REST POST /customers/sync · /articles/sync   (entrada alternativa)
   ▼
-<Dominio>KafkaListener / Sync<Dominio>Controller     →  IngestionMessage
+<Dominio>KafkaListener / Sync<Dominio>Controller     →  IngestionMessage (aviso FINO: identidad del cambio, sin datos ni PII — ADR-0013)
   ▼
-Sync<Dominio>UseCase        dedupe por payloadHash (idempotencia)
+Sync<Dominio>UseCase        relee el legacy y calcula el hash del snapshot (PayloadHasher);
+                            dedupe por ese hash (idempotencia)
   ├─ LegacyRepositoryPort   → SQL Server (customer) / PostgreSQL (article)
   ├─ <Dominio>Validations   → reglas de negocio (domain puro)
   ├─ ImageStorePort         → MongoDB (imagen actual)
   ├─ HistoryIndexerPort     → Elasticsearch (histórico)
   └─ SapOutboundPort        → SapClient → SAP BTP / S/4 nativo
   ▼
-SyncStateMachine (common) — cada transición persistida en Mongo con timestamp, origen y hash
+SyncStateMachine (common) — cada transición persistida en Mongo con timestamp, origen, hash, `cycleId` y `detail` (motivo del error, enmascarado si aplica)
 ```
 
 Estados: `RECEIVED → FETCHING → VALIDATING → {VALID|INVALID} → INDEXING →
@@ -217,13 +218,14 @@ esquema completo en [`docs/architecture/OVERVIEW.md`](docs/architecture/OVERVIEW
 
 | Puerto | Implementaciones |
 |---|---|
-| `IngestionPort` | **nadie lo implementa**: `CustomerKafkaListener`/`ArticleKafkaListener` (CDC) y `Sync*Controller` (REST) llaman al use case directamente. Código muerto pendiente de retirar (auditoría A18) |
+| ~~`IngestionPort`~~ | **borrado** (auditoría A18, 2026-09-12): no tenía implementaciones. `CustomerKafkaListener`/`ArticleKafkaListener` (CDC) y `Sync*Controller` (REST) llaman al use case directamente con el mismo DTO, `IngestionMessage`, que sigue vivo |
 | `LegacyRepositoryPort<T>` | `SqlServerCustomerRepository`, `PostgresArticleRepository` |
 | `ImageStorePort<T>` | `MongoCustomerImageStore`, `MongoArticleImageStore` |
 | `HistoryIndexerPort<T>` | `ElasticsearchCustomerIndexer`, `ElasticsearchArticleIndexer` |
 | `SyncStateRepositoryPort` | `MongoSyncStateRepository` (en `common`, compartido — no duplicar) |
-| `SapOutboundPort<P>` | por feature: `AddressSapPort`, `FiscalSapPort`, `ContactSapPort`, `BankingSapPort`, `CustomerSapOutboundPort`, `MandateSapOutboundPort` |
-| `BusinessPartnerReadPort` | `BusinessPartnerReadAdapter` (GET/search OData, `sap.odata.read.enabled=true`) |
+| `SapOutboundPort<P>` | por feature: `AddressSapPort`, `FiscalSapPort`, `ContactSapPort`, `BankingSapPort`, `CustomerSapOutboundPort`, `MandateSapOutboundPort`. Incluye `lookup`/`update` (`default`, upsert idempotente: [`docs/sdd/common/upsert-idempotente-sap.md`](docs/sdd/common/upsert-idempotente-sap.md)) |
+| `SapKeyStorePort` | `MongoSapKeyStore` (colección `sap_keys`: guarda la clave SAP de cada subentidad para el `lookup`) |
+| `BusinessPartnerReadPort` | `BusinessPartnerReadAdapter` (GET/search OData; activo por `BusinessPartnerReadEnabled` si `sap.odata.read.enabled=true` **o** `sap.odata.customer.enabled=true`, porque el lookup previo a escribir por OData necesita el lector) |
 
 ## 2.5 Endpoints REST
 
@@ -233,8 +235,24 @@ esquema completo en [`docs/architecture/OVERVIEW.md`](docs/architecture/OVERVIEW
 | `POST` | `/customers/validate` | valida sin enviar |
 | `GET` | `/customers/{id}/history` · `/articles/{id}/history` | histórico indexado |
 | `GET` | `/customers/{id}/history/diff` · `/articles/{id}/history/diff` | diff entre versiones |
+| `GET` | `/customers/{id}/state` | estado del agregado y de cada feature (ADDRESS, FISCAL, CONTACT, BANKING) con su último hash, instante y `lastCycle`; es la respuesta a "dónde ha dado el error" tras una alerta de sincronización parcial (ADR-0010) |
 
-> Sin autenticación todavía — brecha abierta, ver [`docs/sdd/README.md`](docs/sdd/README.md) §6.
+> **Con autenticación**: Keycloak como resource server OAuth2 + `@PreAuthorize`
+> por endpoint (jerarquía de roles `sap-superadmin ⊃ sap-admin ⊃ sap-write ⊃
+> sap-read`, más `sap-external-read` con PII enmascarada), vigilado por
+> `EndpointsDeclareAccessTest` (ArchUnit): sin `@PreAuthorize` el build falla.
+> Huecos abiertos de la auditoría del 2026-09-18: sin validación de `aud`
+> (2A-1) y `AccessScope` falla en abierto sin autenticación (2A-2). Detalle en
+> [`docs/sdd/common/seguridad-api.md`](docs/sdd/common/seguridad-api.md),
+> [ADR-0007](docs/architecture/adr/0007-keycloak-como-proveedor-de-identidad-de-las-apis.md)
+> y [`docs/tools-integrations/SERVICIO-AUTENTICACION.md`](docs/tools-integrations/SERVICIO-AUTENTICACION.md).
+
+**El contrato completo de estos endpoints** —parámetros, cuerpos, códigos, rol
+mínimo de cada uno y ejemplos— está publicado por módulo en
+[`customer/src/main/resources/openapi.yml`](customer/src/main/resources/openapi.yml)
+y [`article/src/main/resources/openapi.yml`](article/src/main/resources/openapi.yml):
+se importan en Postman/Bruno/Swagger UI y un test por módulo impide que se
+queden viejos ([`docs/sdd/common/contrato-openapi-rest.md`](docs/sdd/common/contrato-openapi-rest.md)).
 
 ## 2.6 Integración con SAP
 
@@ -244,8 +262,14 @@ Implementado por `RestClientSapClient` (`RestClient` de Spring sobre el `HttpCli
 del JDK + Resilience4j; decisión [ADR-0001](docs/architecture/adr/0001-transporte-http-sap-restclient.md);
 spec [`docs/sdd/common/resiliencia-cliente-sap.md`](docs/sdd/common/resiliencia-cliente-sap.md)):
 
-- 5xx y errores de transporte → retry con backoff y cuentan para el circuit
-  breaker; **4xx no se reintenta**.
+- Lecturas (GET/DELETE, idempotentes): 5xx y errores de transporte → retry con
+  backoff y cuentan para el circuit breaker; **4xx no se reintenta**.
+- Escrituras (POST/PATCH, `sap-write`): **solo se reintenta el fallo de
+  transporte anterior al envío** (`TransportFailures.isBeforeSend`); un 5xx ya
+  enviado a SAP no se reintenta a ciegas (podría duplicar el alta) — spec
+  [`docs/sdd/common/resiliencia-cliente-sap.md`](docs/sdd/common/resiliencia-cliente-sap.md).
+- Antes de escribir por OData, upsert con lookup previo (`SapOutboundPort#lookup`);
+  `PATCH`/`DELETE` llevan `If-Match` con el ETag del lookup.
 - Timeouts vía `sap.client.connect-timeout-ms` / `sap.client.response-timeout-ms`.
 - `Idempotency-Key` = `payloadHash` en cada envío.
 - **CSRF OData V2 cableado**: `CsrfTokenProvider`/`S4CsrfTokenProvider` hacen el
@@ -297,13 +321,15 @@ confundir con el Shared Kernel, que es `common`. Catálogo en
 - **Spring Boot 4.1** (sin BOM de Spring Cloud: nada lo usa). Cuidado con sus
   rupturas ya resueltas: usar
   `spring-boot-starter-kafka` (el `spring-kafka` suelto no autoconfigura),
-  Jackson 3 por defecto, **sin** starter OTel (incompatible — se usa el
-  javaagent), y `@WebMvcTest` eliminado (slice web con
+  Jackson 3 por defecto, **con** el starter oficial de OTel
+  (`spring-boot-starter-opentelemetry`, `common/pom.xml`; [ADR-0009](docs/architecture/adr/0009-trazas-con-el-starter-oficial-de-opentelemetry.md)),
+  no el javaagent, y `@WebMvcTest` eliminado (slice web con
   `MockMvcBuilders.standaloneSetup`).
 - **Spring `RestClient`** hacia SAP (sin webflux ni Cloud SDK en runtime; el BOM
   del Cloud SDK solo genera los modelos de `sap-api-models`) · **Resilience4j** ·
   **Micrometer + Prometheus** ·
-  trazas por **OTel javaagent**.
+  trazas por el **starter oficial de OTel**, apagadas hasta tener destino
+  (Tempo), ver [ADR-0009](docs/architecture/adr/0009-trazas-con-el-starter-oficial-de-opentelemetry.md).
 - **Testing**: JUnit 5, Mockito, AssertJ, WireMock, Testcontainers.
 
 ## 2.8 Comandos
@@ -346,7 +372,9 @@ MinIO): `cd external-services && docker compose up -d`.
 - **Nuevo DTO SAP**: record/POJO con `@JsonProperty` en
   `<dominio>/adapters/sap/dto/`, serializado con `SapJsonMapper.write(dto)`.
 - **Nuevo adaptador OData**: en `<dominio>/adapters/sap/odata/`, implementa el
-  puerto existente, serializa **sin envolver**, activación condicional con
+  puerto existente (incluye `lookup`/`update` para el upsert idempotente:
+  guarda la clave SAP en `sap_keys` vía `SapKeyStorePort`), serializa **sin
+  envolver**, activación condicional con
   `@ConditionalOnProperty("sap.odata.<feature>.enabled")`, modelos generados de
   `sap-api-models`.
 - **Nueva spec SAP**: YAML en `sap-api-models/specs/<dominio>/` + `<execution>` en
@@ -354,12 +382,18 @@ MinIO): `cd external-services && docker compose up -d`.
   [`docs/sdd/sap-api-catalog.md`](docs/sdd/sap-api-catalog.md).
 - **Cambio en `SapClient`**: nuevo método HTTP → implementar en
   `RestClientSapClient` vía su `exchange()` interno y añadir el AC al spec
-  `docs/sdd/common/resiliencia-cliente-sap.md`.
+  `docs/sdd/common/resiliencia-cliente-sap.md`. Recuerda que lecturas y
+  escrituras tienen políticas de retry distintas (`RetryBudgetGuard`): no
+  asumas que todo 5xx se reintenta igual.
 - **Endpoint nuevo**: declara quién puede llamarlo en el propio método con
   `@PreAuthorize("hasRole('" + ApiRoles.X + "')")`; sin ello el build falla
   (`EndpointsDeclareAccessTest`). Si devuelve PII y lo puede llamar
   `sap-external-read`, enmascara antes de responder (`AccessScope`, `PiiMasker`).
   Spec: [`docs/sdd/common/seguridad-api.md`](docs/sdd/common/seguridad-api.md).
+  **Y dalo de alta en el `openapi.yml` del módulo** (`<modulo>/src/main/resources/openapi.yml`):
+  ruta, método, parámetros, cuerpos, códigos y `x-required-role` con el rol del
+  `@PreAuthorize`. Sin eso el build falla (`OpenApiMatchesControllersTest`).
+  Spec: [`docs/sdd/common/contrato-openapi-rest.md`](docs/sdd/common/contrato-openapi-rest.md).
 - **Nueva feature de un dominio**: no copies un `Sync<Feature>UseCase`. Declara
   el puerto SAP y el validador y construye un `FeatureSyncPipeline<D>`
   (`common/application`); el orquestador la recibe como `CustomerFeatureSync`.
@@ -401,6 +435,7 @@ si algo ya está escrito, enlázalo.
 | mapa funcional navegable (HTML, doble clic) | [`docs/architecture/MAPA-FUNCIONAL.html`](docs/architecture/MAPA-FUNCIONAL.html) |
 | arrancar en local en ~15 min, o contra servidores de test | [`docs/QUICK_START.md`](docs/QUICK_START.md) |
 | levantar/parar todo con un comando | [`scripts/start-all.sh`](scripts/start-all.sh) · [`scripts/stop-all.sh`](scripts/stop-all.sh) |
+| **contrato REST de cada módulo (OpenAPI)** | `<modulo>/src/main/resources/openapi.yml` — [customer](customer/src/main/resources/openapi.yml) · [article](article/src/main/resources/openapi.yml); regla en [`docs/sdd/common/contrato-openapi-rest.md`](docs/sdd/common/contrato-openapi-rest.md) |
 | probar la API a mano (colección Postman) | [`scripts/postman/`](scripts/postman/) |
 | catálogo de la suite de tests y convenciones | [`docs/testing/TESTING.md`](docs/testing/TESTING.md) |
 | probar a fondo (CDC, resiliencia, tenant real) | [`docs/testing/GUIA-PRUEBAS.md`](docs/testing/GUIA-PRUEBAS.md) |

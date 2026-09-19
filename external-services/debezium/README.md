@@ -11,42 +11,76 @@ y publican en los topics que consumen las apps Java:
 ## Cómo funciona la cadena
 
 1. Un trigger sobre la tabla de negocio (`dbo.customers` / `articles`) inserta en
-   la outbox una fila cuya columna `payload` contiene el **contrato completo**
-   que esperan los listeners:
+   la outbox una fila cuya columna `message` es el **aviso de cambio fino**
+   ([ADR-0013](../../docs/architecture/adr/0013-outbox-mensaje-fino-sin-payload.md)):
+   dice **qué** cambió, no **qué datos** hay. Sin PII y sin JSON construido a mano:
 
    ```json
-   {"entityId":"CUST-001","operation":"UPDATE","payloadHash":"<sha256-hex>","payload":{ ...entidad... }}
+   {"entityId":"CUST-001","operation":"UPDATE","occurredAt":"2026-09-19T08:00:00.123Z"}
    ```
+
+   (Postgres añade `"version"`, el número de secuencia de la outbox; SQL Server no
+   puede hacerlo en un trigger multi-fila sin una segunda escritura, así que allí
+   el orden lo da la partición de Kafka y la columna `id` de la outbox.)
+
+   Las columnas `payload` y `payload_hash` **siguen existiendo, nullables y a
+   NULL** durante un ciclo de despliegue, para no romper a nadie que aún las lea.
 
 2. Debezium captura los INSERT de la outbox (CDC en SQL Server, replicación
    lógica `pgoutput` en Postgres).
 
 3. SMTs estándar dejan el mensaje limpio, **sin transformación adicional pendiente**:
    - `ExtractNewRecordState` (unwrap): quita el envelope de Debezium (`before`/`after`/`source`).
-   - `ExtractField$Value` sobre `payload`: el value pasa a ser el contenido de la columna.
+   - `ExtractField$Value` sobre **`message`** (antes era `payload`): el value pasa a
+     ser el contenido de esa columna. El SMT no necesitaba rediseño: basta con
+     apuntarlo a la columna que ahora lleva el aviso, porque `StringConverter`
+     exige que el value sea un campo de texto, no un `Struct`.
    - `ExtractField$Key` sobre `entity_id` + `message.key.columns`: la key del mensaje
      es el id de la entidad (ordenación por partición por entidad).
    - `RegexRouter`: renombra el topic (`legacy-*.…outbox_*` → `outbox.CUSTOMER`/`outbox.ARTICLE`).
    - `StringConverter` como key/value converter del conector: serializa el value
      como texto plano, así el mensaje es **exactamente** el JSON de la columna
-     `payload` (sin comillas extra ni schema envelope).
+     `message` (sin comillas extra ni schema envelope).
 
 **Formato resultante en `outbox.CUSTOMER` / `outbox.ARTICLE`:**
 
 - **key** (string): `CUST-001`
-- **value** (string = JSON del contrato):
+- **value** (string = JSON del aviso):
 
   ```json
-  {"entityId":"CUST-001","operation":"UPDATE","payloadHash":"ab12...","payload":{"id":"CUST-001","code":"C001","name":"Acme Corporation","status":"ACTIVE","address":{...},"fiscal":{...},"contact":{...},"banking":{...}}}
+  {"entityId":"CUST-001","operation":"UPDATE","occurredAt":"2026-09-19T08:00:00.123Z"}
   ```
 
 Es lo que parsea `CustomerKafkaListener`/`ArticleKafkaListener` con
-`mapper.readTree(record.value())` — no hace falta ningún SMT custom.
+`mapper.readTree(record.value())` — no hace falta ningún SMT custom. Los listeners
+**siguen aceptando el formato antiguo** (con `payloadHash` y `payload`) para poder
+vaciar los topics y las DLT que aún lo contengan; el payload se parsea pero nunca
+se usa como fuente de datos: el estado actual se relee del legacy.
 
-> Nota sobre `payloadHash`: en SQL Server se calcula con `HASHBYTES('SHA2_256', ...)`
-> sobre `NVARCHAR` (bytes UTF-16) y en Postgres con `digest(..., 'sha256')` sobre
-> UTF-8, así que los hashes no son comparables entre motores. No importa: el hash
-> solo se usa como clave de deduplicación dentro de cada dominio.
+> El hash de deduplicación **ya no lo calcula la base de datos**. Lo calcula la
+> aplicación (`PayloadHasher`, SHA-256 sobre una forma canónica del agregado)
+> sobre el snapshot que acaba de leer, así que la vieja advertencia de que
+> `HASHBYTES` (UTF-16) y `digest` (UTF-8) no eran comparables deja de aplicar.
+
+## Particiones de los topics (ADR-0011)
+
+`outbox.CUSTOMER`, `outbox.ARTICLE` y sus `-dlt` se crean con **12 particiones**
+por el servicio `kafka-init-topics` del `docker-compose.yml`, y los conectores
+declaran `topic.creation.default.partitions: 12` por si Connect llegara antes.
+Dos razones:
+
+- La clave del mensaje es `entity_id`, así que todos los eventos de una entidad
+  caen en la misma partición y se procesan **en orden y sin solaparse**; con una
+  sola partición (lo que daba la auto-creación) no se puede pasar de un
+  consumidor y el orden global de hoy era accidental, no diseñado.
+- El registro que va a la DLT se publica en **la misma partición** que el
+  original, así que `-dlt` necesita al menos tantas particiones como el topic de
+  entrada. Si un día se suben las de `outbox.*`, hay que subir también las del
+  `-dlt`.
+
+Regla de dimensionado: **particiones ≥ instancias × `concurrency` del listener**
+(12 = 2 clústeres × 2 instancias × 3). En producción los topics **no** los crea
+la aplicación: los crea la plataforma, ver [`../../deploy/README.md`](../../deploy/README.md).
 
 ## Registrar los conectores
 
@@ -96,8 +130,13 @@ docker exec -it kafka-broker kafka-console-consumer \
 - **Postgres** ya corre con `wal_level=logical`; el conector crea slot
   (`debezium_outbox_article`) y publicación filtrada automáticamente.
 - `snapshot.mode=initial`: al registrar el conector se re-publican las filas ya
-  existentes en la outbox (los consumidores deduplican por `payloadHash`).
+  existentes en la outbox (los consumidores deduplican por el hash del snapshot
+  releído, así que un aviso repetido no vuelve a escribir en SAP).
 - Los triggers se crean después de los datos de ejemplo, así que el seed inicial
   no genera eventos; usa un `UPDATE` como los de arriba para probar el flujo.
+- **`init.sql` solo se ejecuta sobre un volumen de datos vacío.** Si ya tenías
+  los contenedores levantados de antes, la outbox no tendrá la columna `message`
+  y el conector fallará: recrea los volúmenes (`docker compose down -v`) o
+  añade la columna y recrea el trigger a mano.
 - La outbox no se purga (PoC). En producción habría que borrar filas ya
   capturadas (job de retención) y valorar el SMT `EventRouter` oficial de Debezium.

@@ -2,6 +2,23 @@
 # Cada dominio sobreescribe lo que necesite en su application.yml.
 
 app:
+  kafka:
+    # Topologia y reintentos del consumo (ADR-0011, OVERVIEW.md §5).
+    retry:
+      # Backoff normal del DefaultErrorHandler: 1 s, x2, 3 intentos (1+2+4 s).
+      backoff-ms: ${APP_KAFKA_RETRY_BACKOFF_MS:1000}
+      max-attempts: ${APP_KAFKA_RETRY_MAX_ATTEMPTS:3}
+      # Backoff propio del circuito abierto: arranca en la ventana de apertura
+      # (sap.client.circuit-breaker.wait-duration-open-ms) para no agotar los
+      # reintentos con SAP aun caido. Peor caso 30+45+67,5 s.
+      circuit-open-backoff-ms: ${APP_KAFKA_RETRY_CIRCUIT_OPEN_BACKOFF_MS:30000}
+    topics:
+      # Particiones de outbox.<DOMINIO> y de su -dlt (el DLT necesita las mismas
+      # o la publicacion falla). 12 = 2 clusters x 2 instancias x concurrency 3.
+      partitions: ${APP_KAFKA_TOPICS_PARTITIONS:12}
+      # La app NUNCA crea topics: los crea la plataforma (IaC / script de
+      # external-services). Valor declarativo, ver deploy/README.md.
+      create: ${APP_KAFKA_TOPICS_CREATE:false}
   notifications:
     # Alertas de sincronizacion parcial (ADR-0010): ademas del WARN en el log, un
     # mensaje JSON por entidad en este topic para quien tenga que actuar.
@@ -39,6 +56,13 @@ sap:
     customer-path: /sap/opu/odata/sap/API_BUSINESS_PARTNER/A_BusinessPartner
     bp-path: /sap/opu/odata/sap/API_BUSINESS_PARTNER/A_BusinessPartner
     mandate-path: /sap/opu/odata/sap/API_APAR_SEPA_MANDATE_SRV/SEPAMandateSet
+  partial-failure:
+    # Fallo parcial (ADR-0010, D-15): si NINGUNA parte del ciclo llego a SAP y
+    # todas fallaron por comunicacion, se propaga la excepcion para que la ingesta
+    # reintente el mensaje entero; es demostrable que no se escribio nada. Si algo
+    # entro en SAP NO se propaga: reintentar duplicaria mientras no exista la
+    # verificacion previa. Se reevalua cuando el lookup previo sea fiable.
+    rethrow-when-nothing-reached-sap: ${SAP_PARTIAL_FAILURE_RETHROW:true}
   sepa:
     # Identificador de acreedor SEPA de la empresa: clave del mandato en S/4
     # (SEPAMandateSet(Creditor, SEPAMandate)). Sin el, el adaptador de mandatos
@@ -77,6 +101,31 @@ sap:
     retry:
       max-attempts: ${SAP_CLIENT_RETRY_MAX_ATTEMPTS:3}
       initial-backoff-ms: ${SAP_CLIENT_RETRY_INITIAL_BACKOFF_MS:500}
+      write:
+        # Intentos de una ESCRITURA no idempotente. Solo se consumen si el fallo
+        # ocurrio ANTES de que la peticion saliera (conexion rechazada, timeout de
+        # conexion, DNS): un timeout de respuesta o un 5xx NO se reintentan porque
+        # SAP pudo haberlos aplicado (resiliencia-cliente-sap.md R-1, R-8).
+        max-attempts: ${SAP_CLIENT_RETRY_WRITE_MAX_ATTEMPTS:2}
+        # false restaura el comportamiento anterior (reintentar cualquier fallo de
+        # una escritura). SOLO para diagnostico: duplica altas en SAP.
+        connect-only: ${SAP_CLIENT_RETRY_WRITE_CONNECT_ONLY:true}
+    lookup:
+      # Verificacion previa: antes de escribir se pregunta a SAP que tiene, y si no
+      # responde no se escribe nada (upsert-idempotente-sap.md R-1 a R-3).
+      # false = comportamiento anterior (alta directa): solo para el entorno local
+      # con el SAP simulado.
+      enabled: ${SAP_CLIENT_LOOKUP_ENABLED:true}
+      # Un lookup con mas de un resultado es «no concluyente», no «cojo el primero».
+      ambiguous-fails: ${SAP_CLIENT_LOOKUP_AMBIGUOUS_FAILS:true}
+      # Presupuesto de reintentos: un lookup es mas corto que una escritura y no
+      # debe consumir el presupuesto del mensaje (RetryBudgetGuard).
+      timeout-ms: ${SAP_CLIENT_LOOKUP_TIMEOUT_MS:5000}
+      calls-per-message: ${SAP_CLIENT_LOOKUP_CALLS_PER_MESSAGE:6}
+    upsert:
+      # Un 412 (el recurso cambio entre nuestro lookup y nuestro PATCH) permite
+      # repetir lookup + PATCH una unica vez.
+      refetch-on-precondition-failed: ${SAP_CLIENT_UPSERT_REFETCH_ON_412:true}
     circuit-breaker:
       failure-rate-threshold: ${SAP_CLIENT_CB_FAILURE_RATE:50}
       sliding-window-size: ${SAP_CLIENT_CB_WINDOW:10}
@@ -127,6 +176,9 @@ spring:
     timeout-per-shutdown-phase: ${SHUTDOWN_TIMEOUT:30s}
   kafka:
     consumer:
+      # Lotes cortos: con virtual threads y hasta 11 llamadas a SAP por mensaje,
+      # un lote grande alarga el poll y presiona max.poll.interval.ms (ADR-0011).
+      max-poll-records: ${KAFKA_MAX_POLL_RECORDS:10}
       properties:
         # 15 min: por encima del presupuesto de reintentos por mensaje (5,1 min con
         # los defaults del cliente SAP). Con los 5 min por defecto de Kafka un SAP

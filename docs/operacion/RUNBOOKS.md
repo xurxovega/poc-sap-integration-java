@@ -14,6 +14,7 @@ guardias: pendiente ([`APTITUD-PRODUCCION.md`](APTITUD-PRODUCCION.md)).
 | 4 | La app no arranca | [La app no arranca](#4-la-app-no-arranca) |
 | 5 | Rebalanceos de Kafka en cascada, el mismo mensaje se procesa varias veces | [Presupuesto de reintentos](#5-rebalanceos-de-kafka-y-presupuesto-de-reintentos) |
 | 6 | Hay que dar de baja a un cliente o revocar un mandato | [Baja y bloqueo](#6-baja-de-cliente-y-revocación-de-mandato) |
+| 7 | `ConcurrentTransitionException` repetida sobre las mismas entidades | [Colisiones de concurrencia sostenidas](#7-concurrenttransitionexception-sostenida) |
 
 ## 1. Entidad atascada o en `SAP_ERROR`
 
@@ -21,8 +22,12 @@ guardias: pendiente ([`APTITUD-PRODUCCION.md`](APTITUD-PRODUCCION.md)).
 por un cliente que «no llegó a SAP».
 
 **Confirmar** (con token `sap-read`): `GET /customers/CUST-001/state` devuelve el
-estado del agregado y de **cada parte** con su último hash e instante: la parte
-en `SAP_ERROR` es donde falló. La alerta `SYNC_PARTIAL_FAILURE` del topic
+estado del agregado y de **cada parte**, más `lastCycle`: la traza paso a paso
+del último ciclo de sincronización (una línea por parte, con su estado y
+detalle) — la parte en `SAP_ERROR` es donde falló, sin tener que ir a Mongo.
+`lastCycle` es `null` si el ciclo es anterior a que existiera la traza. El
+`detalle` de cada línea se enmascara para quien no tiene el rol `sap-read`
+completo (solo `sap-external-read`). La alerta `SYNC_PARTIAL_FAILURE` del topic
 `sap.sync.alerts` (y el `WARN` «ALERTA sincronizacion parcial» en Loki) ya
 lista las partes OK y fallidas. Sin token, directo en Mongo:
 ```bash
@@ -45,6 +50,13 @@ la Fase 1 **un evento nuevo siempre abre ciclo**, venga la entidad de `SAP_ERROR
 
 **Si vuelve a `SAP_ERROR`**: mira el log `Error SAP POST ... status=4xx`: un 4xx
 es dato o contrato (arreglar el dato en el legacy o el mapeo), no reintentar.
+
+**Si se restauró Mongo desde una copia**: comprobar que la colección `sap_keys`
+volvió con ella. Antes de escribir, cada adaptador OData mira en `sap_keys` si
+la parte ya existe en SAP (upsert idempotente, PRD-11); si esa colección se
+restauró vacía o desde un backup más antiguo que `customers_current`, el
+siguiente ciclo no encontrará la clave y **creará duplicados** en SAP en vez de
+actualizar, aunque el dato en Mongo sea correcto.
 
 ## 2. Mensaje en la DLT
 
@@ -126,3 +138,45 @@ reintentos por mensaje: N ms»); si N se acerca a `max.poll.interval.ms`, bajar
 - **Mandato SEPA**: se **cancela** (`PATCH SEPAMandateStatus=3`), nunca se borra
   ([`../sdd/customer/baja-mandato-sepa.md`](../sdd/customer/baja-mandato-sepa.md)).
   Requiere `SAP_SEPA_CREDITOR_ID`. Hoy no hay evento del legacy que lo dispare.
+
+## 7. `ConcurrentTransitionException` sostenida
+
+**Detección**: `WARN`/`ERROR` repetidos con «Transicion concurrente sobre
+`<dominio>/<entityId>`», `409 Conflict` frecuentes en `POST /customers/sync`, o
+mensajes llegando a la DLT tras agotar los tres reintentos. Una colisión suelta
+es **normal** y se recupera sola (es reintentable, ADR-0011); lo que hay que
+investigar es la colisión **sostenida** sobre las mismas entidades.
+
+**Confirmar**:
+
+```bash
+# 1) Un solo consumer group por dominio, y que sus miembros sean TODAS las
+#    instancias de los dos clusters (si hay dos grupos, esa es la causa).
+kafka-consumer-groups --bootstrap-server "$KAFKA_BOOTSTRAP" --list
+kafka-consumer-groups --bootstrap-server "$KAFKA_BOOTSTRAP" --describe --group customer-consumer
+
+# 2) Particiones del topic y de su -dlt: deben coincidir y ser >= instancias x concurrency.
+kafka-topics --bootstrap-server "$KAFKA_BOOTSTRAP" --describe --topic outbox.CUSTOMER
+kafka-topics --bootstrap-server "$KAFKA_BOOTSTRAP" --describe --topic outbox.CUSTOMER-dlt
+
+# 3) Traza de la entidad: dos cycleId distintos entrelazados en la misma ventana.
+mongosh "$MONGO_URL_CUSTOMER" --eval 'db.sync_state.find({entityId:"CUST-001"}).sort({seq:1})'
+```
+
+**Causas y qué hacer**:
+
+| Causa | Señal | Acción |
+|---|---|---|
+| **Dos consumer groups** (uno por clúster) | `--list` devuelve `customer-consumer` más de una vez, o con sufijo de clúster | corregir `CUSTOMER_KAFKA_GROUP` para que sea el **mismo** en los dos clústeres y reiniciar; es la causa que además **duplica escrituras en SAP** |
+| **Clave de partición perdida** | mensajes de la misma entidad en particiones distintas | revisar `message.key.columns` / `ExtractField$Key` del conector Debezium: la clave debe ser `entity_id` |
+| **REST síncrono concurriendo con CDC** | los 409 coinciden con cargas manuales o de un cliente externo | es el comportamiento esperado: que el llamante reintente. Si es un canal de alto volumen, es **disparador de reevaluación** de ADR-0011 (valorar el *lease*) |
+| **Reproceso masivo** (reset de offsets, resincronización) | muchas entidades a la vez, tras una operación conocida | esperar a que drene; si satura, bajar `CUSTOMER_KAFKA_CONCURRENCY` temporalmente |
+
+**Comprobar que quedó bien**: las colisiones desaparecen del log, la DLT no
+crece (runbook 2) y las entidades afectadas terminan en `SENT_SAP`. Si hubo
+mensajes en la DLT, reprocesarlos según el runbook 2.
+
+**Lo que NO arregla este runbook**: el fencing detecta la colisión al escribir el
+estado, cuando la llamada a SAP ya pudo salir. Que un cambio no se escriba dos
+veces en SAP depende de la verificación previa (*lookup*), no de esto
+([ADR-0011](../architecture/adr/0011-concurrencia-entre-instancias-fencing-sin-lease.md) §4).

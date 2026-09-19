@@ -6,7 +6,7 @@
 | **Estado** | ✅ implementado |
 | **Entradas** | CDC (`outbox.CUSTOMER`) y REST `POST /customers/sync`, siempre a través de `SyncCustomerUseCase` |
 | **Destino SAP** | BTP (por defecto) o S/4 nativo (`sap.odata.address.enabled=true`) |
-| **Última revisión** | 2026-09-09 |
+| **Última revisión** | 2026-09-18 |
 
 ## 1. Objetivo
 
@@ -57,6 +57,16 @@ Contrato común del mensaje de ingesta: [`../../architecture/TECH.md`](../../arc
 Las reglas se acumulan: `ValidationResult` reporta **todos** los motivos, no
 solo el primero.
 
+
+**Clave de lookup de esta feature**: el **`AddressID`** que asigna SAP. No es
+deducible, así que se persiste en `sap_keys` bajo `customer:<entityId>:ADDRESS`
+y lo comparte la feature [CONTACT](sincronizacion-contacto.md). Si no está
+guardada, se resuelve navegando
+`GET A_BusinessPartner('<id>')/to_BusinessPartnerAddress?$top=2`; con más de una
+dirección el resultado es no concluyente y no se escribe. El ETag **no** se
+persiste. Mecanismo:
+[`../common/upsert-idempotente-sap.md`](../common/upsert-idempotente-sap.md).
+
 ## 5. Salida
 
 Un envío por dirección al destino SAP activo. El adaptador se elige por
@@ -87,6 +97,9 @@ entidad sin historial entra por `RECEIVED` o por `VALIDATING`).
 | Situación | Estado final | Reintentable |
 |---|---|---|
 | Dirección válida y SAP responde 2xx | `SENT_SAP` | — |
+| La verificación previa no concluye (transporte, 5xx, ambigua) | `COMMUNICATION_ERROR`, **sin escribir nada** | sí: SAP no se tocó |
+| SAP ya lo tiene: se actualiza con `PATCH` + `If-Match` y responde 2xx | `SENT_SAP` | — |
+
 | Dirección incumple alguna regla de §4 | `INVALID` | sí, con un evento nuevo |
 | SAP responde no-2xx | `SAP_ERROR` | sí, `SAP_ERROR → SENDING_SAP` |
 
@@ -123,5 +136,6 @@ clave de feature `<customerId>:ADDRESS` en `sync_state`.
 
 | Fecha | Cambio | PR |
 |---|---|---|
+| 2026-09-18 | Verificación previa y `AddressID` persistido (2B-6): una dirección que SAP ya tiene se **actualiza** (`PATCH` con `If-Match`) en vez de crear una nueva en cada ciclo; si el `GET` no concluye no se escribe nada. §3 declara la clave de lookup, §6 los estados nuevos | — |
 | 2026-09-10 | AC-6: re-sincronización de una dirección ya enviada. La línea de feature quedaba en `SENT_SAP` y `SENT_SAP → VALIDATING` no estaba permitida: el segundo evento con cambios reales rompía el pipeline y acababa en la DLT. Regla en [`../common/maquina-de-estados.md`](../common/maquina-de-estados.md) | — |
 | 2026-09-09 | Spec inicial, escrito al arreglar el pipeline por feature. Se documenta que la línea de estado de la feature entra por `VALIDATING` (AC-4/AC-5): el código no registraba esa entrada y la máquina rechazaba `null → VALID`, dejando `POST /customers/sync` en 500 | — |

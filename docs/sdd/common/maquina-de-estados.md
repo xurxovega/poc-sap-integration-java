@@ -54,6 +54,16 @@ llamada:
 | R-4 | Si el ciclo anterior estaba en vuelo, la máquina lo **señala** (`isInFlight`) para que se registre; no lo impide | — |
 | R-5 | Los estados de error son recuperables también *dentro* del ciclo: `ERROR → RECEIVED`, `COMMUNICATION_ERROR` reanuda en el paso que falló | — |
 | R-6 | Cualquier paso del pipeline puede caer a `ERROR` ante un fallo de infraestructura, incluido `SENDING_SAP` | `IllegalStateException` si la transición faltase |
+| R-7 | **El `from` declarado se compara con el real.** Si quien avanza declara venir de un estado que ya no es el de la cabecera, otra instancia la movió: es una **colisión**, no un error de programación | `ConcurrentTransitionException` (reintentable), nunca `IllegalStateException` |
+| R-8 | **Fencing por ciclo.** Aunque el estado coincida, un ciclo no avanza sobre la cabecera de **otro** ciclo: el que perdió la carrera se entera en vez de escribir encima | `ConcurrentTransitionException` |
+| R-9 | La **línea de feature** distingue `COMMUNICATION_ERROR` (no se llamó a SAP —circuito abierto— o no se sabe si llegó —transporte agotado, `httpStatus = 0`—) de `SAP_ERROR` (SAP respondió y rechazó). Toda transición a un estado de error persiste su **motivo** (`detail`), a lo sumo 512 caracteres, con la respuesta de SAP y **nunca** el payload enviado | Sin la distinción no se sabe si reenviar es seguro |
+
+`from == null` significa «no compruebes» (ni R-7 ni R-8): cerrar en `ERROR`
+tras un fallo no puede fallar a su vez por una colisión, o el estado se
+quedaría sin cerrar. `IllegalStateException` queda reservada a lo que de
+verdad es un error de programación: una transición que la tabla no admite.
+Es lo que evita que una colisión pasajera acabe en la DLT sin un solo
+reintento (auditoría 2026-09-18 N2).
 
 `SENT_SAP` e `INVALID` siguen siendo terminales **del ciclo** (`isTerminal`). Lo
 que desaparece es la idea de que la re-entrada sea una transición más de la
@@ -64,7 +74,18 @@ tabla: es una operación distinta, `beginCycle`, y por eso ya no puede faltar
 ## 5. Salida
 
 El estado resultante, o excepción si la transición es ilegal. Cada transición se
-persiste con `timestamp`, origen y `payloadHash`.
+persiste con `timestamp`, origen, `payloadHash`, el **`cycleId`** del ciclo al que
+pertenece y, si es de error, su **`detail`**.
+
+El `cycleId` es lo que une la línea del agregado con las de sus features: todas
+las transiciones de un mismo envío lo comparten, y `cycle(domain, cycleId)` las
+devuelve todas de una sola consulta (índice `dom_cycle_idx`, ni único ni parcial).
+Esa es la **traza de pasos** del envío. `lastTransition(domain, entityId)` da el
+estado de una línea leyendo solo la cabecera, sin traerse el historial entero.
+
+Los documentos anteriores a este cambio no tienen `cycleId` ni `detail` y se
+siguen leyendo: ambos son `null`-tolerantes, igual que se hizo con `seq`. Para
+ellos la traza es `null`, y decirlo es más honesto que inventarla.
 
 ## 6. Estados y transiciones
 
@@ -115,6 +136,14 @@ La feature no indexa: la imagen y el histórico son del agregado.
 | AC-11 | El estado actual se resuelve por **secuencia**, no por `timestamp`: dos transiciones en el mismo milisegundo no empatan | `MongoSyncStateRepositoryTest#currentStateIsResolvedBySequenceNotTimestamp` |
 | AC-12 | Dadas dos escrituras concurrentes sobre la misma entidad, una gana y la otra recibe `ConcurrentTransitionException`; nunca se pisa el estado en silencio | `MongoSyncStateRepositoryTest#concurrentWriteIsRejectedNotSilentlyOverwritten` |
 | AC-13 | Al abrir ciclo, la nueva transición recibe la secuencia siguiente a la última almacenada | `MongoSyncStateRepositoryTest#beginCycleAssignsNextSequence` |
+| AC-15 | Dado que el puerto SAP de una parte **lanza**, cuando el pipeline la sincroniza, entonces la línea termina en `COMMUNICATION_ERROR` si la causa fue de comunicación y en `SAP_ERROR` si SAP respondió; nunca queda en `SENDING_SAP` | `FeatureSyncPipelineTest#sapPortThrowingLeavesTheLineInCommunicationError` · `#sapAnsweringAnErrorLeavesTheLineInSapError` |
+| AC-16 | Dada una respuesta sin éxito con `httpStatus = 0` (transporte agotado), entonces la línea es `COMMUNICATION_ERROR`, no `SAP_ERROR` | `FeatureSyncPipelineTest#statusZeroIsCommunicationErrorNotSapError` |
+| AC-17 | Toda transición a un estado de error persiste su motivo, truncado a 512 caracteres y sin el payload enviado | `FeatureSyncPipelineTest#errorDetailKeepsTheSapStatusAndBody` · `SyncStateTransitionTest#detailIsTruncated` |
+| AC-18 | Todas las transiciones de un mismo envío (agregado y líneas de feature) comparten `cycleId` y se recuperan con **una** consulta; la cabecera de una línea se lee sin el historial completo | `FeatureSyncPipelineTest#everyTransitionOfTheLineCarriesTheCycleId` · `MongoSyncStateRepositoryTest#everyLineOfACycleSharesTheCycleId` · `#cycleReturnsTheTransitionsOfEveryLine` · `#lastTransitionDoesNotReadTheWholeHistory` · `SyncStateMongoIT#cycleQueryReturnsEveryLineOfTheCycle` |
+| AC-19 | Dada una `ConcurrentTransitionException` al registrar el estado de una parte, entonces **no** se convierte en `SAP_ERROR`: se propaga | `FeatureSyncPipelineTest#concurrentTransitionIsNotSwallowedAsASapError` |
+| AC-20 | Dada una lectura desfasada (otra instancia movió la cabecera), entonces se lanza `ConcurrentTransitionException` —reintentable— y no `IllegalStateException`; con `from = null` no se comprueba nada y marcar `ERROR` sigue funcionando | `MongoSyncStateRepositoryTest#staleHeadIsReportedAsConcurrentNotIllegal` · `#nullDeclaredFromSkipsTheCheckSoMarkErrorStillWorks` · `ConcurrentTransitionExceptionTest#messageNamesTheDeclaredAndTheRealState` · `SyncStateMongoIT#staleReadFromAnotherInstanceIsConcurrentNotIllegal` |
+| AC-21 | Dado un ciclo que intenta avanzar sobre la cabecera de otro ciclo, aunque el estado coincida, entonces se rechaza: dos ciclos en vuelo nunca entrelazan sus pasos | `MongoSyncStateRepositoryTest#advancingOverAnotherCyclesHeadIsRejected` · `SyncStateMongoIT#twoCyclesInFlightNeverInterleave` |
+| AC-22 | Dada una transición que la tabla de §6 no admite, entonces sigue siendo `IllegalStateException`, no una colisión | `MongoSyncStateRepositoryTest#anIllegalTransitionIsStillAnIllegalStateException` · `ConcurrentTransitionExceptionTest#isNotAnIllegalStateException` |
 | AC-14 | Contra un **Mongo real** (no el fake en memoria): una entidad en `SAP_ERROR` vuelve a `SENT_SAP` con el siguiente evento; N escritores concurrentes nunca se pisan (cada `seq` aparece una vez); los documentos legacy sin `seq` conviven con el índice único parcial | `SyncStateMongoIT#resyncsAfterSapErrorAgainstRealMongo` · `#concurrentWritersNeverOverwriteEachOther` · `#legacyDocumentsWithoutSeqCoexistWithTheUniqueIndex` (módulo `it`, `-Ddocker.available=true`) |
 
 Aplican además los [criterios globales](../README.md#4-criterios-de-aceptación-globales).
@@ -133,7 +162,11 @@ reintentos.
 | §6 tabla de transiciones (`advance`) | `common/domain/SyncStateMachine.java` | `SyncStateMachineTest` |
 | R-1/R-3 `beginCycle` y `ENTRY_STATES` | `SyncStateMachine.beginCycle` · `SyncStateRepositoryPort.beginCycle` | `SyncStateMachineTest#beginCycleOpensFromAnyCurrentStateForEveryEntryState` |
 | Registro del ciclo desde `application` (abrir/avanzar + métrica) | `common/application/SyncCycleRecorder.java` (único punto que construye `SyncStateTransition`) | `FeatureSyncPipelineTest` · tests de los orquestadores |
-| §6 línea de feature (`VALIDATING → … → SENT_SAP`) | `common/application/FeatureSyncPipeline.java` | `FeatureSyncPipelineTest` (4 tests con la máquina real) |
+| §6 línea de feature (`VALIDATING → … → SENT_SAP`) | `common/application/FeatureSyncPipeline.java`; el paso `SENDING_SAP → …` pasa por `write(...)`, la verificación previa de [`upsert-idempotente-sap.md`](upsert-idempotente-sap.md) | `FeatureSyncPipelineTest` (17 tests con la máquina real) |
+| R-9 y AC-15..AC-17 estado y motivo de la parte | `common/application/FeatureSyncPipeline.sync` · `common/domain/FeatureOutcome.java` · `SyncStateTransition.detail` (`MAX_DETAIL`). Un lookup no concluyente (`SapLookupUnavailableException`) cierra la línea en `COMMUNICATION_ERROR`, como el circuito abierto: no se tocó SAP | `FeatureSyncPipelineTest` · `SyncStateTransitionTest` |
+| §5 ciclo y traza de pasos (AC-18) | `SyncCycleRecorder.Cycle` · `SyncStateTransition.cycleId` · `SyncStateDoc` (índice `dom_cycle_idx`) · `SyncStateRepositoryPort.cycle` / `lastTransition` | `MongoSyncStateRepositoryTest` · `SyncStateMongoIT#cycleQueryReturnsEveryLineOfTheCycle` |
+| R-7/R-8 y AC-19..AC-22 colisión frente a error de programación | `MongoSyncStateRepository.transition` (compara `from` y `cycleId` **antes** de la máquina) · `common/domain/ConcurrentTransitionException.java` (`staleHead`, `foreignCycle`, `duplicateSeq`) | `MongoSyncStateRepositoryTest` · `ConcurrentTransitionExceptionTest` · `SyncStateMongoIT` |
+| Reloj inyectado (el instante de cada paso es verificable) | `SyncCycleRecorder(Clock)` · `FeatureSyncPipeline(Clock)`; el `@Bean Clock` vive en `bootstrap/<Dominio>UseCaseConfig` | `FeatureSyncPipelineTest` (reloj fijo) |
 | AC-11/12/13 secuencia y concurrencia | `common/adapters/persistence/MongoSyncStateRepository.java` (`seq`, índice único) | `MongoSyncStateRepositoryTest` |
 | AC-14 lo mismo contra Mongo real | `MongoSyncStateRepository` + `SyncStateDoc` (índice parcial `dom_ent_seq_uk`) | `SyncStateMongoIT` (Testcontainers `mongo:7.0`) |
 | §3 el `from` se lee del almacén | `common/adapters/persistence/MongoSyncStateRepository.java` | `MongoSyncStateRepositoryTest` |
@@ -143,6 +176,7 @@ reintentos.
 
 | Fecha | Cambio | PR |
 |---|---|---|
+| 2026-09-18 | **Ciclo de sincronización y traza de pasos**: cada transición lleva `cycleId` y, si es de error, `detail` (≤ 512, sin el payload); consultas nuevas `cycle` y `lastTransition` sobre el índice `dom_cycle_idx`. La línea de feature distingue `COMMUNICATION_ERROR` de `SAP_ERROR` y **nunca** queda colgada en `SENDING_SAP` aunque el puerto lance (R-9, AC-15..AC-19; auditoría N1). El `from` declarado se compara con el real y el `cycleId` actúa de *fencing token*: una lectura desfasada es `ConcurrentTransitionException` reintentable y no `IllegalStateException` camino de la DLT (R-7, R-8, AC-20..AC-22; auditoría N2). `Instant.now()` sale de `application`: `Clock` inyectado. Migración: los documentos sin `cycleId`/`detail` se siguen leyendo y el índice nuevo no es único | — |
 | 2026-09-12 | Fase 7 (A5): `SyncCycleRecorder` y `FeatureSyncPipeline<D>` en `common/application` sustituyen a las 14 copias de `beginCycle()/transition()` y a los cuatro `Sync<Feature>UseCase` idénticos. Comportamiento sin cambios: los tests de cada use case siguen en verde | — |
 | 2026-09-12 | AC-14: la secuencia, la versión optimista y la convivencia con documentos legacy se prueban también contra un **Mongo real** con Testcontainers (`SyncStateMongoIT`), no solo contra el fake en memoria (Fase 2 de la auditoría, TEST-1 parcial) | — |
 | 2026-09-12 | Verificado en vivo el 2026-09-12: apertura desde `SAP_ERROR` y desde `SENDING_SAP` en vuelo; `seq` monótona entre escritores CDC y REST (1→24). El índice único tuvo que ser **parcial**, no `sparse`: sparse compuesto indexa si hay al menos una clave y los docs antiguos colisionaban en `seq=null` (E11000 al arrancar) | — |

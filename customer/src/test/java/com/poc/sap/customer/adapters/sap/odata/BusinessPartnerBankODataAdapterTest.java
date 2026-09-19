@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.poc.sap.common.domain.port.SapOutboundPort.SapResponse;
 import com.poc.sap.common.sap.SapClient;
 import com.poc.sap.common.sap.SapDestination;
+import com.poc.sap.common.sap.SapUpsertSettings;
 import com.poc.sap.common.sap.json.SapJsonMapper;
 import com.poc.sap.customer.domain.feature.banking.BankingData;
 import org.junit.jupiter.api.Test;
@@ -32,7 +33,7 @@ class BusinessPartnerBankODataAdapterTest {
     private JsonNode sent(BankingData b) throws Exception {
         when(sapClient.send(eq(SapDestination.S4_NATIVE), eq(PATH), eq("C-1"), eq("h"), anyString()))
                 .thenReturn(new SapResponse(201, "", null));
-        new BusinessPartnerBankODataAdapter(sapClient, PATH).send("C-1", "h", b);
+        new BusinessPartnerBankODataAdapter(sapClient, PATH, SapUpsertSettings.defaults()).send("C-1", "h", b);
         ArgumentCaptor<String> body = ArgumentCaptor.forClass(String.class);
         verify(sapClient).send(any(), any(), any(), any(), body.capture());
         return SapJsonMapper.mapper().readTree(body.getValue());

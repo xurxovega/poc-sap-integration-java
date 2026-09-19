@@ -37,5 +37,12 @@ Kafka Connect con los conectores Debezium (`debezium/connect` 2.7.3), tablas
   ([`../../sdd/common/observabilidad.md`](../../sdd/common/observabilidad.md) R-4).
 - El evento lleva `payloadHash` y el use case **re-lee** la entidad del legacy:
   el payload de la outbox no es la fuente de verdad.
+- **Desde [ADR-0013](0013-outbox-mensaje-fino-sin-payload.md) (2026-09-19) el
+  evento ya no lleva datos ni hash**: solo la identidad del cambio (columna
+  `message` de la outbox), y el hash lo calcula el consumidor sobre el snapshot
+  releído del legacy.
 - Schema Registry para la outbox: decisión D-8, después.
+- Topología: **un solo `consumer group` por dominio compartido entre clústeres**
+  y 12 particiones por topic, también en el `-dlt`, que recibe el registro en la
+  misma partición que el original ([ADR-0011](0011-concurrencia-entre-instancias-fencing-sin-lease.md)).
 - Verificado en vivo (CDC UPDATE y DELETE) el 2026-09-12.

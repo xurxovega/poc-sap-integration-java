@@ -40,17 +40,40 @@ public class SapIntegrationConfig {
         return byDestination;
     }
 
+    /**
+     * Dos politicas de reintento (spec resiliencia-cliente-sap R-1 reescrita, R-8):
+     * <ul>
+     *   <li>{@code default}: llamadas idempotentes (GET, DELETE, PATCH con
+     *       {@code If-Match}). 5xx y transporte se reintentan, como siempre.</li>
+     *   <li>{@code sap-write}: escrituras NO idempotentes. El predicado de fase lo
+     *       impone {@code RestClientSapClient}; aqui solo van intentos y backoff.
+     *       {@code connect-only=false} restaura el comportamiento anterior y es
+     *       <b>solo para diagnostico</b>: reintentar un POST duplica el alta.</li>
+     * </ul>
+     * Nota: ya no se ignora {@code IllegalArgumentException} por su tipo, porque
+     * {@code UnresolvedAddressException} (fallo de DNS) hereda de ella y quedaba
+     * sin un solo reintento.
+     */
     @Bean
     @ConditionalOnMissingBean
     public RetryRegistry sapRetryRegistry(
             @Value("${sap.client.retry.max-attempts:3}") int maxAttempts,
-            @Value("${sap.client.retry.initial-backoff-ms:500}") long initialBackoffMs) {
-        RetryConfig config = RetryConfig.custom()
+            @Value("${sap.client.retry.initial-backoff-ms:500}") long initialBackoffMs,
+            @Value("${sap.client.retry.write.max-attempts:2}") int writeMaxAttempts,
+            @Value("${sap.client.retry.write.connect-only:true}") boolean writeConnectOnly) {
+        IntervalFunction backoff =
+                IntervalFunction.ofExponentialBackoff(Duration.ofMillis(initialBackoffMs), 2.0);
+        RetryConfig idempotent = RetryConfig.custom()
                 .maxAttempts(maxAttempts)
-                .intervalFunction(IntervalFunction.ofExponentialBackoff(Duration.ofMillis(initialBackoffMs), 2.0))
-                .ignoreExceptions(IllegalArgumentException.class)
+                .intervalFunction(backoff)
+                .retryOnException(t -> !TransportFailures.isConfigurationError(t))
                 .build();
-        return RetryRegistry.of(config);
+        RetryConfig write = RetryConfig.custom()
+                .maxAttempts(writeConnectOnly ? writeMaxAttempts : maxAttempts)
+                .intervalFunction(backoff)
+                .build();
+        return RetryRegistry.of(Map.of("default", idempotent,
+                RestClientSapClient.WRITE_RETRY, writeConnectOnly ? write : idempotent));
     }
 
     @Bean
@@ -63,9 +86,25 @@ public class SapIntegrationConfig {
                 .failureRateThreshold(failureRate)
                 .slidingWindowSize(windowSize)
                 .waitDurationInOpenState(Duration.ofMillis(waitOpenMs))
-                .ignoreExceptions(IllegalArgumentException.class)
+                // Por predicado, no por tipo: UnresolvedAddressException es un
+                // IllegalArgumentException y SI es un fallo de SAP que debe contar.
+                .ignoreException(TransportFailures::isConfigurationError)
                 .build();
         return CircuitBreakerRegistry.of(config);
+    }
+
+    /**
+     * Interruptores de la verificacion previa y el upsert (spec
+     * {@code docs/sdd/common/upsert-idempotente-sap.md} §6). Los consumen los
+     * adaptadores OData de cada feature.
+     */
+    @Bean
+    @ConditionalOnMissingBean
+    public SapUpsertSettings sapUpsertSettings(
+            @Value("${sap.client.lookup.enabled:true}") boolean lookupEnabled,
+            @Value("${sap.client.lookup.ambiguous-fails:true}") boolean ambiguousFails,
+            @Value("${sap.client.upsert.refetch-on-precondition-failed:true}") boolean refetch) {
+        return new SapUpsertSettings(lookupEnabled, ambiguousFails, refetch);
     }
 
     @Bean

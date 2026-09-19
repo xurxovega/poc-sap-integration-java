@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.poc.sap.common.domain.port.SapOutboundPort.SapResponse;
 import com.poc.sap.common.sap.SapClient;
 import com.poc.sap.common.sap.SapDestination;
+import com.poc.sap.common.sap.SapUpsertSettings;
 import com.poc.sap.common.sap.json.SapJsonMapper;
 import com.poc.sap.customer.domain.Mandate;
 import org.junit.jupiter.api.Test;
@@ -33,7 +34,7 @@ class SepaMandateODataAdapterTest {
     @Mock SapClient sapClient;
 
     private SepaMandateODataAdapter adapter(String creditor) {
-        return new SepaMandateODataAdapter(sapClient, PATH, creditor, "F");
+        return new SepaMandateODataAdapter(sapClient, PATH, creditor, "F", SapUpsertSettings.defaults());
     }
 
     private static Mandate mandate(Mandate.Status status) {

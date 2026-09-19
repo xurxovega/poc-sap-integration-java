@@ -1,9 +1,12 @@
 package com.poc.sap.customer.adapters.sap.odata;
 
+import com.poc.sap.common.domain.port.SapOutboundPort.SapLookup;
 import com.poc.sap.common.domain.port.SapOutboundPort.SapResponse;
 import com.poc.sap.common.sap.SapClient;
 import com.poc.sap.common.sap.SapDestination;
+import com.poc.sap.common.sap.SapUpsertSettings;
 import com.poc.sap.common.sap.json.SapJsonMapper;
+import com.poc.sap.common.sap.odata.ODataLookups;
 import com.poc.sap.customer.domain.Mandate;
 import com.poc.sap.customer.domain.port.MandateSapOutboundPort;
 import com.poc.sap.integration.api.customer.sepamandate.model.APIAPARNOAPPSEPAMANDATESRVSEPAMandateTypeCreate;
@@ -38,16 +41,50 @@ public class SepaMandateODataAdapter implements MandateSapOutboundPort {
     private final String path;
     private final String creditorId;
     private final String application;
+    private final SapUpsertSettings upsert;
 
     public SepaMandateODataAdapter(
             SapClient sapClient,
             @Value("${sap.odata.mandate-path:/sap/opu/odata/sap/API_APAR_SEPA_MANDATE_SRV/SEPAMandateSet}") String path,
             @Value("${sap.sepa.creditor-id:}") String creditorId,
-            @Value("${sap.sepa.application:F}") String application) {
+            @Value("${sap.sepa.application:F}") String application,
+            SapUpsertSettings upsert) {
         this.sapClient = sapClient;
         this.path = path;
         this.creditorId = creditorId;
         this.application = application;
+        this.upsert = upsert;
+    }
+
+    /**
+     * Verificacion previa por la clave compuesta {@code (Creditor, SEPAMandate)},
+     * determinista: el acreedor es configuracion y el mandato trae su id.
+     * <b>A confirmar en tenant</b>: que {@code SEPAMandateSet} responda al GET por
+     * clave y devuelva {@code ETag}.
+     */
+    @Override
+    public SapLookup lookup(String entityId, Mandate m) {
+        if (!upsert.lookupEnabled() || m == null) {
+            return SapLookup.notSupported();
+        }
+        requireCreditor();
+        return ODataLookups.fromSingle(
+                sapClient.get(SapDestination.S4_NATIVE, keyPath(m.id())), m.id());
+    }
+
+    /** Actualizacion del mandato con If-Match; la clave no se reenvia en el cuerpo. */
+    @Override
+    public SapResponse update(String entityId, String payloadHash, Mandate m, SapLookup found) {
+        if (m == null) {
+            throw new IllegalArgumentException("mandato obligatorio para actualizar en SAP");
+        }
+        requireCreditor();
+        var update = new APIAPARNOAPPSEPAMANDATESRVSEPAMandateTypeUpdate();
+        update.setSenderIBAN(m.iban());
+        update.setSenderBankSWIFTCode(n(m.bic()));
+        update.setSePAMandateStatus(statusOf(m.status()));
+        return sapClient.patch(SapDestination.S4_NATIVE, keyPath(m.id()), m.id(), payloadHash,
+                SapJsonMapper.write(update), found.etag());
     }
 
     @Override

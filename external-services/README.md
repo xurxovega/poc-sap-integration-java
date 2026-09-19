@@ -33,11 +33,19 @@ cd external-services
 docker compose up -d
 ```
 
+El servicio `kafka-init-topics` crea `outbox.CUSTOMER`, `outbox.CUSTOMER-dlt`,
+`outbox.ARTICLE` y `outbox.ARTICLE-dlt` con 12 particiones
+(`KAFKA_TOPIC_PARTITIONS`, por defecto 12) en cuanto `kafka-broker` está sano,
+y termina (`restart: "no"`); las apps **no** crean topics
+(`APP_KAFKA_TOPICS_CREATE=false`, ver [`../deploy/README.md`](../deploy/README.md)).
+
 ## CDC end-to-end (Debezium)
 
 Los legacy tienen tablas outbox (`dbo.outbox_customer` en SQL Server,
 `outbox_article` en Postgres) rellenadas por triggers; Debezium las captura y
-publica el contrato JSON en `outbox.CUSTOMER` / `outbox.ARTICLE`.
+publica en `outbox.CUSTOMER` / `outbox.ARTICLE` el **aviso de cambio fino**
+(columna `message`: identidad del cambio, sin datos ni PII —
+[ADR-0013](../docs/architecture/adr/0013-outbox-mensaje-fino-sin-payload.md)).
 
 1. Levantar todo y esperar a que `kafka-connect` esté sano:
 
@@ -104,3 +112,14 @@ Consola: http://localhost:9001
 - SQL Server corre con `MSSQL_AGENT_ENABLED=true` (el Agent es necesario para los jobs de captura CDC de Debezium) y el `init.sql` habilita CDC sobre la BD y la tabla `dbo.outbox_customer`.
 - Elasticsearch requiere `vm.max_map_count >= 262144` en Linux/WSL. Si falla: `sudo sysctl -w vm.max_map_count=262144`.
 - Kafka expone `localhost:9092` para conexiones desde el host y `kafka-broker:29092` para conexiones entre contenedores.
+- `mongodb/init.js` crea, además de las colecciones de imagen/estado por dominio,
+  `sync_state` con el índice `dom_cycle_idx` (`{domain, cycleId, seq}`, sustenta
+  la traza de `GET /customers/{id}/state`) y `sap_keys` con `dom_ent_key_idx`
+  (`{domain, entityId}`): guarda la clave que asigna SAP (p. ej. `AddressID`)
+  para el upsert idempotente (PRD-11); si se pierde, el siguiente ciclo duplica
+  en vez de actualizar.
+- `scripts/start-all.sh` registra en el mock SAP (WireMock) un stub más
+  específico que hace que el `GET` de verificación previa (lookup) devuelva
+  `404` ("no existe en SAP") en vez del `201` genérico: así el flujo local
+  ejercita también la rama de alta del upsert idempotente, no solo la de
+  actualización.

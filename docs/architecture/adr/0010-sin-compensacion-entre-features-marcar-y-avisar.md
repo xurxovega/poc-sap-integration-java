@@ -47,5 +47,8 @@ una vuelta atrás, y podría fallar igual. En su lugar:
   hasta que la Fase 3 aporte el envío atómico o el upsert.
 - Quien consuma `sap.sync.alerts` (correo, ticket, panel) es una pieza de
   operación pendiente; mientras, Loki/Grafana pueden alertar sobre el `WARN`.
+- Desde el 2026-09-18 la decisión es **verificable**: cada transición lleva
+  `cycleId` y `detail`, y el aviso de fallo parcial incluye la traza completa
+  del ciclo (qué parte entró y cuál no), en vez de un `WARN` sin contexto.
 - Spec: [`../../sdd/customer/sincronizacion-cliente.md`](../../sdd/customer/sincronizacion-cliente.md) R-9;
   runbook 1 de [`../../operacion/RUNBOOKS.md`](../../operacion/RUNBOOKS.md).

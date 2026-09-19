@@ -1,5 +1,6 @@
 package com.poc.sap.customer.application.banking;
 
+import java.time.Clock;
 import com.poc.sap.common.domain.SyncState;
 import com.poc.sap.common.domain.SyncStateTransition;
 import com.poc.sap.common.domain.port.SyncStateRepositoryPort;
@@ -29,7 +30,7 @@ class ValidateBankingUseCaseTest {
 
     @BeforeEach
     void setUp() {
-        useCase = new ValidateBankingUseCase(stateRepo, metrics);
+        useCase = new ValidateBankingUseCase(stateRepo, metrics, Clock.systemUTC());
     }
 
     private Customer invalidBanking() {

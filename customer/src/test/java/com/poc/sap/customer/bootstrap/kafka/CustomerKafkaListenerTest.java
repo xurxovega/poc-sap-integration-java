@@ -13,7 +13,9 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.kafka.annotation.KafkaListener;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.lenient;
@@ -82,6 +84,61 @@ class CustomerKafkaListenerTest {
         verify(syncUseCase, never()).execute(any());
     }
 
+    /**
+     * AC-7 (sdd/common/contrato-mensaje-de-cambio.md, ADR-0013): el mensaje fino
+     * -identidad del cambio y nada mas- se acepta: ni hash ni payload.
+     */
+    @Test
+    void parsesThinMessageWithoutHashAndWithoutPayload() throws JsonProcessingException {
+        String value = """
+                {"entityId":"C-9","operation":"UPDATE","occurredAt":"2026-09-19T08:00:00Z","version":42}
+                """;
+        ConsumerRecord<String, String> record = new ConsumerRecord<>(TOPIC, 0, 0L, "C-9", value);
+
+        listener.onMessage(record);
+
+        verify(syncUseCase).execute(argThat(m ->
+                "C-9".equals(m.entityId())
+                        && m.operation() == OperationType.UPDATE
+                        && m.origin() == IngestionOrigin.CDC
+                        && m.payloadHash() == null
+                        && m.payload() == null));
+    }
+
+    /** AC-7: compatibilidad — el mensaje antiguo con payload se sigue aceptando. */
+    @Test
+    void stillParsesTheLegacyMessageCarryingThePayload() throws JsonProcessingException {
+        String value = """
+                {"entityId":"C-8","operation":"UPDATE","payloadHash":"h-8","payload":{"id":"C-8","name":"Acme"}}
+                """;
+        ConsumerRecord<String, String> record = new ConsumerRecord<>(TOPIC, 0, 0L, "C-8", value);
+
+        listener.onMessage(record);
+
+        verify(syncUseCase).execute(argThat(m ->
+                "C-8".equals(m.entityId())
+                        && "h-8".equals(m.payloadHash())
+                        && m.payload() != null
+                        && m.payload().contains("Acme")));
+    }
+
+    /**
+     * AC-8: la baja fina no tiene snapshot que releer (la fila ya no esta en el
+     * legacy). La identidad basta: se usa un hash derivado de ella.
+     */
+    @Test
+    void thinDeleteUsesAnIdentityHash() throws JsonProcessingException {
+        String value = """
+                {"entityId":"C-7","operation":"DELETE"}
+                """;
+        ConsumerRecord<String, String> record = new ConsumerRecord<>(TOPIC, 0, 0L, "C-7", value);
+
+        listener.onMessage(record);
+
+        verify(deleteUseCase).execute("C-7",
+                com.poc.sap.common.domain.PayloadHasher.ofIdentity("customer", "C-7", "DELETE"));
+    }
+
     @Test
     void malformedJsonPropagatesException() {
         ConsumerRecord<String, String> record =
@@ -135,5 +192,20 @@ class CustomerKafkaListenerTest {
         assertThatThrownBy(() -> listener.onMessage(
                 rec("{\"entityId\":\"C-1\",\"operation\":\"FROB\",\"payloadHash\":\"h\",\"payload\":{}}")))
                 .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    /**
+     * ADR-0011 / OVERVIEW.md §5: la concurrencia del listener va declarada y
+     * configurable. Sin ella Spring arranca 1 solo hilo por instancia y las 12
+     * particiones del topic no se consumen a pleno (anexo 05 §1).
+     */
+    @Test
+    void concurrencyIsDeclaredOnTheListener() throws NoSuchMethodException {
+        KafkaListener annotation = CustomerKafkaListener.class
+                .getMethod("onMessage", ConsumerRecord.class)
+                .getAnnotation(KafkaListener.class);
+
+        assertThat(annotation).isNotNull();
+        assertThat(annotation.concurrency()).isEqualTo("${customer.kafka.concurrency:3}");
     }
 }

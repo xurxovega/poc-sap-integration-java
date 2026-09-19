@@ -31,4 +31,19 @@ public interface SyncStateMongoRepository extends MongoRepository<SyncStateDoc, 
     /** Ultima transicion a un estado concreto (p. ej. el ultimo SENT_SAP), por secuencia. */
     Optional<SyncStateDoc> findFirstByDomainAndEntityIdAndStateCodeOrderBySeqDescTimestampDesc(
             String domain, String entityId, int stateCode);
+
+    /**
+     * Ultima transicion a cualquiera de los estados indicados. Con los estados
+     * finales de ciclo responde "como termino el ultimo ciclo de esta entidad",
+     * que es lo que el dedupe necesita saber (idempotencia-y-dedupe R-6).
+     */
+    Optional<SyncStateDoc> findFirstByDomainAndEntityIdAndStateCodeInOrderBySeqDescTimestampDesc(
+            String domain, String entityId, java.util.Collection<Integer> stateCodes);
+
+    /**
+     * Todas las transiciones de un ciclo, de todas sus lineas (agregado y
+     * features). Es la traza de pasos de un envio y se sirve por
+     * {@code dom_cycle_idx}.
+     */
+    List<SyncStateDoc> findByDomainAndCycleIdOrderBySeqAscTimestampAsc(String domain, String cycleId);
 }

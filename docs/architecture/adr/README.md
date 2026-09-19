@@ -19,6 +19,9 @@ reevaluación. Numeración correlativa `NNNN-titulo-en-kebab.md`.
 | [0008](0008-kubernetes-como-plataforma-de-despliegue.md) | Kubernetes, dos clústeres (test y prod), Kustomize, imagen con buildpacks | ✅ aceptada 2026-09-12 |
 | [0009](0009-trazas-con-el-starter-oficial-de-opentelemetry.md) | Trazas con el starter oficial de OTel de Boot 4, apagadas hasta tener Tempo; Prometheus/Loki los aporta la plataforma | ✅ aceptada 2026-09-12 |
 | [0010](0010-sin-compensacion-entre-features-marcar-y-avisar.md) | Sin compensación entre features: el agregado queda en error, cada parte conserva su estado y se avisa (log, topic `sap.sync.alerts`, métrica) | ✅ aceptada 2026-09-14 |
+| [0011](0011-concurrencia-entre-instancias-fencing-sin-lease.md) | Concurrencia entre instancias: fencing por `cycleId` y un solo consumer group entre clústeres, sin *lease* por entidad | ✅ aceptada 2026-09-18 |
+| [0012](0012-servicio-externo-de-autenticacion-idp.md) | Servicio externo de autenticación: Keycloak como IdP; Zitadel y authentik evaluadas | 🟡 propuesta 2026-09-18 |
+| [0013](0013-outbox-mensaje-fino-sin-payload.md) | La outbox publica un aviso de cambio **fino** (identidad, sin datos ni PII); el consumidor relee el legacy y calcula el hash sobre el snapshot | ✅ aceptada 2026-09-19 |
 
 Decisiones **pendientes** del plan de acción que acabarán aquí: D-3 (Debezium
 Server / Event Router SMT), D-4 (OData V4).

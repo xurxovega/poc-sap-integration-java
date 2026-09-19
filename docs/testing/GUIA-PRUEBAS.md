@@ -18,7 +18,7 @@
 ## Nivel 1 — Suite automática (sin Docker)
 
 ```bash
-mvn clean test          # 314 tests: unit + slice + resiliencia + smoke de contexto
+mvn clean test          # 447 tests: unit + slice + resiliencia + smoke de contexto
 ```
 
 Qué valida cada bloque y dónde mirar si falla:
@@ -26,7 +26,7 @@ Qué valida cada bloque y dónde mirar si falla:
 | Bloque | Qué prueba | Si falla |
 |---|---|---|
 | `common` dominio | Máquina de estados (estado inicial, re-sync), `ValidationResult`, dedupe Mongo | Regresión en reglas de transición |
-| `RestClientSapClientTest` | Retry en 5xx, no-retry en 4xx, cabeceras, PATCH/DELETE, CSRF completo con la auth del destino (contra WireMock embebido) | Regresión en la capa de resiliencia/CSRF |
+| `RestClientSapClientTest` | Retry en GET/DELETE ante 5xx; en POST/PATCH **solo** ante fallo de transporte anterior al envío (nunca tras un 5xx ya enviado); no-retry en 4xx; cabeceras, `If-Match`/ETag, CSRF completo con la auth del destino (contra WireMock embebido) | Regresión en la capa de resiliencia/CSRF |
 | `customer`/`article` unit | Validadores, use cases, adaptadores (payloads con `BusinessPartner` real) | Regresión funcional del pipeline |
 | `*ApplicationContextTest` | **El contexto Spring completo de cada app arranca** sin infraestructura | Bean que falta, YAML roto, incompatibilidad Boot 4 — mirar el primer `Caused by` |
 
@@ -66,6 +66,30 @@ curl -s -X POST http://localhost:8090/__admin/mappings -d '{
 }'
 ```
 
+> **Importante — verificación previa (upsert idempotente).** Por defecto
+> `sap.client.lookup.enabled=true` (`SAP_CLIENT_LOOKUP_ENABLED`,
+> `common/src/main/resources/application-common.yml`): antes de dar de alta,
+> cada feature hace un `GET` a SAP para ver si ya existe
+> (`SapOutboundPort.lookup`). Con solo el stub catch-all de arriba, ese `GET`
+> también cae en el `ANY→201`, y el pipeline lo interpreta como "SAP ya lo
+> tiene" (`SapLookup.Outcome.FOUND`) y hace `PATCH` en vez de `POST` — no es
+> el alta que se espera en el resto de esta guía. Añade también, con
+> **prioridad mayor** (número más bajo) que el catch-all, el stub de
+> verificación previa que usa `scripts/start-all.sh` (`GET` → 404 = "SAP no
+> lo tiene"):
+>
+> ```bash
+> curl -s -X POST http://localhost:8090/__admin/mappings -d '{
+>   "priority": 5,
+>   "request": { "method": "GET", "urlPattern": "/sap/opu/odata/.*" },
+>   "response": { "status": 404, "jsonBody": { "error": { "message": "not found (mock)" } } }
+> }'
+> ```
+>
+> Alternativa más simple para pruebas que no necesitan ejercitar el upsert:
+> arrancar con `SAP_CLIENT_LOOKUP_ENABLED=false` (se salta el `GET` y va
+> directa al alta, como antes de 2026-09-18).
+
 ### 2.3 Arrancar customer-app
 
 ```bash
@@ -85,6 +109,14 @@ Verifica el arranque: `curl http://localhost:8081/actuator/health` → `{"status
 
 ## Nivel 3 — Probar el flujo REST (el más directo)
 
+> **Sin escribir los `curl` a mano**: cada servicio publica su contrato REST en
+> `customer/src/main/resources/openapi.yml` y `article/src/main/resources/openapi.yml`.
+> Se importan en Postman, Bruno o Swagger UI, se elige el servidor (local o test)
+> y se pone el token de Keycloak. Pasos detallados en
+> [`../QUICK_START.md`](../QUICK_START.md#probar-la-api-con-el-openapi); token en
+> [`../tools-integrations/KEYCLOAK.md`](../tools-integrations/KEYCLOAK.md);
+> regla en [`../sdd/common/contrato-openapi-rest.md`](../sdd/common/contrato-openapi-rest.md).
+
 El endpoint de ingesta reusa el mismo pipeline que CDC. El use case
 **re-lee la entidad de SQL Server por `entityId`**, así que usa un id
 seedeado (`CUST-001` o `CUST-002`):
@@ -94,9 +126,7 @@ curl -s -X POST http://localhost:8081/customers/sync \
   -H "Content-Type: application/json" \
   -d '{
     "entityId": "CUST-001",
-    "operation": "UPDATE",
-    "payloadHash": "prueba-manual-001",
-    "payload": "{}"
+    "operation": "UPDATE"
   }'
 # → {"entityId":"CUST-001","state":"SENT_SAP"}
 ```
@@ -104,24 +134,35 @@ curl -s -X POST http://localhost:8081/customers/sync \
 Verificaciones (cada una confirma una pieza):
 
 ```bash
-# 1. ¿Qué recibió el "SAP"? (4 llamadas: address, fiscal, contact, banking)
-curl -s http://localhost:8090/__admin/requests | jq '.requests[] | {url: .request.url, body: .request.body}'
+# 1. ¿Qué recibió el "SAP"? Con la verificación previa activa (§2.2) verás,
+#    por cada feature, primero el GET de lookup y luego el POST/PATCH de alta
+#    o actualización (address, fiscal, contact, banking)
+curl -s http://localhost:8090/__admin/requests | jq '.requests[] | {method: .request.method, url: .request.url, body: .request.body}'
 
-# 2. Estado y trazabilidad en Mongo (BD customer: sync_state + imagen)
+# 2. Estado y trazabilidad en Mongo (BD customer: sync_state + imagen). Cada
+#    línea de feature comparte cycleId con el resto de la misma tanda: sirve
+#    para reconstruir la traza completa de un ciclo con una sola consulta
 docker exec mongodb mongosh customer --quiet --eval \
-  'db.sync_state.find({entityId:"CUST-001"},{stateCode:1,payloadHash:1,timestamp:1}).sort({timestamp:1})'
+  'db.sync_state.find({entityId:"CUST-001"},{stateCode:1,payloadHash:1,cycleId:1,timestamp:1}).sort({timestamp:1})'
 docker exec mongodb mongosh customer --quiet --eval \
   'db.customers_current.findOne({_id:"CUST-001"})'
+
+# 2b. Claves de SAP recordadas por la verificación previa (colección sap_keys:
+#     AddressID/RelationshipNumber/BankIdentification, una fila por feature)
+docker exec mongodb mongosh customer --quiet --eval \
+  'db.sap_keys.find({entityId:"CUST-001"})'
 
 # 3. Histórico en Elasticsearch
 curl -s "http://localhost:9200/customers_history/_search?q=customerId:CUST-001" | jq '.hits.total'
 ```
 
-**Probar el dedupe de idempotencia**: repite el mismo `curl` con el mismo
-`payloadHash` → responde `SENT_SAP` al instante y en el log verás el salto por
-dedupe; el mock no recibe llamadas nuevas (compara el contador de
-`__admin/requests`). Cambia el hash y verás el ciclo completo otra vez
-(re-sync `SENT_SAP → RECEIVED`).
+**Probar el dedupe de idempotencia**: repite el mismo `curl` → responde
+`SENT_SAP` al instante y en el log verás el salto por dedupe; el mock no recibe
+llamadas nuevas (compara el contador de `__admin/requests`). El hash ya no lo
+manda el cliente: se calcula sobre el estado releído del legacy (ADR-0013), así
+que para ver el ciclo completo otra vez hay que **cambiar el dato en SQL Server**
+(`UPDATE poc.dbo.customers SET city = 'Vigo' WHERE id = 'CUST-001'`) y repetir
+el `curl` (re-sync `SENT_SAP → RECEIVED`).
 
 ---
 
@@ -153,9 +194,10 @@ docker exec sqlserver-source /opt/mssql-tools18/bin/sqlcmd -C \
 # a) El trigger escribió en la outbox
 docker exec sqlserver-source /opt/mssql-tools18/bin/sqlcmd -C \
   -S localhost -U sa -P 'SqlServer_Pa55w0rd!' -d poc \
-  -Q "SELECT TOP 3 id, entity_id, operation, created_at FROM dbo.outbox_customer ORDER BY id DESC"
+  -Q "SELECT TOP 3 id, entity_id, operation, occurred_at, message FROM dbo.outbox_customer ORDER BY id DESC"
 
-# b) Debezium lo publicó en el topic (key=entityId, value=JSON del contrato)
+# b) Debezium lo publicó en el topic (key=entityId, value=aviso fino:
+#    {"entityId":"CUST-001","operation":"UPDATE","occurredAt":"..."} — sin datos)
 docker exec kafka-broker kafka-console-consumer \
   --bootstrap-server localhost:9092 --topic outbox.CUSTOMER \
   --from-beginning --property print.key=true --max-messages 5
@@ -192,12 +234,40 @@ curl -s -X POST http://localhost:8081/customers/sync -H "Content-Type: applicati
 # → state SAP_ERROR
 ```
 
-Verifica: en `__admin/requests` cada llamada aparece **3 veces** (retry con
-backoff exponencial); el estado en Mongo queda `SAP_ERROR` (recuperable:
-`SAP_ERROR → SENDING_SAP`). Si insistes ~10 veces, el circuit breaker abre y
-las llamadas dejan de salir durante 30 s (configurable en `sap.client.*`).
+Verifica: **ojo, el número de intentos depende del método** — política por
+método y por fase del fallo (`RestClientSapClient.retryFor`,
+`common/src/main/java/com/poc/sap/common/sap/RestClientSapClient.java`):
+- `GET`/`DELETE` (idempotentes) y `PATCH` con `If-Match`: sí se reintentan,
+  hasta `SAP_CLIENT_RETRY_MAX_ATTEMPTS` (**3** por defecto) ante un 5xx.
+- `POST` (alta) y `PATCH` sin `If-Match` **no son idempotentes**: solo se
+  reintentan si el fallo ocurrió **antes de enviar** la petición (timeout de
+  conexión, DNS...); un 503 ya respondido **no se reintenta** — verás **1
+  sola llamada** en `__admin/requests`, no 3 (`SAP_CLIENT_RETRY_WRITE_MAX_ATTEMPTS`,
+  por defecto **2**, solo cuenta para esos fallos de transporte previos al
+  envío). Con el stub 503 de arriba (responde tras "recibir" la petición), la
+  llamada de alta de CUST-001 caerá en `SAP_ERROR` tras **1** intento.
+
+El estado en Mongo queda `SAP_ERROR` (recuperable: `SAP_ERROR → SENDING_SAP`).
+Puedes ver la traza paso a paso del ciclo (incluye `detail` con el motivo) con
+`GET /customers/{id}/state` (`CustomerStateController`,
+`customer/src/main/java/com/poc/sap/customer/bootstrap/web/CustomerStateController.java`):
+
+```bash
+curl -s http://localhost:8081/customers/CUST-001/state | jq
+```
+
+Si insistes ~10 veces, el circuit breaker abre y las llamadas dejan de salir
+durante 30 s (configurable en `sap.client.*`).
 Borra el stub 503 (`curl -X DELETE http://localhost:8090/__admin/mappings/<id>`)
 para restaurar.
+
+> **Concurrencia (409):** si dos ciclos (p. ej. un reintento REST y un evento
+> Kafka) procesan la misma entidad a la vez, el segundo que intenta escribir
+> en `sync_state` sobre una cabecera ya movida recibe
+> `ConcurrentTransitionException` y el endpoint REST devuelve **409** con un
+> `ProblemDetail` sin identificadores de negocio en el detalle
+> (`SyncCustomerController.onConcurrentTransition`). No es un fallo: el
+> llamante debe reintentar.
 
 ### 5.2 DLT (mensaje envenenado en Kafka)
 
@@ -264,7 +334,9 @@ mvn -pl customer spring-boot:run
 ## Plan de pruebas (con todos los servicios levantados)
 
 > Precondición común a todos los casos: infraestructura arriba (§2.1), mock de
-> SAP en `:8090` con el stub catch-all 201 (§2.2), conectores Debezium
+> SAP en `:8090` con el stub catch-all 201 **y** el stub de verificación
+> previa `GET /sap/opu/odata/.*` → 404 (§2.2, imprescindible con
+> `SAP_CLIENT_LOOKUP_ENABLED=true` por defecto), conectores Debezium
 > registrados (§4.1) y `customer-app` corriendo en `:8081` (§2.3). Ejecutar en
 > orden: algunos casos dependen del anterior. Tras cada caso, la columna
 > "verificar en" indica dónde mirar y qué debe verse.
@@ -298,7 +370,7 @@ mvn -pl customer spring-boot:run
 1. Llama al API de ingesta:
    ```bash
    curl -s -X POST http://localhost:8081/customers/sync -H "Content-Type: application/json" \
-     -d '{"entityId":"CUST-001","operation":"UPDATE","payloadHash":"cp02-'$(date +%s)'","payload":"{}"}'
+     -d '{"entityId":"CUST-001","operation":"UPDATE"}'
    ```
 2. **Verificar en** la respuesta: `"state":"SENT_SAP"`.
 3. **Verificar en** el mock (`curl -s localhost:8090/__admin/requests | jq '.meta.total'`):
@@ -312,16 +384,20 @@ mvn -pl customer spring-boot:run
 5. **Verificar en** Mongo la imagen (`db.customers_current.findOne({_id:"CUST-001"})`)
    y en ES el histórico (`curl -s "localhost:9200/customers_history/_search?q=customerId:CUST-001"`).
 
-### CP-03 — Idempotencia (mismo payloadHash)
+### CP-03 — Idempotencia (el legacy no ha cambiado)
 
-1. Repite el `curl` de CP-02 con **el mismo** `payloadHash` (cópialo, no uses `date`).
+1. Repite **tal cual** el `curl` de CP-02, sin tocar nada en SQL Server.
 2. **Verificar en** la respuesta: `SENT_SAP` inmediato.
 3. **Verificar en** el mock: el contador `meta.total` **no aumenta**.
-4. **Verificar en** el log de customer-app: mensaje de dedupe/salto por hash ya enviado.
+4. **Verificar en** el log de customer-app: mensaje de dedupe con el hash **del
+   snapshot** (`payloadHash=... (del snapshot)`).
 
-### CP-04 — Re-sincronización (hash nuevo sobre entidad ya enviada)
+### CP-04 — Re-sincronización (el legacy sí ha cambiado)
 
-1. Repite el `curl` de CP-02 con un `payloadHash` distinto.
+1. Cambia el dato en el legacy y repite el `curl` de CP-02:
+   ```bash
+   docker exec -it sqlserver-source /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa      -P 'SqlServer_Pa55w0rd!' -C -Q "UPDATE poc.dbo.customers SET city = 'Vigo' WHERE id = 'CUST-001'"
+   ```
 2. **Verificar**: ciclo completo de nuevo (la re-entrada `SENT_SAP → RECEIVED`
    es legal) — nueva tanda de estados en `sync_state` y +4 llamadas al mock.
 
@@ -405,7 +481,9 @@ mvn -pl customer spring-boot:run
 1. Añade el stub 503 prioritario (§5.1) al mock.
 2. Lanza un sync REST de `CUST-001` con hash nuevo.
 3. **Verificar en** la respuesta: `"state":"SAP_ERROR"`.
-4. **Verificar en** el mock: cada URL aparece **3 veces** (reintentos con backoff).
+4. **Verificar en** el mock: cada URL de alta (`POST`) aparece **1 vez** — no
+   se reintenta un 5xx ya respondido en una escritura no idempotente (§5.1);
+   solo un `GET` de lookup fallido (transporte) se reintentaría.
 5. **Verificar en** Mongo: última transición `SAP_ERROR` (estado recuperable) y la
    **imagen sin cambios** (`customers_current`): solo se actualiza tras el ACK de
    SAP ([`../sdd/common/idempotencia-y-dedupe.md`](../sdd/common/idempotencia-y-dedupe.md) R-4).

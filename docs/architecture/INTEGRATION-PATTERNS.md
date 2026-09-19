@@ -8,12 +8,25 @@
 > nombres de clase; [`OVERVIEW.md`](OVERVIEW.md) la arquitectura general;
 > [`../sdd/README.md`](../sdd/README.md) el estado por feature y por brecha.
 
+## Las tres vías con SAP
+
+Documentación externa del propietario del proyecto (Confluence, espacio SAP,
+carpeta **"S4 Public"**): <https://xurxovegasilva.atlassian.net/wiki/spaces/SAP/folder/4063233/S4+Public>.
+**Requiere sesión**: no se ha podido leer desde este repositorio; lo que sigue
+es lo verificable desde el código y la documentación interna.
+
+| Vía | Sentido de la llamada | Estado | Componentes de código | Contrato | Auth | Qué falta | Quién lo desbloquea |
+|---|---|---|---|---|---|---|---|
+| **BTP** (API propia intermedia en BTP) | ambos (push del lado plataforma implementado; pull propuesto, no implementado) | El servicio BTP funciona por sí solo y se ha probado en el espacio del propietario, pero falta integrarlo con esta aplicación: **ni SAP llamando a nuestro servicio ni nuestro servicio llamando a SAP a través de BTP se ha probado extremo a extremo** (D-10, [ADR-0004](adr/0004-dos-familias-de-adaptadores-btp-y-odata.md) §5) | `customer/adapters/sap/Btp*Adapter.java` (`BtpAddressAdapter`, `BtpFiscalAdapter`, `BtpContactAdapter`, `BtpBankingAdapter`, `BtpCustomerAdapter`) → `RestClientSapClient` | `/sap/btp/odata/*`, **contrato propuesto por este proyecto**, no una spec oficial de SAP | OAuth2 xsuaa client-credentials real, con fallback a token stub solo si falta configuración | Fijar el contrato real contra el servicio del propietario; probar extremo a extremo en ambos sentidos; checklist de tenant (§9 de este documento) | El propietario del servicio BTP (documentación en Confluence, arriba) |
+| **API OData directa** (S/4 nativo) | app → SAP (push) | ✅ Implementado end-to-end, pendiente validar contra tenant real | `customer/adapters/sap/odata/BusinessPartner*ODataAdapter.java`, `SepaMandateODataAdapter.java`; `article/adapters/sap/S4ArticleAdapter.java` | Specs OpenAPI oficiales de SAP en [`sdd/sap-api-catalog.md`](../sdd/sap-api-catalog.md) | OAuth2 client-credentials o basic (`OAuth2TokenClient`) | Validar contra el tenant de test ([`CHECKLIST-TENANT-SAP.md`](../testing/CHECKLIST-TENANT-SAP.md)); upsert idempotente (PRD-11) | Quien tenga acceso al tenant de test |
+| **Event Mesh** (S/4 → plataforma) | SAP → app | 🔮 Propuesto (Patrón 5, más abajo); **sin código** en el reactor (`grep` de `Event Mesh` sobre `**/src/main/**`: 0 resultados) | Ninguno | Business Events de S/4 vía SAP Event Mesh / Advanced Event Mesh — sin diseño cerrado | A definir junto con el mecanismo (Event Mesh vs webhook de iFlow) | Contrato de Business Events, adaptador de entrada nuevo, autenticación del consumidor, checklist de tenant | El equipo de SAP (decisión pendiente) |
+
 ## Resumen de estado
 
 | # | Patrón | Dirección | Estado |
 |---|--------|-----------|--------|
 | 1 | CDC/Kafka → API nativa S/4 (OData) | Plataforma → SAP | ✅ Implementado end-to-end (pendiente validar contra tenant real) |
-| 2 | CDC/Kafka → API BTP intermedia | Plataforma → BTP → SAP | ✅ Implementado del lado plataforma; el servicio BTP intermedio no existe aún (contrato placeholder) |
+| 2 | CDC/Kafka → API BTP intermedia | Plataforma ↔ BTP ↔ SAP | 🚧 El servicio BTP funciona por sí solo y se ha probado en el espacio del propietario, pero falta integrarlo con esta aplicación (ver tabla de arriba) |
 | 3 | Pull: BTP llama a endpoint publicado y actualiza SAP | SAP → Plataforma → SAP | 🔮 Implementación futura |
 | 4 | Batch fin de día / D+1 (disparado por topic Kafka) | Plataforma → SAP | 🔮 Implementación futura (reutiliza los mecanismos existentes) |
 | 5 | Eventos desde S/4 — principalmente actualización de stock | SAP → Plataforma | 🔮 Implementación futura (pendiente de decisión del equipo SAP) |
@@ -41,11 +54,11 @@ sequenceDiagram
 
     DB->>OB: INSERT/UPDATE/DELETE (trigger AFTER)
     OB->>DZ: captura CDC
-    DZ->>K: JSON {entityId, operation, payloadHash, payload}
+    DZ->>K: JSON fino {entityId, operation, occurredAt}
     K->>L: consume (key = entityId → orden por entidad)
     L->>UC: execute(IngestionMessage)
-    Note over UC: dedupe alreadySent(payloadHash)<br/>→ si ya enviado, corta aquí
-    UC->>DB: re-fetch estado actual
+    UC->>DB: re-fetch estado actual (unica fuente de datos)
+    Note over UC: hash = PayloadHasher(snapshot)<br/>dedupe alreadySent(hash)<br/>→ si ya enviado, corta aqui
     UC->>UC: validar (address/fiscal/contact/banking)
     UC->>ST: imagen actual + transición de estado
     UC->>ES: histórico
@@ -100,12 +113,18 @@ sequenceDiagram
 
 **Estado**: el lado plataforma está implementado (`Btp*Adapter` con DTOs
 propios, destino `SapDestination.BTP`, OAuth2 xsuaa real con fallback stub).
-**Lo que falta es el otro extremo**: la API BTP intermedia **no existe
-todavía** — los paths (`/CustomerAddress`, ...) y los DTOs son un contrato
-placeholder que hay que fijar cuando se decida la tecnología del
-intermediario (CAP vs Integration Suite). Los adaptadores BTP y OData son
-excluyentes por configuración (`sap.odata.<feature>.enabled`): cada feature
-puede enrutar por el patrón 1 o el 2 sin tocar código.
+**El servicio BTP funciona por sí solo y se ha probado en el espacio del
+propietario** (dato del propietario del proyecto, no verificable desde este
+repositorio — la documentación vive en Confluence, ver "Las tres vías con
+SAP" más arriba), **pero falta integrarlo con esta aplicación**: ni SAP
+llamando a nuestro servicio ni nuestro servicio llamando a SAP a través de
+BTP se ha probado extremo a extremo. En **el código de este repositorio**,
+los paths (`/sap/btp/odata/*`, `/CustomerAddress`, ...) y los DTOs siguen
+siendo un contrato propuesto ([ADR-0004](adr/0004-dos-familias-de-adaptadores-btp-y-odata.md)
+§5, decisión D-10: la familia BTP se mantiene) que hay que fijar contra el
+servicio real cuando se acometa esa integración. Los adaptadores BTP y OData
+son excluyentes por configuración (`sap.odata.<feature>.enabled`): cada
+feature puede enrutar por el patrón 1 o el 2 sin tocar código.
 
 ---
 
@@ -175,7 +194,7 @@ sequenceDiagram
     BL->>DB: SELECT modificados desde el último corte<br/>(o snapshot del dominio)
     loop por lotes de N entidades
         BL->>UC: execute(IngestionMessage origin=BATCH)
-        Note over UC: dedupe por payloadHash:<br/>lo ya enviado por CDC no se reenvía
+        Note over UC: dedupe por el hash del snapshot:<br/>lo ya enviado por CDC no se reenvia
         UC->>CL: envíos por feature
         CL->>S4: POST/PATCH (o /$batch con changesets)
         S4-->>CL: respuestas
@@ -183,9 +202,10 @@ sequenceDiagram
     BL->>BL: informe del corte (procesados / saltados / errores)
 ```
 
-**Ventaja del diseño actual**: `IngestionPort` ya anticipa múltiples fuentes y
-el dedupe por `payloadHash` hace que CDC y batch convivan sin duplicar envíos
-— implementar esto es añadir un listener/adaptador, no tocar el pipeline. El
+**Ventaja del diseño actual**: el pipeline ya admite varias fuentes llamando
+directamente al mismo use case (CDC y REST lo hacen hoy) y el dedupe por
+El hash del snapshot hace que CDC y batch convivan sin duplicar envíos — implementar
+esto es añadir un listener/adaptador nuevo, no tocar el pipeline. El
 soporte `$batch` (agrupar operaciones por request, con changesets atómicos)
 habría que añadirlo a `SapClient`; la spec oficial ya documenta el endpoint
 `/$batch`.
@@ -202,14 +222,30 @@ mecanismo de publicación (Event Mesh, webhook del iFlow, u otro).
 ```mermaid
 flowchart LR
     S4[S/4 Public Cloud<br/>Business Events<br/>p.ej. stock / mov. mercancía] --> EM[SAP Event Mesh /<br/>Advanced Event Mesh]
-    EM -->|webhook o AMQP| IN[Consumer plataforma<br/>nuevo adaptador IngestionPort]
+    EM -->|webhook o AMQP| IN[Consumer plataforma<br/>nuevo, llama al use case<br/>igual que CDC/REST hoy]
     IN --> P[Pipeline actual<br/>validar → imagen → histórico]
     P --> LG[(Legacy DB /<br/>Weyland Yutani)]
 ```
 
 Sin diseño cerrado: cuando el equipo de SAP confirme el mecanismo, el
-consumer encaja como un adaptador más de `IngestionPort` reutilizando el
-pipeline actual (validación, imagen, histórico, trazabilidad).
+consumer encaja reutilizando el pipeline actual (validación, imagen,
+histórico, trazabilidad) llamando directamente al use case, igual que hacen
+hoy el listener Kafka y el controller REST (no hay puerto `IngestionPort`:
+se borró por no tener implementaciones, auditoría A18).
+
+**Qué haría falta, sin código todavía**:
+
+- **Mecanismo de transporte**: Event Mesh vs webhook del iFlow — sin decidir.
+- **Contrato de los Business Events**: esquema del evento (tipo, payload,
+  versión), origen y correlación con la entidad local.
+- **Adaptador de entrada nuevo**: un consumer (`EventMeshCustomerListener` o
+  equivalente) que traduzca el evento al mismo `IngestionMessage` que hoy usan
+  CDC y REST.
+- **Autenticación del consumidor**: quién valida el mensaje entrante y con
+  qué credencial (OAuth2 del lado de Event Mesh, o el que fije el equipo SAP).
+- **Checklist de tenant**: no existe hoy sección Event Mesh en
+  [`CHECKLIST-TENANT-SAP.md`](../testing/CHECKLIST-TENANT-SAP.md); habría que
+  añadirla cuando el mecanismo esté decidido.
 
 ---
 

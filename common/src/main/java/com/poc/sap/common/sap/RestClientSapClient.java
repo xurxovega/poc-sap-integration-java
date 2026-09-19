@@ -57,10 +57,13 @@ public class RestClientSapClient implements SapClient {
     private static final Logger log = LoggerFactory.getLogger(RestClientSapClient.class);
     private static final String CSRF_HEADER = "x-csrf-token";
     private static final String CSRF_REQUIRED = "Required";
+    /** Nombre de la configuracion y de la instancia del retry de escrituras no idempotentes. */
+    static final String WRITE_RETRY = "sap-write";
 
     private final Map<SapDestination, RestClient> clients = new EnumMap<>(SapDestination.class);
     private final Map<SapDestination, SapAuthProvider> authProviders;
     private final Retry retry;
+    private final Retry retryWrite;
     private final CircuitBreaker circuitBreaker;
     private final CsrfTokenProvider csrfProvider;
     private final String s4BaseUrl;
@@ -96,6 +99,7 @@ public class RestClientSapClient implements SapClient {
         this.meterRegistry = meterRegistry;
         this.authProviders = authProviders;
         this.retry = retryRegistry.retry("sap");
+        this.retryWrite = writeRetry(retryRegistry);
         this.circuitBreaker = cbRegistry.circuitBreaker("sap");
         this.csrfProvider = csrfProvider;
         this.s4BaseUrl = s4BaseUrl;
@@ -120,32 +124,32 @@ public class RestClientSapClient implements SapClient {
     @Override
     public SapResponse send(SapDestination destination, String path, String entityId,
                             String payloadHash, String body) {
-        return exchange(destination, path, entityId, payloadHash, body, HttpMethod.POST);
+        return exchange(destination, path, entityId, payloadHash, body, HttpMethod.POST, null);
     }
 
     @Override
     public SapResponse get(SapDestination destination, String path) {
-        return exchange(destination, path, null, null, null, HttpMethod.GET);
+        return exchange(destination, path, null, null, null, HttpMethod.GET, null);
     }
 
     @Override
     public SapResponse patch(SapDestination destination, String path, String entityId,
-                             String payloadHash, String body) {
-        return exchange(destination, path, entityId, payloadHash, body, HttpMethod.PATCH);
+                             String payloadHash, String body, String ifMatch) {
+        return exchange(destination, path, entityId, payloadHash, body, HttpMethod.PATCH, ifMatch);
     }
 
     @Override
-    public SapResponse delete(SapDestination destination, String path) {
-        return exchange(destination, path, null, null, null, HttpMethod.DELETE);
+    public SapResponse delete(SapDestination destination, String path, String ifMatch) {
+        return exchange(destination, path, null, null, null, HttpMethod.DELETE, ifMatch);
     }
 
     private SapResponse exchange(SapDestination destination, String path, String entityId,
-                                 String payloadHash, String body, HttpMethod method) {
-        Supplier<RawResponse> attempt = () -> doExchange(destination, path, payloadHash, body, method);
+                                 String payloadHash, String body, HttpMethod method, String ifMatch) {
+        Supplier<RawResponse> attempt = () -> doExchange(destination, path, payloadHash, body, method, ifMatch);
         // Circuit breaker POR FUERA del retry: con el circuito abierto no hay nada
         // que reintentar (auditoria B13).
         Supplier<RawResponse> resilient = CircuitBreaker.decorateSupplier(circuitBreaker,
-                Retry.decorateSupplier(retry, attempt));
+                Retry.decorateSupplier(retryFor(method, ifMatch), attempt));
         try {
             RawResponse response = resilient.get();
             if (isCsrfRejection(destination, method, response)) {
@@ -161,7 +165,14 @@ public class RestClientSapClient implements SapClient {
             log.error("Error SAP {} {} entityId={} status={} tras reintentos", method, destination, entityId, e.status());
             return new SapResponse(e.status(), e.getMessage(), null);
         } catch (IllegalArgumentException e) {
-            throw e;
+            // UnresolvedAddressException TAMBIEN es IllegalArgumentException: un fallo
+            // de DNS no es un error de programacion y no puede acabar en la DLT sin
+            // un solo reintento (spec R-8).
+            if (TransportFailures.isConfigurationError(e)) {
+                throw e;
+            }
+            log.error("Error de transporte SAP {} {} entityId={}", method, destination, entityId, e);
+            return new SapResponse(0, e.getMessage(), null);
         } catch (Exception e) {
             log.error("Error de transporte SAP {} {} entityId={}", method, destination, entityId, e);
             return new SapResponse(0, e.getMessage(), null);
@@ -169,7 +180,7 @@ public class RestClientSapClient implements SapClient {
     }
 
     private RawResponse doExchange(SapDestination destination, String path, String payloadHash,
-                                   String body, HttpMethod method) {
+                                   String body, HttpMethod method, String ifMatch) {
         RestClient client = clients.get(destination);
         SapAuthProvider auth = authProviders.get(destination);
         if (client == null || auth == null) {
@@ -182,6 +193,9 @@ public class RestClientSapClient implements SapClient {
                 .header(HttpHeaders.AUTHORIZATION, auth.authorizationHeader());
         if (payloadHash != null) {
             request.header("Idempotency-Key", payloadHash);
+        }
+        if (ifMatch != null && !ifMatch.isBlank()) {
+            request.header(HttpHeaders.IF_MATCH, ifMatch);
         }
         applyCsrf(destination, method, auth, request);
         if (method == HttpMethod.POST || method == HttpMethod.PATCH || method == HttpMethod.PUT) {
@@ -201,6 +215,36 @@ public class RestClientSapClient implements SapClient {
         } finally {
             recordRequest(destination, method, outcome, System.nanoTime() - start);
         }
+    }
+
+    /**
+     * Politica de reintento por METODO y por FASE del fallo (spec R-1 reescrita, R-8).
+     * GET y DELETE son idempotentes por definicion, y un PATCH con {@code If-Match}
+     * lo es porque un segundo intento con el ETag ya consumido da 412 en vez de una
+     * doble escritura. Todo lo demas solo se reintenta si el fallo ocurrio ANTES de
+     * que la peticion saliera.
+     */
+    private Retry retryFor(HttpMethod method, String ifMatch) {
+        boolean idempotent = method == HttpMethod.GET
+                || method == HttpMethod.DELETE
+                || (method == HttpMethod.PATCH && ifMatch != null && !ifMatch.isBlank());
+        return idempotent ? retry : retryWrite;
+    }
+
+    /**
+     * Retry de las escrituras no idempotentes: hereda intervalo y numero de intentos
+     * de la configuracion {@code sap-write} del registry (o de la general si no se
+     * declaro) y le impone el predicado de fase, que es lo que no se puede delegar
+     * en configuracion.
+     */
+    private static Retry writeRetry(RetryRegistry registry) {
+        io.github.resilience4j.retry.RetryConfig base = registry.getConfiguration(WRITE_RETRY)
+                .orElseGet(registry::getDefaultConfig);
+        io.github.resilience4j.retry.RetryConfig write =
+                io.github.resilience4j.retry.RetryConfig.from(base)
+                        .retryOnException(TransportFailures::isBeforeSend)
+                        .build();
+        return registry.retry(WRITE_RETRY, write);
     }
 
     /** Una muestra por intento HTTP real (los reintentos cuentan cada uno), spec observabilidad R-3. */
@@ -265,7 +309,9 @@ public class RestClientSapClient implements SapClient {
     /** Respuesta cruda, con cabeceras, antes de normalizar a {@link SapResponse}. */
     private record RawResponse(int status, String body, HttpHeaders headers) {
         SapResponse toSapResponse() {
-            return new SapResponse(status, body, headers.getFirst(HttpHeaders.LOCATION));
+            return new SapResponse(status, body,
+                    headers.getFirst(HttpHeaders.LOCATION),
+                    headers.getFirst(HttpHeaders.ETAG));
         }
     }
 

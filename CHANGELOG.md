@@ -20,6 +20,91 @@ identifican por fecha.
 
 ## [Sin publicar]
 
+### 2026-09-19 — Los avisos de cambio ya no llevan datos personales; el sistema siempre envía a SAP el estado actual
+
+#### Cambiado
+
+- Cuando algo cambia en un sistema de origen, el aviso que circula por la cola
+  **ya no lleva los datos del cliente ni del artículo**: solo dice qué ficha ha
+  cambiado y cuándo. Nombres, direcciones, correos, teléfonos e IBAN dejan de
+  copiarse a un sitio más del que nadie había fijado cuánto se guardan.
+- Al atender ese aviso, el sistema **va a buscar la ficha tal y como está en ese
+  momento** y es eso lo que envía a SAP. Si un aviso llega tarde o se reprocesa,
+  ya no puede escribir en SAP una versión antigua: siempre gana el estado actual.
+- Como consecuencia, repetir un envío ya no depende de lo que diga el mensaje:
+  si la ficha no ha cambiado, no se vuelve a escribir en SAP. El primer aviso de
+  cada ficha tras la puesta en marcha sí provoca un envío de puesta al día.
+- Llamar al servicio a mano es más simple: basta indicar la ficha.
+
+### 2026-09-18 — Antes de escribir en SAP se pregunta qué tiene; el aviso de fallo parcial ya cuenta paso a paso qué entró y qué no
+
+#### Añadido
+
+- Cada servicio publica su **contrato de API en un fichero estándar** que se
+  puede compartir e importar para probarlo: dice qué se puede pedir, qué
+  devuelve, qué permiso hace falta y trae ejemplos, y se puede apuntar tanto al
+  entorno local como al de pruebas. El fichero no se queda viejo: si la API
+  cambia y el contrato no, la compilación falla.
+- Antes de dar de alta cualquier dato en SAP, la aplicación **pregunta primero**
+  qué tiene SAP: si ya existe, lo actualiza; si no, lo crea; y si SAP no
+  contesta, no escribe nada. Así un reintento actualiza en vez de duplicar.
+- Los **datos de contacto** —email, teléfono, fax y página web— por fin viajan
+  a SAP. Antes el envío iba vacío y SAP lo habría rechazado.
+- Documentadas **las tres vías de comunicación con SAP** (llamada directa,
+  servicio intermedio en BTP, eventos desde SAP) y el estado real de cada una:
+  solo la llamada directa está probada de punta a punta; el servicio
+  intermedio existe pero todavía no se ha conectado con esta aplicación; los
+  eventos desde SAP siguen siendo una propuesta sin diseño.
+- Propuesta de **servicio de autenticación**: se recomienda mantener el
+  proveedor de identidad actual frente a dos alternativas de mercado
+  evaluadas; la decisión final queda para quien es dueño del proyecto.
+
+#### Cambiado
+
+- Cuando una parte del cliente (dirección, datos fiscales, contacto o banco)
+  no llega a SAP, el cliente queda marcado para revisión **siempre**, y el
+  aviso ya explica paso a paso qué entró y qué no, en vez de quedarse callado
+  cuando la causa era que SAP estaba caído.
+- Un reenvío que antes podía **duplicar** una entrada en SAP por una respuesta
+  lenta ya no se repite a ciegas: solo se reintenta cuando es seguro que la
+  primera petición nunca llegó a salir.
+- **Dos instancias o dos centros de datos** trabajando a la vez sobre el mismo
+  cliente ya no pierden el cambio en la cola de mensajes fallidos: la
+  colisión se detecta y el mensaje se reintenta en vez de descartarse en
+  silencio sin que nadie se entere.
+- Un cliente que quedó con un aviso de error tras un envío incompleto ya no se
+  da por sincronizado solo porque se repite el mismo dato: el sistema recuerda
+  que la última vez no todo llegó a SAP y vuelve a intentarlo entero.
+
+#### Corregido
+
+- Un fallo de red pasajero (no encontrar la dirección de SAP) se trataba como
+  un error de programación y el mensaje se descartaba sin reintentar. Ahora se
+  reintenta como cualquier otro problema de red temporal.
+- Las **reglas de arquitectura** que el proyecto decía vigilar en cada compilación
+  (el núcleo de negocio sin dependencias técnicas, y ningún endpoint sin control
+  de acceso declarado) **no se estaban ejecutando** desde la migración a la
+  versión actual de la plataforma: pasaban en verde sin comprobar nada. Ahora se
+  ejecutan de verdad y, comprobadas por primera vez, no encuentran ninguna
+  violación.
+
+#### Pendiente
+
+- Verificar contra el **tenant real de SAP** todo lo marcado "a confirmar en
+  tenant": el comportamiento del alta/actualización, el formato del
+  identificador de dirección que asigna SAP, y el envío real de contacto.
+- La integración **extremo a extremo con el servicio intermedio de BTP**
+  sigue sin probarse en ninguno de los dos sentidos.
+- El mecanismo de **eventos desde SAP** hacia esta aplicación sigue sin
+  diseño.
+- La decisión sobre **qué servicio de autenticación** usar queda en
+  propuesta, pendiente de quien es dueño del proyecto.
+- Las pruebas que necesitan un entorno con contenedores no se han podido
+  ejecutar en esta máquina.
+- El registro histórico de features (quién pidió qué y cuándo) sigue sin
+  actualizarse con el trabajo de hoy: su base de datos no está disponible en
+  esta máquina.
+
 ### 2026-09-14 — Cuando una parte del cliente no llega a SAP, se sabe cuál y se avisa (decisión D-2)
 
 #### Cambiado

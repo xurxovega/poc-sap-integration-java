@@ -16,6 +16,10 @@ import java.util.Locale;
 
 /**
  * Listener Kafka para CDC (Debezium) del dominio Article.
+ *
+ * <p><b>Mensaje fino</b> (ADR-0013): el aviso solo lleva la identidad del cambio;
+ * el estado actual lo relee el use case del legacy. Los mensajes antiguos con
+ * {@code payloadHash}/{@code payload} se siguen aceptando por compatibilidad.
  * Los errores se propagan al error handler del contenedor (DLT + backoff).
  */
 @Component
@@ -33,8 +37,14 @@ public class ArticleKafkaListener {
         this.syncUseCase = syncUseCase;
     }
 
+    // concurrency declarado (ADR-0011): hilos por instancia. La regla es
+    // particiones >= instancias x concurrency; con 12 particiones y 3 hilos
+    // caben 4 instancias entre los dos clusters. Un solo consumer group
+    // compartido por todos los clusters: grupos distintos harian que cada
+    // cluster escribiera el mismo cambio en SAP.
     @KafkaListener(topics = "${article.kafka.topic:outbox.ARTICLE}",
-                   groupId = "${article.kafka.group:article-consumer}")
+                   groupId = "${article.kafka.group:article-consumer}",
+                   concurrency = "${article.kafka.concurrency:3}")
     public void onMessage(ConsumerRecord<String, String> record) throws JsonProcessingException {
         log.info("Kafka article recibido key={} offset={}", record.key(), record.offset());
         if (record.value() == null) {
@@ -49,8 +59,8 @@ public class ArticleKafkaListener {
                 "article",
                 OperationType.valueOf(node.path("operation").asText("UPDATE").toUpperCase(Locale.ROOT)),
                 IngestionOrigin.CDC,
-                node.path("payloadHash").asText(),
-                node.path("payload").toString());
+                node.hasNonNull("payloadHash") ? node.get("payloadHash").asText() : null,
+                node.hasNonNull("payload") ? node.get("payload").toString() : null);
         if (msg.operation() == OperationType.DELETE) {
             // Article no tiene use case de borrado: se descarta explicitamente.
             log.warn("Operacion DELETE no soportada para article, se descarta entityId={}", msg.entityId());

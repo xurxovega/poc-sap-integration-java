@@ -1,7 +1,9 @@
 package com.poc.sap.article.application;
 
 import com.poc.sap.common.application.SyncCycleRecorder;
+import com.poc.sap.common.application.SyncCycleRecorder.Cycle;
 import com.poc.sap.common.domain.IngestionMessage;
+import com.poc.sap.common.domain.PayloadHasher;
 import com.poc.sap.common.domain.SyncState;
 import com.poc.sap.common.domain.port.SyncStateRepositoryPort;
 import com.poc.sap.common.domain.ValidationResult;
@@ -15,6 +17,7 @@ import com.poc.sap.article.domain.port.ArticleSapOutboundPort;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.time.Clock;
 import java.util.Optional;
 import java.util.function.Supplier;
 
@@ -40,48 +43,60 @@ public class SyncArticleUseCase {
                               ArticleHistoryIndexerPort historyIndexer,
                               ArticleSapOutboundPort sapOutbound,
                               SyncStateRepositoryPort stateRepo,
-                              MetricsPort metrics) {
+                              MetricsPort metrics,
+                              Clock clock) {
         this.legacyRepo = legacyRepo;
         this.imageStore = imageStore;
         this.historyIndexer = historyIndexer;
         this.sapOutbound = sapOutbound;
         this.stateRepo = stateRepo;
         this.metrics = metrics;
-        this.cycle = new SyncCycleRecorder(DOMAIN, stateRepo, metrics);
+        this.cycle = new SyncCycleRecorder(DOMAIN, stateRepo, metrics, clock);
     }
 
     public SyncState execute(IngestionMessage message) {
-        if (stateRepo.alreadySent(DOMAIN, message.entityId(), message.payloadHash())) {
-            log.info("SyncArticle dedupe entityId={} payloadHash={} ya enviado a SAP, se omite",
-                    message.entityId(), message.payloadHash());
+        log.info("SyncArticle inicio entityId={} origin={}", message.entityId(), message.origin());
+
+        // ADR-0013 (mensaje fino): el aviso solo dice QUE articulo cambio; los datos
+        // y el hash de idempotencia salen del snapshot que se acaba de leer.
+        Optional<Article> fetched = timed("fetch", () -> legacyRepo.fetch(message.entityId()));
+        if (fetched.isEmpty()) {
+            Cycle failed = cycle.beginCycle(message.entityId(), origin(message),
+                    message.payloadHash(), SyncState.RECEIVED);
+            cycle.advance(failed, SyncState.RECEIVED, SyncState.FETCHING);
+            cycle.advance(failed, SyncState.FETCHING, SyncState.ERROR, "no existe en el legacy");
+            return SyncState.ERROR;
+        }
+        Article article = fetched.get();
+
+        String payloadHash = PayloadHasher.hash(article);
+        if (message.payloadHash() != null && !message.payloadHash().equals(payloadHash)) {
+            log.debug("SyncArticle hash del mensaje {} != hash del snapshot {} entityId={}",
+                    message.payloadHash(), payloadHash, message.entityId());
+        }
+
+        if (stateRepo.alreadySent(DOMAIN, message.entityId(), payloadHash)) {
+            log.info("SyncArticle dedupe entityId={} payloadHash={} (del snapshot) ya enviado a SAP, se omite",
+                    message.entityId(), payloadHash);
             return SyncState.SENT_SAP;
         }
-        log.info("SyncArticle inicio entityId={} origin={}", message.entityId(), message.origin());
 
         boolean lastCycleSent = stateRepo.currentState(DOMAIN, message.entityId())
                 .filter(s -> s == SyncState.SENT_SAP)
                 .isPresent();
 
         // Un evento nuevo siempre abre ciclo (sdd/common/maquina-de-estados.md R-3).
-        beginCycle(message, SyncState.RECEIVED);
-        transition(message, SyncState.RECEIVED, SyncState.FETCHING);
-
-        Optional<Article> fetched = timed("fetch", () -> legacyRepo.fetch(message.entityId()));
-        if (fetched.isEmpty()) {
-            transition(message, SyncState.FETCHING, SyncState.ERROR);
-            return SyncState.ERROR;
-        }
-        Article article = fetched.get();
-
-        transition(message, SyncState.FETCHING, SyncState.VALIDATING);
+        Cycle c = cycle.beginCycle(message.entityId(), origin(message), payloadHash, SyncState.RECEIVED);
+        cycle.advance(c, SyncState.RECEIVED, SyncState.FETCHING);
+        cycle.advance(c, SyncState.FETCHING, SyncState.VALIDATING);
         ValidationResult validation = timed("validate", () -> ArticleValidations.validate(article));
         if (!validation.valid()) {
             log.warn("Article invalido entityId={} errors={}", message.entityId(), validation.errors());
-            transition(message, SyncState.VALIDATING, SyncState.INVALID);
+            cycle.advance(c, SyncState.VALIDATING, SyncState.INVALID, String.join("; ", validation.errors()));
             return SyncState.INVALID;
         }
 
-        transition(message, SyncState.VALIDATING, SyncState.VALID);
+        cycle.advance(c, SyncState.VALIDATING, SyncState.VALID);
 
         // Fallo de infraestructura tras VALID → ERROR y se propaga (auditoria B12/C2).
         try {
@@ -90,20 +105,20 @@ public class SyncArticleUseCase {
             if (lastCycleSent && imageStore.find(article.id()).filter(article::equals).isPresent()) {
                 log.info("SyncArticle sin cambios reales entityId={} (snapshot == imagen staging), no se reenvia",
                         message.entityId());
-                transition(message, SyncState.VALID, SyncState.SENT_SAP);
+                cycle.advance(c, SyncState.VALID, SyncState.SENT_SAP);
                 return SyncState.SENT_SAP;
             }
 
-            transition(message, SyncState.VALID, SyncState.INDEXING);
+            cycle.advance(c, SyncState.VALID, SyncState.INDEXING);
             // Historico = lo que se va a enviar, un documento por intento (idempotencia-y-dedupe R-5).
             timed("index", () -> {
-                historyIndexer.index(article.id(), article, message.payloadHash());
+                historyIndexer.index(article.id(), article, payloadHash);
                 return null;
             });
-            transition(message, SyncState.INDEXING, SyncState.INDEXED);
+            cycle.advance(c, SyncState.INDEXING, SyncState.INDEXED);
 
-            transition(message, SyncState.INDEXED, SyncState.SENDING_SAP);
-            var response = timed("send", () -> sapOutbound.send(article.id(), message.payloadHash(), article));
+            cycle.advance(c, SyncState.INDEXED, SyncState.SENDING_SAP);
+            var response = timed("send", () -> sapOutbound.send(article.id(), payloadHash, article));
             SyncState finalState = response.isSuccess()
                     ? SyncState.SENT_SAP
                     : SyncState.SAP_ERROR;
@@ -111,13 +126,14 @@ public class SyncArticleUseCase {
                 // Imagen = lo que SAP tiene: solo tras el ACK (idempotencia-y-dedupe R-4).
                 imageStore.save(article.id(), article);
             }
-            transition(message, SyncState.SENDING_SAP, finalState);
+            cycle.advance(c, SyncState.SENDING_SAP, finalState,
+                    finalState == SyncState.SENT_SAP ? null : "HTTP " + response.httpStatus() + " enviando a SAP");
 
             log.info("SyncArticle fin entityId={} state={} http={}",
                     message.entityId(), finalState, response.httpStatus());
             return finalState;
         } catch (RuntimeException e) {
-            markError(message, e);
+            markError(c, message, e);
             throw e;
         }
     }
@@ -132,19 +148,17 @@ public class SyncArticleUseCase {
         }
     }
 
-    private void beginCycle(IngestionMessage msg, SyncState entry) {
-        cycle.beginCycle(msg.entityId(), msg.origin().name().toLowerCase(), msg.payloadHash(), entry);
+    private static String origin(IngestionMessage msg) {
+        return msg.origin().name().toLowerCase();
     }
 
-    private void markError(IngestionMessage msg, RuntimeException cause) {
+    private void markError(Cycle c, IngestionMessage msg, RuntimeException cause) {
         try {
-            transition(msg, null, SyncState.ERROR);
+            // from = null a proposito: cerrar en ERROR no puede fallar por una colision.
+            cycle.advance(c, null, SyncState.ERROR,
+                    cause.getClass().getSimpleName() + ": " + cause.getMessage());
         } catch (RuntimeException e) {
             log.error("No se pudo registrar ERROR entityId={} tras fallo '{}'", msg.entityId(), cause.toString(), e);
         }
-    }
-
-    private void transition(IngestionMessage msg, SyncState from, SyncState to) {
-        cycle.advance(msg.entityId(), msg.origin().name().toLowerCase(), msg.payloadHash(), from, to);
     }
 }

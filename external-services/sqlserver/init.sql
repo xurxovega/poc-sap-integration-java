@@ -48,18 +48,25 @@ GO
 
 -- =============================================================================
 -- Outbox CDC (Debezium) — dominio CUSTOMER
--- Cada cambio en dbo.customers inserta una fila cuyo `payload` es EXACTAMENTE
--- el JSON que esperan los listeners Kafka:
---   {"entityId":"...","operation":"CREATE|UPDATE|DELETE","payloadHash":"...","payload":{...}}
+-- MENSAJE FINO (ADR-0013): la outbox NO publica datos del cliente. Cada cambio
+-- inserta una fila cuyo `message` es el aviso que leen los listeners Kafka:
+--   {"entityId":"...","operation":"CREATE|UPDATE|DELETE","occurredAt":"..."}
+-- El consumidor relee el estado actual del legacy y calcula el hash sobre el
+-- snapshot leido. Las columnas `payload` y `payload_hash` se conservan un ciclo,
+-- NULLABLE y siempre NULL, para no romper lo que aun las lea.
+-- El orden de los cambios de una misma entidad es el de la particion de Kafka
+-- (la clave es entity_id); la columna `id` es el numero de secuencia local.
 -- =============================================================================
 
 CREATE TABLE dbo.outbox_customer (
     id           BIGINT IDENTITY(1,1) PRIMARY KEY,
-    entity_id    VARCHAR(50)   NOT NULL,
-    operation    VARCHAR(10)   NOT NULL,
-    payload_hash VARCHAR(64)   NOT NULL,
-    payload      NVARCHAR(MAX) NOT NULL,
-    created_at   DATETIME2     NOT NULL DEFAULT SYSUTCDATETIME()
+    entity_id    VARCHAR(50)    NOT NULL,
+    operation    VARCHAR(10)    NOT NULL,
+    occurred_at  DATETIME2      NOT NULL DEFAULT SYSUTCDATETIME(),
+    message      NVARCHAR(1000) NOT NULL,
+    payload_hash VARCHAR(64)    NULL,   -- ADR-0013: deja de emitirse
+    payload      NVARCHAR(MAX)  NULL,   -- ADR-0013: deja de emitirse
+    created_at   DATETIME2      NOT NULL DEFAULT SYSUTCDATETIME()
 );
 GO
 
@@ -77,44 +84,22 @@ BEGIN
             ELSE 'DELETE'
         END;
 
-    INSERT INTO dbo.outbox_customer (entity_id, operation, payload_hash, payload)
+    DECLARE @now DATETIME2 = SYSUTCDATETIME();
+
+    INSERT INTO dbo.outbox_customer (entity_id, operation, occurred_at, message)
     SELECT
         s.id,
         @op,
-        CONVERT(VARCHAR(64), HASHBYTES('SHA2_256', j.entity_json), 2),
+        @now,
         N'{"entityId":"' + STRING_ESCAPE(s.id, 'json')
             + N'","operation":"' + @op
-            + N'","payloadHash":"' + CONVERT(VARCHAR(64), HASHBYTES('SHA2_256', j.entity_json), 2)
-            + N'","payload":' + j.entity_json + N'}'
+            + N'","occurredAt":"' + CONVERT(VARCHAR(33), @now, 127)
+            + N'Z"}'
     FROM (
-        SELECT * FROM inserted
+        SELECT id FROM inserted
         UNION ALL
-        SELECT * FROM deleted WHERE @op = 'DELETE'
-    ) s
-    CROSS APPLY (
-        SELECT (
-            SELECT s.id            AS id,
-                   s.code          AS code,
-                   s.name          AS name,
-                   s.status        AS status,
-                   s.street        AS [address.street],
-                   s.city          AS [address.city],
-                   s.postal_code   AS [address.postalCode],
-                   s.country       AS [address.country],
-                   s.region        AS [address.region],
-                   s.tax_id        AS [fiscal.taxId],
-                   s.vat_number    AS [fiscal.vatNumber],
-                   s.legal_name    AS [fiscal.legalName],
-                   s.tax_residency AS [fiscal.taxResidency],
-                   s.email         AS [contact.email],
-                   s.phone         AS [contact.phone],
-                   s.fax           AS [contact.fax],
-                   s.website       AS [contact.website],
-                   s.iban          AS [banking.iban],
-                   s.bic           AS [banking.bic]
-            FOR JSON PATH, WITHOUT_ARRAY_WRAPPER
-        ) AS entity_json
-    ) j;
+        SELECT id FROM deleted WHERE @op = 'DELETE'
+    ) s;
 END;
 GO
 

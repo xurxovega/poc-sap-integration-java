@@ -121,6 +121,9 @@ Un cambio está terminado cuando:
 - [ ] Cada AC del spec tiene al menos un test que lo cita.
 - [ ] Todos los tests nuevos fueron escritos **antes** que su código.
 - [ ] `mvn verify` en verde (JaCoCo `check`, ArchUnit y contract tests incluidos).
+- [ ] Si el cambio añade o modifica un endpoint REST: dado de alta en el
+      `openapi.yml` del módulo (`customer`/`article`), vigilado por
+      `OpenApiMatchesControllersTest`.
 - [ ] Cifra de tests de `docs/testing/TESTING.md` §1 al día si tocaste `@Test` (la vigila `TestCountMatchesDocsTest`).
 - [ ] El estado en [`../sdd/README.md`](../sdd/README.md) §5 está al día; si se cierra o abre una brecha, el changelog §6 también.
 - [ ] Ningún documento nuevo duplica algo que ya esté en `architecture/` o `sdd/`.

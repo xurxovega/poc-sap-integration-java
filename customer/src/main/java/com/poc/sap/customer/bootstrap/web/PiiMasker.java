@@ -25,6 +25,26 @@ public final class PiiMasker {
         return new Customer(c.id(), c.code(), c.name(), c.status(), c.address(), f, k, b);
     }
 
+    /**
+     * Enmascara la PII incrustada en un texto libre, como el motivo de error que
+     * devuelve SAP: un 400 suele repetir el valor rechazado (IBAN, NIF, email).
+     * Deja intacto lo que no identifica a nadie —el codigo HTTP, el nombre de la
+     * propiedad— para que el mensaje siga sirviendo de diagnostico.
+     */
+    public static String maskDetail(String detail) {
+        if (detail == null || detail.isBlank()) {
+            return detail;
+        }
+        String masked = EMAIL.matcher(detail).replaceAll(m -> email(m.group()));
+        return IDENTIFIER.matcher(masked).replaceAll(m -> last(m.group(), 4));
+    }
+
+    private static final java.util.regex.Pattern EMAIL =
+            java.util.regex.Pattern.compile("[\\w.+-]+@[\\w.-]+\\.[A-Za-z]{2,}");
+    /** Cadena larga con letras y digitos: IBAN, NIF, numero de BP... */
+    private static final java.util.regex.Pattern IDENTIFIER =
+            java.util.regex.Pattern.compile("\\b(?=[A-Za-z0-9]*[A-Za-z])(?=[A-Za-z0-9]*\\d)[A-Za-z0-9]{6,}\\b");
+
     static String last(String v, int keep) {
         if (v == null || v.isBlank()) return v;
         String t = v.replace(" ", "");

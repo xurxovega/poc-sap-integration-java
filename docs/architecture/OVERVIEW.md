@@ -165,7 +165,7 @@ sus entidades y sus features:
 +----------+   POST /customers/sync       +-------------------------+
 |  Cliente | ────────────────────────────> | SyncCustomerController |
 |  HTTP    |   {entityId, operation,       | (bootstrap/web)         |
-|  curl    |    payloadHash, payload}      +-------------------------+
+|  curl    |    [payloadHash opcional]}    +-------------------------+
 +----------+                                                  |
                                                               ▼
                                               +----------------------------+
@@ -271,8 +271,14 @@ Reside en `common/domain/SyncStateMachine.java` (dominio-agnóstico).
                                             (terminal)
 ```
 
-Cada transición se persiste con `timestamp`, `origen` y `payloadHash`, de modo
-que el estado de cualquier registro es consultable (imagen actual + histórico).
+Cada transición se persiste con `timestamp`, `origen`, `payloadHash`, `cycleId`
+y `detail` (motivo, solo en transiciones a error), de modo que el estado de
+cualquier registro es consultable (imagen actual + histórico). El `cycleId` lo
+comparte la línea del agregado con las de sus features, lo que permite
+reconstruir la traza de pasos de un envío completo en una sola consulta
+(`GET /customers/{id}/state`, `CustomerStateUseCase.CycleTrace`/`Step`). El
+estado se ofrece también **por parte** (dirección, fiscal, contacto, banco) con
+su propia traza (`LineState`), no solo a nivel de agregado.
 
 **Transiciones permitidas** (resumen):
 
@@ -298,9 +304,29 @@ que el estado de cualquier registro es consultable (imagen actual + histórico).
 > Abrir ciclo (`beginCycle`) y avanzar (`advance`) son operaciones distintas.
 > Un evento nuevo abre ciclo **desde cualquier estado** — cerrado, de error o a
 > medias — por el estado de entrada de su pipeline; la tabla solo gobierna el
-> avance. La idempotencia la garantiza el dedupe por `payloadHash`
-> (`SyncStateRepositoryPort.alreadySent`), no el bloqueo de la máquina. Detalle
+> avance. La idempotencia la garantiza el dedupe por el `payloadHash` **que se
+> calcula sobre el snapshot releído del legacy** (`SyncStateRepositoryPort.alreadySent`;
+> [ADR-0013](adr/0013-outbox-mensaje-fino-sin-payload.md)), no el bloqueo de la máquina. Detalle
 > en [`../sdd/common/maquina-de-estados.md`](../sdd/common/maquina-de-estados.md).
+
+### 5.1 Concurrencia entre instancias (ADR-0011)
+
+Varias instancias en dos clústeres pueden recibir eventos de la **misma**
+entidad. Lo que impide que se pisen:
+
+| Pieza | Qué garantiza |
+|---|---|
+| Clave de partición `entity_id` | todos los eventos de una entidad van a la **misma partición** y los consume el mismo hilo, en orden |
+| Un solo `consumer group` por dominio, **compartido por los dos clústeres** | cada mensaje lo procesa **un** consumidor; con grupos por clúster, cada clúster escribiría el mismo cambio en el mismo S/4 |
+| Fencing por `cycleId` en la cabecera de estado | un ciclo no avanza sobre la cabecera de otro: si la cabecera cambió de dueño, `ConcurrentTransitionException` |
+| `ConcurrentTransitionException` **declarada reintentable** | la colisión se reintenta con backoff en vez de ir a la DLT al primer intento |
+| `SapCircuitOpenException` con backoff propio (30 s) | el reintento cubre la ventana de circuito abierto, en vez de agotarse en 7 s |
+| `409 Conflict` en `POST /customers/sync` | el REST síncrono, único camino que rompe el orden por entidad, devuelve un conflicto honesto en vez de un 500 |
+
+**No garantizado**: el fencing protege el estado propio, no SAP — la llamada HTTP
+pudo salir antes de detectarse la colisión. Y **no hay *lease*** por entidad:
+descartado con criterio de reevaluación en
+[ADR-0011](adr/0011-concurrencia-entre-instancias-fencing-sin-lease.md).
 
 ## 6. Vista de deployment
 
@@ -354,6 +380,19 @@ que el estado de cualquier registro es consultable (imagen actual + histórico).
   +-------------+
 ```
 
+**Topología Kafka** (ADR-0011; los topics los crea la plataforma, no la app —
+[`../../deploy/README.md`](../../deploy/README.md)):
+
+| Topic | Particiones | Clave | Consumer group |
+|---|---|---|---|
+| `outbox.CUSTOMER` y `outbox.CUSTOMER-dlt` | 12 | `entity_id` | `customer-consumer`, **uno para los dos clústeres** |
+| `outbox.ARTICLE` y `outbox.ARTICLE-dlt` | 12 | `entity_id` | `article-consumer`, ídem |
+
+Regla de dimensionado: **particiones ≥ instancias × `concurrency`**
+(12 = 2 clústeres × 2 réplicas × 3 hilos). El `-dlt` lleva siempre las mismas
+particiones que su topic de entrada. **[Supuesto D-16, pendiente de plataforma]**:
+un único Kafka multi-AZ visible desde los dos clústeres.
+
 **Independencia de despliegue**:
 - Modificar `customer` → redeploy `customer-app` (jar Spring Boot propio, contenedor propio).
 - Modificar `article` → redeploy `article-app`.
@@ -367,6 +406,12 @@ que el estado de cualquier registro es consultable (imagen actual + histórico).
 | `patch`            | Opcional                  |
 | `minor`            | Recomendado               |
 | `major`            | Obligatorio               |
+
+Los cambios del 18-09-2026 en `common` (upsert idempotente, fallo parcial con
+traza, fencing por `cycleId`, `RestClientSapClient`/`RetryBudgetGuard`) son
+**MINOR**: retrocompatibles, sin romper el contrato de los puertos existentes.
+Re-despliegue **recomendado** de `customer` y `article` (ver CHANGELOG.md
+2026-09-18 y [`../sdd/README.md`](../sdd/README.md) §6).
 
 ## 7. Stack tecnológico
 
@@ -427,7 +472,7 @@ com.poc.sap.<dominio>/
 
 | Requisito | Cómo se cumple |
 |---|---|
-| **Idempotencia** | hash de payload + identificador de entidad; los reintentos no duplican envíos a SAP (`SyncStateRepositoryPort.alreadySent`, cabecera `Idempotency-Key`) |
+| **Idempotencia** | hash calculado sobre el snapshot releído del legacy (ADR-0013); los reintentos no duplican envíos a SAP (`SyncStateRepositoryPort.alreadySent`, cabecera `Idempotency-Key`) |
 | **Resiliencia** | retry con backoff exponencial y circuit breaker hacia SAP (Resilience4j); DLT `<topic>-dlt` en la ingesta Kafka |
 | **Trazabilidad** | cada registro pasa por la máquina de estados (§5) y se persiste cada transición |
 | **Observabilidad** | métricas por dominio, estado, etapa y llamada SAP; parada ordenada y presupuesto de reintentos vigilado al arrancar; logs JSON (ECS) por configuración; trazas distribuidas **pendientes** (D-7) ([`TECH.md`](TECH.md) §9, spec [`../sdd/common/observabilidad.md`](../sdd/common/observabilidad.md)) |

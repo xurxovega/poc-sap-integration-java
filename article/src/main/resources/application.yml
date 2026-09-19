@@ -46,6 +46,8 @@ article:
   kafka:
     topic: outbox.ARTICLE
     group: article-consumer
+    # Hilos de consumo por instancia (ADR-0011). particiones >= instancias x concurrency.
+    concurrency: ${ARTICLE_KAFKA_CONCURRENCY:3}
 
 sap:
   article:

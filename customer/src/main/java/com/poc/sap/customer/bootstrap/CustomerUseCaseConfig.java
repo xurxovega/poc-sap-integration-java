@@ -3,6 +3,7 @@ package com.poc.sap.customer.bootstrap;
 import com.poc.sap.common.domain.port.MetricsPort;
 import com.poc.sap.common.domain.port.SyncNotificationPort;
 import com.poc.sap.common.domain.port.SyncStateRepositoryPort;
+import com.poc.sap.common.sap.SapUpsertSettings;
 import com.poc.sap.customer.application.address.SyncAddressUseCase;
 import com.poc.sap.customer.application.address.ValidateAddressUseCase;
 import com.poc.sap.customer.application.banking.DeleteMandateUseCase;
@@ -26,8 +27,11 @@ import com.poc.sap.customer.domain.port.CustomerLegacyRepositoryPort;
 import com.poc.sap.customer.domain.port.CustomerSapOutboundPort;
 import com.poc.sap.customer.domain.port.FiscalSapPort;
 import com.poc.sap.customer.domain.port.MandateSapOutboundPort;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+
+import java.time.Clock;
 
 /**
  * Wiring de los use cases del dominio customer. Es el UNICO sitio donde
@@ -38,33 +42,47 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 public class CustomerUseCaseConfig {
 
-    @Bean SyncAddressUseCase syncAddressUseCase(AddressSapPort p, SyncStateRepositoryPort s, MetricsPort m) { return new SyncAddressUseCase(p, s, m); }
-    @Bean ValidateAddressUseCase validateAddressUseCase(SyncStateRepositoryPort s, MetricsPort m) { return new ValidateAddressUseCase(s, m); }
-    @Bean SyncFiscalUseCase syncFiscalUseCase(FiscalSapPort p, SyncStateRepositoryPort s, MetricsPort m) { return new SyncFiscalUseCase(p, s, m); }
-    @Bean ValidateFiscalUseCase validateFiscalUseCase(SyncStateRepositoryPort s, MetricsPort m) { return new ValidateFiscalUseCase(s, m); }
-    @Bean SyncContactUseCase syncContactUseCase(ContactSapPort p, SyncStateRepositoryPort s, MetricsPort m) { return new SyncContactUseCase(p, s, m); }
-    @Bean ValidateContactUseCase validateContactUseCase(SyncStateRepositoryPort s, MetricsPort m) { return new ValidateContactUseCase(s, m); }
-    @Bean SyncBankingUseCase syncBankingUseCase(BankingSapPort p, SyncStateRepositoryPort s, MetricsPort m) { return new SyncBankingUseCase(p, s, m); }
-    @Bean ValidateBankingUseCase validateBankingUseCase(SyncStateRepositoryPort s, MetricsPort m) { return new ValidateBankingUseCase(s, m); }
-    @Bean DeleteMandateUseCase deleteMandateUseCase(MandateSapOutboundPort p, SyncStateRepositoryPort s, MetricsPort m) { return new DeleteMandateUseCase(p, s, m); }
+    /**
+     * Reloj unico del dominio. Los use cases no llaman a {@code Instant.now()}:
+     * el instante de cada paso de la traza tiene que ser verificable en un test
+     * (anexo 04, lista "O"). Es {@code @Bean} porque {@code application} no puede
+     * depender de Spring (AGENTS.md §1.5).
+     */
+    @Bean
+    Clock clock() {
+        return Clock.systemUTC();
+    }
+
+    @Bean SyncAddressUseCase syncAddressUseCase(AddressSapPort p, SyncStateRepositoryPort s, MetricsPort m, Clock c, SapUpsertSettings u) { return new SyncAddressUseCase(p, s, m, c, u); }
+    @Bean ValidateAddressUseCase validateAddressUseCase(SyncStateRepositoryPort s, MetricsPort m, Clock c) { return new ValidateAddressUseCase(s, m, c); }
+    @Bean SyncFiscalUseCase syncFiscalUseCase(FiscalSapPort p, SyncStateRepositoryPort s, MetricsPort m, Clock c, SapUpsertSettings u) { return new SyncFiscalUseCase(p, s, m, c, u); }
+    @Bean ValidateFiscalUseCase validateFiscalUseCase(SyncStateRepositoryPort s, MetricsPort m, Clock c) { return new ValidateFiscalUseCase(s, m, c); }
+    @Bean SyncContactUseCase syncContactUseCase(ContactSapPort p, SyncStateRepositoryPort s, MetricsPort m, Clock c, SapUpsertSettings u) { return new SyncContactUseCase(p, s, m, c, u); }
+    @Bean ValidateContactUseCase validateContactUseCase(SyncStateRepositoryPort s, MetricsPort m, Clock c) { return new ValidateContactUseCase(s, m, c); }
+    @Bean SyncBankingUseCase syncBankingUseCase(BankingSapPort p, SyncStateRepositoryPort s, MetricsPort m, Clock c, SapUpsertSettings u) { return new SyncBankingUseCase(p, s, m, c, u); }
+    @Bean ValidateBankingUseCase validateBankingUseCase(SyncStateRepositoryPort s, MetricsPort m, Clock c) { return new ValidateBankingUseCase(s, m, c); }
+    @Bean DeleteMandateUseCase deleteMandateUseCase(MandateSapOutboundPort p, SyncStateRepositoryPort s, MetricsPort m, Clock c) { return new DeleteMandateUseCase(p, s, m, c); }
 
     @Bean
     SyncCustomerUseCase syncCustomerUseCase(CustomerLegacyRepositoryPort legacy, CustomerImageStorePort image,
                                             CustomerHistoryIndexerPort history, SyncStateRepositoryPort state, MetricsPort metrics,
                                             SyncNotificationPort notifications, SyncAddressUseCase address, SyncFiscalUseCase fiscal,
-                                            SyncContactUseCase contact, SyncBankingUseCase banking) {
-        return new SyncCustomerUseCase(legacy, image, history, state, metrics, notifications, address, fiscal, contact, banking);
+                                            SyncContactUseCase contact, SyncBankingUseCase banking, Clock clock,
+                                            @Value("${sap.partial-failure.rethrow-when-nothing-reached-sap:true}") boolean rethrow) {
+        return new SyncCustomerUseCase(legacy, image, history, state, metrics, notifications,
+                address, fiscal, contact, banking, clock, rethrow);
     }
 
     @Bean
-    ValidateCustomerUseCase validateCustomerUseCase(CustomerLegacyRepositoryPort legacy, SyncStateRepositoryPort state, MetricsPort metrics) {
-        return new ValidateCustomerUseCase(legacy, state, metrics);
+    ValidateCustomerUseCase validateCustomerUseCase(CustomerLegacyRepositoryPort legacy, SyncStateRepositoryPort state,
+                                                    MetricsPort metrics, Clock clock) {
+        return new ValidateCustomerUseCase(legacy, state, metrics, clock);
     }
 
     @Bean
     DeleteCustomerUseCase deleteCustomerUseCase(CustomerImageStorePort image, CustomerSapOutboundPort sap,
-                                                SyncStateRepositoryPort state, MetricsPort metrics) {
-        return new DeleteCustomerUseCase(image, sap, state, metrics);
+                                                SyncStateRepositoryPort state, MetricsPort metrics, Clock clock) {
+        return new DeleteCustomerUseCase(image, sap, state, metrics, clock);
     }
 
     @Bean

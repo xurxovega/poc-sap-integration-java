@@ -6,7 +6,7 @@
 | **Estado** | ✅ implementado (verificado end-to-end contra el SAP simulado) |
 | **Entradas** | CDC (`outbox.ARTICLE`) y REST `POST /articles/sync`, siempre a través de `SyncArticleUseCase` |
 | **Destino SAP** | S/4 nativo (`API_PRODUCT`) |
-| **Última revisión** | 2026-09-12 |
+| **Última revisión** | 2026-09-19 |
 
 ## 1. Objetivo
 
@@ -28,9 +28,13 @@ Es el pipeline «simple» del proyecto: una entidad, un envío, sin features.
 
 ## 3. Entrada
 
-`IngestionMessage` con `entityId` = id del artículo; el use case re-lee la
-entidad del legacy (`ArticleLegacyRepositoryPort.fetch`), nunca confía en el
-payload del evento.
+`IngestionMessage` — **aviso de cambio fino** con `entityId` = id del artículo;
+contrato completo en
+[`../common/contrato-mensaje-de-cambio.md`](../common/contrato-mensaje-de-cambio.md).
+El use case relee la entidad del legacy (`ArticleLegacyRepositoryPort.fetch`) y
+**calcula el hash sobre ese snapshot** (`PayloadHasher`): ni el `payload` ni el
+`payloadHash` del mensaje son fuente de nada
+([ADR-0013](../../architecture/adr/0013-outbox-mensaje-fino-sin-payload.md)).
 
 | Campo (`Article`) | Tipo | Obligatorio | Notas |
 |---|---|---|---|
@@ -88,7 +92,8 @@ RECEIVED → FETCHING → VALIDATING → VALID → INDEXING → INDEXED → SEND
 | AC | Criterio | Test |
 |---|---|---|
 | AC-1 | Dado un artículo válido y SAP en 2xx, entonces `SENT_SAP`, histórico indexado e imagen guardada | `SyncArticleUseCaseTest#happyPath` |
-| AC-2 | Dado un hash deduplicado, entonces `SENT_SAP` sin fetch ni SAP | `SyncArticleUseCaseTest#alreadySentPayloadSkipsPipelineAndReturnsSentSap` |
+| AC-2 | Dado un snapshot cuyo hash ya está enviado, entonces `SENT_SAP` sin SAP (el legacy sí se lee) | `SyncArticleUseCaseTest#dedupeUsesTheHashOfTheSnapshotNotTheMessage` |
+| AC-7 | Dado un aviso fino (sin hash y sin payload), entonces el ciclo se ejecuta con el estado actual del legacy y el hash calculado | `SyncArticleUseCaseTest#thinMessageWithoutPayloadIsProcessed` |
 | AC-3 | Legacy sin el artículo ⇒ `ERROR`; artículo inválido ⇒ `INVALID`; en ambos sin llamar a SAP | `SyncArticleUseCaseTest#fetchEmptyReturnsError` · `#invalidArticleReturnsInvalid` |
 | AC-4 | SAP rechaza ⇒ `SAP_ERROR`, histórico indexado, imagen **sin** guardar | `SyncArticleUseCaseTest#sapErrorReturnsSapError` |
 | AC-5 | Snapshot idéntico a la imagen tras `SENT_SAP` ⇒ no se reenvía; distinto ⇒ se reenvía y se guarda | `SyncArticleUseCaseTest#unchangedSnapshotAfterSentSapSkipsResend` · `#changedSnapshotAfterSentSapIsResent` |
@@ -116,5 +121,6 @@ logs «inicio»/«fin»/«dedupe»/«sin cambios reales» con `entityId`.
 
 | Fecha | Cambio | PR |
 |---|---|---|
+| 2026-09-19 | §3: la entrada es el **aviso fino**; el hash se calcula sobre el snapshot releído del legacy. AC-2 reescrito y AC-7 nuevo ([ADR-0013](../../architecture/adr/0013-outbox-mensaje-fino-sin-payload.md)) | — |
 | 2026-09-12 | Fase 7 (A19/C10): `S4ArticleAdapter` serializa con `SapJsonMapper` via `S4ProductDto`; los campos nulos se omiten en vez de viajar como `""`. Test `nullFieldsAreOmittedInsteadOfSentAsEmptyStrings` | — |
 | 2026-09-12 | Spec inicial, escrito al aplicar la Fase 6 del plan: imagen guardada solo tras el ACK de SAP, histórico con un documento por intento, dedupe contra el último `SENT_SAP`. Recoge el comportamiento ya verificado end-to-end el 2026-09-10 | — |

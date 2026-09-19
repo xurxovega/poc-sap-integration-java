@@ -43,3 +43,32 @@ estados.
   servicio BTP no llega, este ADR se sustituye por uno que retire `Btp*`.
 - La Fase 7 del plan (refactor `SyncPipeline<E>`) reduce la duplicación sin
   cambiar esta decisión.
+
+## 5. Decisión D-10 (2026-09-18) — la familia BTP se mantiene
+
+La auditoría de verificación del 2026-09-18 (hallazgo **2B-4**) confirmó que
+la familia `Btp*Adapter` sigue siendo la **activa por defecto**
+(`sap.odata.<feature>.enabled=false` salvo que se diga lo contrario) y sigue
+apuntando a un contrato (`/sap/btp/odata/*`) sin servicio real detrás. El
+propietario del proyecto decide **mantener** la familia BTP, no retirarla:
+es una vía real que SAP ofrece y que el propietario **ya ha probado, aislada,
+en su propio espacio BTP**. El estado exacto, sin ambigüedad, es el que
+recoge [`INTEGRATION-PATTERNS.md`](../INTEGRATION-PATTERNS.md) ("Las tres
+vías con SAP"): *el servicio BTP funciona por sí solo y se ha probado en el
+espacio del propietario, pero falta integrarlo con esta aplicación: ni SAP
+llamando a nuestro servicio ni nuestro servicio llamando a SAP a través de
+BTP se ha probado extremo a extremo*.
+
+**Lo que esta decisión NO resuelve**: el riesgo de que un despliegue con la
+configuración por defecto del `ConfigMap` (`deploy/k8s/base/common.yaml`)
+escriba contra un servicio que nadie ha integrado todavía queda como **riesgo
+abierto 2B-4**, con una mitigación propuesta (no implementada): un guard de
+arranque que exija `sap.btp.base-url` configurada y no apuntando a `localhost`
+cuando la familia BTP esté activa para alguna feature, igual que hoy existe
+un guard equivalente para las credenciales SAP (`sap.auth.allow-stub`). Ver
+la propuesta en [`MEJORAS-Y-PROPUESTAS.md`](../../MEJORAS-Y-PROPUESTAS.md).
+
+**Reevaluar cuando**: se complete la integración extremo a extremo con el
+servicio BTP real (en cuyo caso el contrato de este ADR pasa de "propuesto" a
+"real" y se documenta en el catálogo de contratos SAP), o el propietario
+decida lo contrario.

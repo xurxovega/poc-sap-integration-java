@@ -1,5 +1,6 @@
 package com.poc.sap.customer.application.general;
 
+import java.time.Clock;
 import com.poc.sap.common.domain.SyncState;
 import com.poc.sap.common.domain.port.SyncStateRepositoryPort;
 import com.poc.sap.common.domain.port.MetricsPort;
@@ -29,7 +30,7 @@ class ValidateCustomerUseCaseTest {
 
     @BeforeEach
     void setUp() {
-        useCase = new ValidateCustomerUseCase(legacyRepo, stateRepo, metrics);
+        useCase = new ValidateCustomerUseCase(legacyRepo, stateRepo, metrics, Clock.systemUTC());
     }
 
     @Test

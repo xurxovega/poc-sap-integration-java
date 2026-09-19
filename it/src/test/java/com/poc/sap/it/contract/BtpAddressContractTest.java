@@ -45,9 +45,20 @@ class BtpAddressContractTest extends AbstractSapContractTest {
                 .withRequestBody(matchingJsonPath("$.Region", equalTo("M"))));
     }
 
-    /** El retry del cliente real: un 5xx se reintenta 3 veces y se reporta como fallo. */
+    /**
+     * El retry del cliente real sobre una ESCRITURA: un 5xx se reporta como fallo
+     * <b>sin reintentar</b>.
+     *
+     * <p>Este test afirmaba lo contrario («se reintenta 3 veces») y consagraba el
+     * defecto 2B-3: SAP pudo haber aplicado ese POST, y reintentarlo crea un
+     * duplicado. La regla vigente es
+     * {@code docs/sdd/common/resiliencia-cliente-sap.md} R-1 reescrita: una
+     * escritura no idempotente solo se reintenta si el fallo ocurrió ANTES de que
+     * la petición saliera. El reintento del 5xx sigue existiendo para las lecturas
+     * ({@code RestClientSapClientTest#getIsStillRetriedOnServerError}).
+     */
     @Test
-    void serverErrorIsRetriedThreeTimesThenReported() {
+    void serverErrorOnAWriteIsReportedWithoutRetrying() {
         sap.stubFor(post(urlPathEqualTo(PATH)).willReturn(aResponse().withStatus(503)));
 
         SapResponse r = new BtpAddressAdapter(sapClient, PATH)
@@ -55,6 +66,6 @@ class BtpAddressContractTest extends AbstractSapContractTest {
 
         assertThat(r.isSuccess()).isFalse();
         assertThat(r.httpStatus()).isEqualTo(503);
-        sap.verify(3, postRequestedFor(urlPathEqualTo(PATH)));
+        sap.verify(1, postRequestedFor(urlPathEqualTo(PATH)));
     }
 }

@@ -12,7 +12,9 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.kafka.annotation.KafkaListener;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.lenient;
@@ -127,5 +129,58 @@ class ArticleKafkaListenerTest {
     void tombstoneIsIgnored() throws JsonProcessingException {
         listener.onMessage(new ConsumerRecord<>(TOPIC, 0, 0L, "A-1", null));
         verifyNoInteractions(syncUseCase);
+    }
+
+    /**
+     * ADR-0011 / OVERVIEW.md §5: la concurrencia del listener va declarada y
+     * configurable. Sin ella Spring arranca 1 solo hilo por instancia y las 12
+     * particiones del topic no se consumen a pleno (anexo 05 §1).
+     */
+    @Test
+    void concurrencyIsDeclaredOnTheListener() throws NoSuchMethodException {
+        KafkaListener annotation = ArticleKafkaListener.class
+                .getMethod("onMessage", ConsumerRecord.class)
+                .getAnnotation(KafkaListener.class);
+
+        assertThat(annotation).isNotNull();
+        assertThat(annotation.concurrency()).isEqualTo("${article.kafka.concurrency:3}");
+    }
+
+    /**
+     * AC-7 (sdd/common/contrato-mensaje-de-cambio.md, ADR-0013): mensaje fino,
+     * sin hash ni payload.
+     */
+    @Test
+    void parsesThinMessageWithoutHashAndWithoutPayload() throws JsonProcessingException {
+        String value = """
+                {"entityId":"A-9","operation":"UPDATE","occurredAt":"2026-09-19T08:00:00Z","version":7}
+                """;
+        ConsumerRecord<String, String> record = new ConsumerRecord<>(TOPIC, 0, 0L, "A-9", value);
+
+        listener.onMessage(record);
+
+        verify(syncUseCase).execute(argThat(m ->
+                "A-9".equals(m.entityId())
+                        && m.operation() == OperationType.UPDATE
+                        && m.origin() == IngestionOrigin.CDC
+                        && m.payloadHash() == null
+                        && m.payload() == null));
+    }
+
+    /** AC-7: compatibilidad — el mensaje antiguo con payload se sigue aceptando. */
+    @Test
+    void stillParsesTheLegacyMessageCarryingThePayload() throws JsonProcessingException {
+        String value = """
+                {"entityId":"A-8","operation":"UPDATE","payloadHash":"h-8","payload":{"id":"A-8","sku":"SKU-8"}}
+                """;
+        ConsumerRecord<String, String> record = new ConsumerRecord<>(TOPIC, 0, 0L, "A-8", value);
+
+        listener.onMessage(record);
+
+        verify(syncUseCase).execute(argThat(m ->
+                "A-8".equals(m.entityId())
+                        && "h-8".equals(m.payloadHash())
+                        && m.payload() != null
+                        && m.payload().contains("SKU-8")));
     }
 }

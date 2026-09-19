@@ -52,6 +52,7 @@
 | OPS-8 | Consumidor de `sap.sync.alerts` (correo / ticket / panel) y regla de alerta en Grafana sobre el `WARN` «ALERTA sincronizacion parcial» | proyecto | 📋 | Hoy la alerta se emite; nadie la escucha todavía |
 | OPS-7 | **Gestión de secretos en Kubernetes** (sealed-secrets, External Secrets Operator o Vault) | proyecto | 📋 | D-9 decidida (Kubernetes, ADR-0008, `deploy/k8s`). Queda cómo llegan los `Secret` al clúster (D-9 resuelta: contenedores propios, BTP Cloud Foundry, Kubernetes...). `spring-boot:build-image` ya genera una imagen OCI con buildpacks; los perfiles Spring `local/test/prod` que pedía la auditoría **no** se adoptan: la configuración va por variables de entorno (`scripts/env/*.env`) |
 | OPS-6 | Reevaluar el **VDM del SAP Cloud SDK** como transporte hacia S/4 | proyecto | 📋 | Decidido en [ADR-0001](architecture/adr/0001-transporte-http-sap-restclient.md): hoy `RestClient`. Disparador: soporte oficial de Boot 4 por el SDK, o que reimplementar OData V2 (ETag, deep insert, `$batch`) en la Fase 3 cueste más que adoptar el VDM |
+| OPS-9 | **Guard de arranque para la familia BTP**: que la app no arranque con un adaptador `Btp*Adapter` activo (`sap.odata.<feature>.enabled=false`, valor por defecto) si `sap.btp.base-url` no está configurada o apunta a `localhost`/vacío | proyecto | 💡 | Riesgo abierto **2B-4** (auditoría 2026-09-18): la familia BTP se mantiene (D-10, [ADR-0004](architecture/adr/0004-dos-familias-de-adaptadores-btp-y-odata.md) §5) porque el servicio del propietario existe y se probó aislado, pero el `ConfigMap` por defecto de `deploy/k8s/base/common.yaml` puede desplegar la app escribiendo contra un destino que nadie ha integrado todavía. Mismo patrón que el guard ya existente para credenciales SAP (`sap.auth.allow-stub`, auditoría A8): fallar pronto y explicado en vez de fallar en caliente en el primer envío |
 
 ## Seguridad
 
@@ -82,7 +83,7 @@
 | # | Mejora | Ámbito | Estado | Notas |
 |---|---|---|---|---|
 | PRD-1 | Dominio **`supplier`** real | extra | 📋 | Hoy es un placeholder no desplegable |
-| PRD-2 | `CONTACT` con el contrato real de S/4 (`A_AddressEmailAddress`, `A_AddressPhoneNumber`) | proyecto | 📋 | Email y teléfono cuelgan de la dirección en S/4; hoy no se modela así |
+| PRD-2 | `CONTACT` con el contrato real de S/4 (`A_AddressEmailAddress`, `A_AddressPhoneNumber`) | proyecto | 🚧 en curso | **Hecho**: el adaptador OData envía email, teléfono, fax y web a las cuatro entidades de comunicación de la dirección, colgadas del `AddressID` ([`sdd/customer/sincronizacion-contacto.md`](sdd/customer/sincronizacion-contacto.md)). Antes el payload iba vacío (2B-5). **Falta**: confirmar `Person`/`OrdinalNumber` y el `PATCH` parcial contra el tenant ([`testing/CHECKLIST-TENANT-SAP.md`](testing/CHECKLIST-TENANT-SAP.md) §3) |
 | PRD-3 | Mandatos SEPA desde el legacy para completar `BANKING` | proyecto | 📋 | El adaptador existe pero no le llegan datos |
 | PRD-4 | **Modo pull**: BTP orquesta el ciclo (`PENDING_SAP`, `/btp/pending`, `/btp/result`) | extra | 💡 | Propuesta no implementada: ni el estado ni los endpoints existen |
 | PRD-5 | Batch fin de día / D+1 disparado por topic | extra | 💡 | Reutilizaría los mecanismos existentes |
@@ -90,7 +91,7 @@
 | PRD-7 | **Servidor MCP** de consulta para agentes IA | extra | 💡 | Requiere SEC-1 y SEC-3. Propuesta en [`tools-integrations/MCP.md`](tools-integrations/MCP.md) |
 | PRD-8 | `S3ImageStoreAdapter` sobre MinIO | extra | 💡 | MinIO está levantado y sin uso |
 | PRD-9 | **Consulta de Business Partner desde SAP** (GET, sin coste) | extra | 💡 | Medio hecho: existen `BusinessPartnerReadPort` y `BusinessPartnerReadAdapter` (`sap.odata.read.enabled=true`). Faltan `LookupCustomerUseCase` y un endpoint que los exponga. Detalle abajo |
-| PRD-11 | **Upsert idempotente** contra S/4: lookup → deep insert / `PATCH` con `If-Match`, `AddressID` y ETag persistidos en la imagen (auditoría B3) | proyecto | 📋 | Diseño condicionado a la comprobación PATCH parcial contra el tenant ([`testing/CHECKLIST-TENANT-SAP.md`](testing/CHECKLIST-TENANT-SAP.md) §1-§2). Hoy la ruta OData solo hace POST |
+| PRD-11 | **Upsert idempotente** contra S/4: lookup → alta / `PATCH` con `If-Match`, con el `AddressID` persistido (auditoría B3) | proyecto | 🚧 en curso | **Hecho**: spec [`sdd/common/upsert-idempotente-sap.md`](sdd/common/upsert-idempotente-sap.md) y los seis adaptadores OData con `lookup`/`update`; el `AddressID` se guarda en la colección `sap_keys`, no en la imagen. **Matiz al enunciado**: el **ETag no se persiste** — envejece y produce `412` sin poder reintentar sin releer; se lee en el lookup inmediatamente anterior al `PATCH` (R-5). **Falta**: cablear `FeatureSyncPipeline.write(...)` y verificar contra el tenant ([`testing/CHECKLIST-TENANT-SAP.md`](testing/CHECKLIST-TENANT-SAP.md) §1-§3) |
 | PRD-10 | **Alta y actualización de Business Partner** desde nuestro lado (POST/PATCH, upsert con coste) | extra | 💡 | Ninguna de las clases existe. Detalle abajo |
 
 ### Detalle de los flujos propuestos
@@ -141,7 +142,7 @@ sencilla y lo más liviana posible** que cubra consulta y operación.
 | UI-4 | **Acciones administrativas**: desatascar una entidad, forzar re-sync, reprocesar un mensaje de la DLT | proyecto | 💡 | Depende de OPS-1 y OPS-2; sin ellas no hay nada que invocar |
 | UI-5 | Organizada **por dominios** (`customer`, `article`, `supplier`) | proyecto | 💡 | `common` no aparece: es infraestructura, no tiene entidades que mostrar |
 | UI-6 | Stack: SPA estática, previsiblemente **React + Vite**, consumiendo las APIs REST | extra | 💡 | Criterio: lo más liviano posible y sin servidor propio. Alternativa aún más ligera si el alcance se queda en consulta: HTML + JS sin framework |
-| UI-7 | Backend de soporte: endpoints de búsqueda y de acciones | proyecto | 💡 | Hoy solo existen `/sync`, `/validate`, `/history` y `/history/diff` |
+| UI-7 | Backend de soporte: endpoints de búsqueda y de acciones | proyecto | 💡 | Hoy solo existen `/sync`, `/validate`, `/history`, `/history/diff` y `/state` (este último ya trae `lastCycle` con la traza del último ciclo, útil como base de la vista UI-1) |
 
 ### Prerrequisitos
 

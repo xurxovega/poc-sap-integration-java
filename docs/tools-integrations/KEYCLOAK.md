@@ -4,6 +4,9 @@
 > y cómo probarlo. La lógica del lado de la app está en
 > [`../sdd/common/seguridad-api.md`](../sdd/common/seguridad-api.md) y
 > [ADR-0007](../architecture/adr/0007-keycloak-como-proveedor-de-identidad-de-las-apis.md).
+> Por qué Keycloak y no otro proveedor de identidad, y qué falta para cerrar
+> los huecos de auditoría (`aud`, fail-closed): [`SERVICIO-AUTENTICACION.md`](SERVICIO-AUTENTICACION.md)
+> y [ADR-0012](../architecture/adr/0012-servicio-externo-de-autenticacion-idp.md) (estado: propuesta).
 
 ## 1. Cliente
 
@@ -47,7 +50,16 @@ curl -s -H "Authorization: Bearer $TOKEN" \
   "http://localhost:8081/customers/CUST-001/history?full=true" | jq .masked
 # read  -> false (snapshot completo)   external-read -> true (PII enmascarada)
 curl -s -o /dev/null -w "%{http_code}\n" http://localhost:8081/customers/CUST-001/history   # sin token -> 401
+
+# el mismo token sirve para el resto de endpoints de customer, incl. el estado
+# con la traza del último ciclo:
+curl -s -H "Authorization: Bearer $TOKEN" http://localhost:8081/customers/CUST-001/state | jq .lastCycle
 ```
+
+Contrato completo de los endpoints (parámetros, respuestas, seguridad) en
+[`../../customer/src/main/resources/openapi.yml`](../../customer/src/main/resources/openapi.yml)
+y su homólogo de `article`: se puede importar en Postman/Insomnia junto con el
+`$TOKEN` de arriba.
 
 En local con el SAP simulado no hay Keycloak: `scripts/env/local.env` pone
 `APP_SECURITY_ENABLED=false` y la app avisa al arrancar de que va abierta.

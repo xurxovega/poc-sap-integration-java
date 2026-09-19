@@ -1,7 +1,10 @@
 package com.poc.sap.customer.application.contact;
 
+import java.time.Clock;
+import com.poc.sap.common.domain.FeatureOutcome;
 import com.poc.sap.common.domain.SyncState;
 import com.poc.sap.common.domain.port.SyncStateRepositoryPort;
+import com.poc.sap.common.domain.port.SapOutboundPort.SapLookup;
 import com.poc.sap.common.domain.port.SapOutboundPort.SapResponse;
 import com.poc.sap.common.domain.port.MetricsPort;
 import com.poc.sap.customer.application.CustomerFixtures;
@@ -28,7 +31,11 @@ class SyncContactUseCaseTest {
 
     @BeforeEach
     void setUp() {
-        useCase = new SyncContactUseCase(sapPort, stateRepo, metrics);
+        useCase = new SyncContactUseCase(sapPort, stateRepo, metrics, Clock.systemUTC());
+        // El puerto mockeado no sabe verificar: estos tests cubren el ALTA. La
+        // verificacion previa (upsert-idempotente-sap.md) tiene sus propios tests en
+        // FeatureSyncPipelineTest y en los adaptadores OData.
+        lenient().when(sapPort.lookup(any(), any())).thenReturn(SapLookup.notSupported());
     }
 
     @Test
@@ -37,9 +44,9 @@ class SyncContactUseCaseTest {
         when(sapPort.send(eq("C-1"), anyString(), any(ContactData.class)))
                 .thenReturn(new SapResponse(200, "", null));
 
-        SyncState result = useCase.execute(c, "hash-c");
+        FeatureOutcome result = useCase.execute(c, "cyc-1", "hash-c");
 
-        assertThat(result).isEqualTo(SyncState.SENT_SAP);
+        assertThat(result.state()).isEqualTo(SyncState.SENT_SAP);
     }
 
     @Test
@@ -51,9 +58,9 @@ class SyncContactUseCaseTest {
                 new ContactData(null, null, null, null),
                 CustomerFixtures.validCustomer().banking());
 
-        SyncState result = useCase.execute(c, "hash-c");
+        FeatureOutcome result = useCase.execute(c, "cyc-1", "hash-c");
 
-        assertThat(result).isEqualTo(SyncState.INVALID);
+        assertThat(result.state()).isEqualTo(SyncState.INVALID);
         verify(sapPort, never()).send(any(), any(), any());
     }
 
@@ -63,9 +70,9 @@ class SyncContactUseCaseTest {
         when(sapPort.send(any(), any(), any()))
                 .thenReturn(new SapResponse(500, "err", null));
 
-        SyncState result = useCase.execute(c, "hash-c");
+        FeatureOutcome result = useCase.execute(c, "cyc-1", "hash-c");
 
-        assertThat(result).isEqualTo(SyncState.SAP_ERROR);
+        assertThat(result.state()).isEqualTo(SyncState.SAP_ERROR);
     }
 
     @Test

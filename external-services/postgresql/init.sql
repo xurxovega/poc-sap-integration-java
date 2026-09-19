@@ -22,28 +22,32 @@ ON CONFLICT (id) DO NOTHING;
 
 -- =============================================================================
 -- Outbox CDC (Debezium) — dominio ARTICLE
--- Cada cambio en articles inserta una fila cuyo `payload` es EXACTAMENTE
--- el JSON que esperan los listeners Kafka:
---   {"entityId":"...","operation":"CREATE|UPDATE|DELETE","payloadHash":"...","payload":{...}}
--- Requiere wal_level=logical (ya configurado en docker-compose) y pgcrypto
--- (extensión creada arriba) para el hash SHA-256.
+-- MENSAJE FINO (ADR-0013): la outbox NO publica datos del articulo. Cada cambio
+-- inserta una fila cuyo `message` es el aviso que leen los listeners Kafka:
+--   {"entityId":"...","operation":"CREATE|UPDATE|DELETE","occurredAt":"...","version":N}
+-- El consumidor relee el estado actual del legacy y calcula el hash sobre el
+-- snapshot leido. Las columnas `payload` y `payload_hash` se conservan un ciclo,
+-- NULLABLE y siempre NULL, para no romper lo que aun las lea.
+-- Requiere wal_level=logical (ya configurado en docker-compose).
 -- =============================================================================
 
 CREATE TABLE IF NOT EXISTS outbox_article (
     id           BIGSERIAL PRIMARY KEY,
     entity_id    VARCHAR(50)  NOT NULL,
     operation    VARCHAR(10)  NOT NULL,
-    payload_hash VARCHAR(64)  NOT NULL,
-    payload      TEXT         NOT NULL,
+    occurred_at  TIMESTAMPTZ  NOT NULL DEFAULT now(),
+    message      TEXT         NOT NULL,
+    payload_hash VARCHAR(64)  NULL,   -- ADR-0013: deja de emitirse
+    payload      TEXT         NULL,   -- ADR-0013: deja de emitirse
     created_at   TIMESTAMPTZ  NOT NULL DEFAULT now()
 );
 
 CREATE OR REPLACE FUNCTION articles_outbox_fn() RETURNS trigger AS $$
 DECLARE
-    rec         articles%ROWTYPE;
-    op          TEXT;
-    entity_json TEXT;
-    hash        TEXT;
+    rec        articles%ROWTYPE;
+    op         TEXT;
+    next_id    BIGINT;
+    now_utc    TIMESTAMPTZ := now();
 BEGIN
     IF TG_OP = 'INSERT' THEN
         rec := NEW; op := 'CREATE';
@@ -53,26 +57,20 @@ BEGIN
         rec := OLD; op := 'DELETE';
     END IF;
 
-    entity_json := jsonb_build_object(
-        'id',          rec.id,
-        'sku',         rec.sku,
-        'description', rec.description,
-        'category',    rec.category,
-        'unit',        rec.unit,
-        'status',      rec.status
-    )::text;
-    hash := encode(digest(entity_json, 'sha256'), 'hex');
+    next_id := nextval('outbox_article_id_seq');
 
-    INSERT INTO outbox_article (entity_id, operation, payload_hash, payload)
+    -- Mensaje fino: identidad del cambio y nada mas. Ni datos, ni hash.
+    INSERT INTO outbox_article (id, entity_id, operation, occurred_at, message)
     VALUES (
+        next_id,
         rec.id,
         op,
-        hash,
+        now_utc,
         jsonb_build_object(
-            'entityId',    rec.id,
-            'operation',   op,
-            'payloadHash', hash,
-            'payload',     entity_json::jsonb
+            'entityId',   rec.id,
+            'operation',  op,
+            'occurredAt', to_char(now_utc AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'),
+            'version',    next_id
         )::text
     );
 

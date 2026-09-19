@@ -1,5 +1,6 @@
 package com.poc.sap.customer.application.general;
 
+import java.time.Clock;
 import com.poc.sap.common.domain.SyncState;
 import com.poc.sap.common.domain.port.SapOutboundPort.SapResponse;
 import com.poc.sap.common.domain.port.MetricsPort;
@@ -44,7 +45,7 @@ class DeleteCustomerUseCaseTest {
     @BeforeEach
     void setUp() {
         stateRepo = new InMemoryStateRepo();
-        useCase = new DeleteCustomerUseCase(imageStore, sapOutbound, stateRepo, metrics);
+        useCase = new DeleteCustomerUseCase(imageStore, sapOutbound, stateRepo, metrics, Clock.systemUTC());
     }
 
     /**
@@ -59,7 +60,7 @@ class DeleteCustomerUseCaseTest {
             if (prior != null) {
                 repo.seed("C-1", prior);
             }
-            DeleteCustomerUseCase uc = new DeleteCustomerUseCase(imageStore, sapOutbound, repo, metrics);
+            DeleteCustomerUseCase uc = new DeleteCustomerUseCase(imageStore, sapOutbound, repo, metrics, Clock.systemUTC());
             when(sapOutbound.delete("C-1", "hash-del")).thenReturn(new SapResponse(204, "", null));
 
             SyncState result = uc.execute("C-1", "hash-del");

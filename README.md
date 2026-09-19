@@ -39,7 +39,7 @@ La documentación está organizada por **para qué sirve cada cosa**:
 ### Cómo se arranca y se prueba
 
 - [`docs/QUICK_START.md`](docs/QUICK_START.md) — **arranque rápido**: requisitos, compilación, infraestructura local en contenedores, SAP simulado, arranque de cada app, primer smoke test, CDC end-to-end, herramientas de inspección (Postman, DBeaver, Kibana, Compass), modos **local vs test**, puertos y problemas frecuentes. Incluye [`scripts/start-all.sh`](scripts/start-all.sh) para levantarlo todo con un comando.
-- [`docs/testing/TESTING.md`](docs/testing/TESTING.md) — estrategia y catálogo de la suite de tests (211 tests, tipos, convenciones, contratos SAP, issues conocidos).
+- [`docs/testing/TESTING.md`](docs/testing/TESTING.md) — estrategia y catálogo de la suite de tests (447 `@Test` declarados en todos los módulos a 2026-09-19, cifra que vigila `TestCountMatchesDocsTest`; tipos, convenciones, contratos SAP, issues conocidos).
 - [`docs/testing/GUIA-PRUEBAS.md`](docs/testing/GUIA-PRUEBAS.md) — guía práctica de pruebas por niveles: suite automática, entorno local con mock de SAP, flujo REST, CDC end-to-end con Debezium, resiliencia (retry/DLT/CSRF), métricas y pruebas contra tenant real.
 
 ### Integraciones y referencia
@@ -127,6 +127,30 @@ mvn -pl article spring-boot:run
 > cd external-services
 > docker compose up -d
 > ```
+
+### Endpoints y contrato de API
+
+Cada app publica su contrato en un fichero OpenAPI estándar, importable en
+Postman/Insomnia o para generar clientes:
+[`customer/src/main/resources/openapi.yml`](customer/src/main/resources/openapi.yml) y
+[`article/src/main/resources/openapi.yml`](article/src/main/resources/openapi.yml).
+
+| App | Endpoint | Qué hace |
+|---|---|---|
+| customer | `POST /customers/sync` | ingesta síncrona; `409 Conflict` si otro ciclo (Kafka o REST) ya está procesando la misma entidad (`ConcurrentTransitionException`, ADR-0011) |
+| customer | `POST /customers/validate` | solo valida, no indexa ni envía a SAP |
+| customer | `GET /customers/{id}/history?full=` | versiones enviadas a SAP |
+| customer | `GET /customers/{id}/history/diff?from=&to=` | diff entre dos `payloadHash` |
+| customer | `GET /customers/{id}/state` | estado del agregado y de cada feature, con `lastCycle`: la traza paso a paso (línea, estado y detalle) del último ciclo de sincronización — `null` si es anterior a que existiera la traza |
+| article | `POST /articles/sync`, `GET /articles/{id}/history`, `/history/diff` | homólogos de customer |
+
+Estados posibles de una entidad/feature (máquina de estados,
+[`docs/sdd/common/maquina-de-estados.md`](docs/sdd/common/maquina-de-estados.md)):
+intermedios (`RECEIVED`, `FETCHING`, `INDEXING`, `SENDING_SAP`...), `SENT_SAP`
+(sincronizado), `SAP_ERROR` (falló contra SAP, se reintenta con el siguiente
+evento) y `ERROR`/`INVALID`/`BLOCKED` (dato inválido o baja). Las APIs REST
+requieren JWT de Keycloak salvo en local con `APP_SECURITY_ENABLED=false`
+([`docs/tools-integrations/KEYCLOAK.md`](docs/tools-integrations/KEYCLOAK.md)).
 
 ## Debug paso a paso en VS Code
 
@@ -221,9 +245,12 @@ todo lo sensible. **Nunca commitear secretos.**
 
 ## Testing
 
-Suite de **211 tests** (unit, slice web, contract SAP con WireMock,
-resiliencia del cliente SAP, smoke de contexto Spring por app, integration
-con Testcontainers).
+Suite de **447 tests** declarados (`@Test` en `common`, `customer`, `article` e
+`it`, medido el 2026-09-18; el build falla si la cifra documentada diverge):
+unit, slice web, contract SAP con WireMock, resiliencia del
+cliente SAP, smoke de contexto Spring por app, integration con Testcontainers.
+Cifra exacta y catálogo completo en
+[`docs/testing/TESTING.md`](docs/testing/TESTING.md).
 
 ```bash
 mvn test                              # unit tests de todos los módulos

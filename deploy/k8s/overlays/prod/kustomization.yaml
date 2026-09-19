@@ -24,3 +24,8 @@ configMapGenerator:
       - SAP_S4_AUTH_TYPE=oauth2
       - SAP_CLIENT_RESPONSE_TIMEOUT_MS=30000
       - SAP_CLIENT_CONNECT_TIMEOUT_MS=5000
+      # La app nunca crea topics en produccion: los crea la plataforma (deploy/README.md).
+      - APP_KAFKA_TOPICS_CREATE=false
+      - APP_KAFKA_TOPICS_PARTITIONS=12
+      - CUSTOMER_KAFKA_CONCURRENCY=3
+      - ARTICLE_KAFKA_CONCURRENCY=3

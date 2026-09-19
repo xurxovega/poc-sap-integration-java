@@ -1,5 +1,6 @@
 package com.poc.sap.article.application;
 
+import java.time.Clock;
 import com.poc.sap.article.domain.Article;
 import com.poc.sap.article.domain.port.ArticleHistoryIndexerPort;
 import com.poc.sap.article.domain.port.ArticleImageStorePort;
@@ -8,6 +9,7 @@ import com.poc.sap.article.domain.port.ArticleSapOutboundPort;
 import com.poc.sap.common.domain.IngestionMessage;
 import com.poc.sap.common.domain.IngestionOrigin;
 import com.poc.sap.common.domain.OperationType;
+import com.poc.sap.common.domain.PayloadHasher;
 import com.poc.sap.common.domain.SyncState;
 import com.poc.sap.common.domain.port.SyncStateRepositoryPort;
 import com.poc.sap.common.domain.port.SapOutboundPort.SapResponse;
@@ -41,7 +43,7 @@ class SyncArticleUseCaseTest {
     @BeforeEach
     void setUp() {
         useCase = new SyncArticleUseCase(legacyRepo, imageStore, historyIndexer,
-                sapOutbound, stateRepo, metrics);
+                sapOutbound, stateRepo, metrics, Clock.systemUTC());
         lenient().when(stateRepo.alreadySent(anyString(), anyString(), anyString()))
                 .thenReturn(false);
     }
@@ -66,7 +68,7 @@ class SyncArticleUseCaseTest {
 
         assertThat(result).isEqualTo(SyncState.SENT_SAP);
         verify(imageStore).save(eq("A-1"), any());
-        verify(historyIndexer).index(eq("A-1"), any(), eq("hash-a"));
+        verify(historyIndexer).index(eq("A-1"), any(), eq(PayloadHasher.hash(validArticle())));
     }
 
     /** observabilidad AC-2 (auditoria A9): cada etapa deja su duracion. */
@@ -138,16 +140,40 @@ class SyncArticleUseCaseTest {
         verify(sapOutbound, never()).send(any(), any(), any());
     }
 
+    /**
+     * AC-5 (sdd/common/idempotencia-y-dedupe.md, ADR-0013): el dedupe usa el hash
+     * del snapshot releido del legacy, no el que traiga el mensaje.
+     */
     @Test
-    void alreadySentPayloadSkipsPipelineAndReturnsSentSap() {
-        when(stateRepo.alreadySent("article", "A-1", "hash-a")).thenReturn(true);
+    void dedupeUsesTheHashOfTheSnapshotNotTheMessage() {
+        Article a = validArticle();
+        when(legacyRepo.fetch("A-1")).thenReturn(Optional.of(a));
+        when(stateRepo.alreadySent("article", "A-1", PayloadHasher.hash(a))).thenReturn(true);
 
-        SyncState result = useCase.execute(ingestion());
+        SyncState result = useCase.execute(new IngestionMessage("A-1", "article",
+                OperationType.UPDATE, IngestionOrigin.CDC, "hash-que-no-corresponde", null));
 
         assertThat(result).isEqualTo(SyncState.SENT_SAP);
-        verify(legacyRepo, never()).fetch(anyString());
         verify(sapOutbound, never()).send(any(), any(), any());
         verify(stateRepo, never()).transition(anyString(), anyString(), any());
+    }
+
+    /**
+     * AC-6 (sdd/article/sincronizacion-articulo.md §3, ADR-0013): el mensaje fino
+     * -sin hash y sin payload- se procesa: el estado actual sale del legacy.
+     */
+    @Test
+    void thinMessageWithoutPayloadIsProcessed() {
+        Article a = validArticle();
+        when(legacyRepo.fetch("A-1")).thenReturn(Optional.of(a));
+        when(sapOutbound.send(any(), any(), any())).thenReturn(new SapResponse(201, "ok", null));
+
+        SyncState result = useCase.execute(IngestionMessage.thin(
+                "A-1", "article", OperationType.UPDATE, IngestionOrigin.CDC));
+
+        assertThat(result).isEqualTo(SyncState.SENT_SAP);
+        verify(historyIndexer).index("A-1", a, PayloadHasher.hash(a));
+        verify(sapOutbound).send("A-1", PayloadHasher.hash(a), a);
     }
 
     @Test
@@ -160,7 +186,7 @@ class SyncArticleUseCaseTest {
 
         assertThat(result).isEqualTo(SyncState.SAP_ERROR);
         // idempotencia-y-dedupe AC-3: historico si, imagen no (SAP no tiene el dato).
-        verify(historyIndexer).index(eq("A-1"), any(), eq("hash-a"));
+        verify(historyIndexer).index(eq("A-1"), any(), eq(PayloadHasher.hash(validArticle())));
         verify(imageStore, never()).save(anyString(), any());
     }
 

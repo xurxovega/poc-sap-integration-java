@@ -22,17 +22,20 @@
 
     "message.key.columns": "poc.dbo.outbox_customer:entity_id",
 
-    "transforms": "unwrap,extractPayload,extractKey,route",
+    "transforms": "unwrap,extractMessage,extractKey,route",
     "transforms.unwrap.type": "io.debezium.transforms.ExtractNewRecordState",
     "transforms.unwrap.drop.tombstones": "true",
     "transforms.unwrap.delete.handling.mode": "drop",
-    "transforms.extractPayload.type": "org.apache.kafka.connect.transforms.ExtractField$Value",
-    "transforms.extractPayload.field": "payload",
+    "transforms.extractMessage.type": "org.apache.kafka.connect.transforms.ExtractField$Value",
+    "transforms.extractMessage.field": "message",
     "transforms.extractKey.type": "org.apache.kafka.connect.transforms.ExtractField$Key",
     "transforms.extractKey.field": "entity_id",
     "transforms.route.type": "org.apache.kafka.connect.transforms.RegexRouter",
     "transforms.route.regex": ".*",
     "transforms.route.replacement": "outbox.CUSTOMER",
+
+    "topic.creation.default.partitions": "12",
+    "topic.creation.default.replication.factor": "1",
 
     "key.converter": "org.apache.kafka.connect.storage.StringConverter",
     "value.converter": "org.apache.kafka.connect.storage.StringConverter"

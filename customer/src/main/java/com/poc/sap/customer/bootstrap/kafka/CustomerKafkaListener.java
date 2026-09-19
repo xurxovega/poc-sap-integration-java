@@ -6,6 +6,7 @@ import com.poc.sap.common.sap.json.SapJsonMapper;
 import com.poc.sap.common.domain.IngestionMessage;
 import com.poc.sap.common.domain.IngestionOrigin;
 import com.poc.sap.common.domain.OperationType;
+import com.poc.sap.common.domain.PayloadHasher;
 import com.poc.sap.customer.application.general.DeleteCustomerUseCase;
 import com.poc.sap.customer.application.general.SyncCustomerUseCase;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
@@ -17,7 +18,13 @@ import java.util.Locale;
 
 /**
  * Listener Kafka para CDC (Debezium) del dominio Customer (TECH.md §6).
- * Topic por dominio: outbox.CUSTOMER. Idempotente por payloadHash.
+ * Topic por dominio: outbox.CUSTOMER.
+ *
+ * <p><b>Mensaje fino</b> (ADR-0013): el aviso solo lleva la identidad del cambio
+ * ({@code entityId}, {@code operation} y, si vienen, {@code occurredAt}/{@code version}).
+ * El estado actual lo relee el use case del legacy. Los mensajes antiguos que
+ * todavia traigan {@code payloadHash} y {@code payload} se siguen aceptando: se
+ * parsean, pero no son fuente de datos.
  * Los errores se propagan al error handler del contenedor (DLT + backoff).
  */
 @Component
@@ -38,8 +45,14 @@ public class CustomerKafkaListener {
         this.deleteUseCase = deleteUseCase;
     }
 
+    // concurrency declarado (ADR-0011): hilos por instancia. La regla es
+    // particiones >= instancias x concurrency; con 12 particiones y 3 hilos
+    // caben 4 instancias entre los dos clusters. Un solo consumer group
+    // compartido por todos los clusters: grupos distintos harian que cada
+    // cluster escribiera el mismo cambio en SAP.
     @KafkaListener(topics = "${customer.kafka.topic:outbox.CUSTOMER}",
-                   groupId = "${customer.kafka.group:customer-consumer}")
+                   groupId = "${customer.kafka.group:customer-consumer}",
+                   concurrency = "${customer.kafka.concurrency:3}")
     public void onMessage(ConsumerRecord<String, String> record) throws JsonProcessingException {
         log.info("Kafka recibido topic={} key={} offset={}",
                 record.topic(), record.key(), record.offset());
@@ -55,10 +68,15 @@ public class CustomerKafkaListener {
                 "customer",
                 OperationType.valueOf(node.path("operation").asText("UPDATE").toUpperCase(Locale.ROOT)),
                 IngestionOrigin.CDC,
-                node.path("payloadHash").asText(),
-                node.path("payload").toString());
+                node.hasNonNull("payloadHash") ? node.get("payloadHash").asText() : null,
+                node.hasNonNull("payload") ? node.get("payload").toString() : null);
         if (msg.operation() == OperationType.DELETE) {
-            deleteUseCase.execute(msg.entityId(), msg.payloadHash());
+            // La baja no tiene snapshot que releer: la fila ya no esta en el legacy.
+            // Si el mensaje no trae hash, se deriva de la identidad (ADR-0013).
+            String hash = msg.payloadHash() != null
+                    ? msg.payloadHash()
+                    : PayloadHasher.ofIdentity("customer", msg.entityId(), "DELETE");
+            deleteUseCase.execute(msg.entityId(), hash);
         } else {
             syncUseCase.execute(msg);
         }

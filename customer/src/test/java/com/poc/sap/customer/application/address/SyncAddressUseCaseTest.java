@@ -1,9 +1,11 @@
 package com.poc.sap.customer.application.address;
 
+import com.poc.sap.common.domain.FeatureOutcome;
 import com.poc.sap.common.domain.SyncState;
 import com.poc.sap.common.domain.SyncStateMachine;
 import com.poc.sap.common.domain.SyncStateTransition;
 import com.poc.sap.common.domain.port.SyncStateRepositoryPort;
+import com.poc.sap.common.domain.port.SapOutboundPort.SapLookup;
 import com.poc.sap.common.domain.port.SapOutboundPort.SapResponse;
 import com.poc.sap.common.domain.port.MetricsPort;
 import com.poc.sap.customer.application.CustomerFixtures;
@@ -16,6 +18,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.time.Clock;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -39,7 +42,11 @@ class SyncAddressUseCaseTest {
 
     @BeforeEach
     void setUp() {
-        useCase = new SyncAddressUseCase(sapPort, stateRepo, metrics);
+        useCase = new SyncAddressUseCase(sapPort, stateRepo, metrics, Clock.systemUTC());
+        // El puerto mockeado no sabe verificar: estos tests cubren el ALTA. La
+        // verificacion previa (upsert-idempotente-sap.md) tiene sus propios tests en
+        // FeatureSyncPipelineTest y en los adaptadores OData.
+        lenient().when(sapPort.lookup(any(), any())).thenReturn(SapLookup.notSupported());
     }
 
     @Test
@@ -48,18 +55,18 @@ class SyncAddressUseCaseTest {
         when(sapPort.send(eq("C-1"), anyString(), any(AddressData.class)))
                 .thenReturn(new SapResponse(201, "", "loc"));
 
-        SyncState result = useCase.execute(c, "hash-a");
+        FeatureOutcome result = useCase.execute(c, "cyc-1", "hash-a");
 
-        assertThat(result).isEqualTo(SyncState.SENT_SAP);
+        assertThat(result.state()).isEqualTo(SyncState.SENT_SAP);
         verify(sapPort).send(eq("C-1"), anyString(), any(AddressData.class));
     }
 
     @Test
     void invalidAddressReturnsInvalid() {
         Customer invalid = CustomerFixtures.invalidAddressCustomer();
-        SyncState result = useCase.execute(invalid, "hash-a");
+        FeatureOutcome result = useCase.execute(invalid, "cyc-1", "hash-a");
 
-        assertThat(result).isEqualTo(SyncState.INVALID);
+        assertThat(result.state()).isEqualTo(SyncState.INVALID);
         verify(sapPort, never()).send(any(), any(), any());
     }
 
@@ -69,9 +76,9 @@ class SyncAddressUseCaseTest {
         when(sapPort.send(any(), any(), any()))
                 .thenReturn(new SapResponse(500, "fail", null));
 
-        SyncState result = useCase.execute(c, "hash-a");
+        FeatureOutcome result = useCase.execute(c, "cyc-1", "hash-a");
 
-        assertThat(result).isEqualTo(SyncState.SAP_ERROR);
+        assertThat(result.state()).isEqualTo(SyncState.SAP_ERROR);
     }
 
     /**
@@ -85,7 +92,7 @@ class SyncAddressUseCaseTest {
         Customer c = CustomerFixtures.validCustomer();
         when(sapPort.send(any(), any(), any())).thenReturn(new SapResponse(201, "", "loc"));
 
-        useCase.execute(c, "hash-a");
+        useCase.execute(c, "cyc-1", "hash-a");
 
         verify(stateRepo).beginCycle(eq("customer"), eq("C-1:ADDRESS"),
                 argThat(t -> t.to() == SyncState.VALIDATING));
@@ -100,11 +107,11 @@ class SyncAddressUseCaseTest {
     @Test
     void completesAgainstRealStateMachine() {
         InMemoryStateRepo repo = new InMemoryStateRepo();
-        SyncAddressUseCase realUseCase = new SyncAddressUseCase(sapPort, repo, metrics);
+        SyncAddressUseCase realUseCase = new SyncAddressUseCase(sapPort, repo, metrics, Clock.systemUTC());
         Customer c = CustomerFixtures.validCustomer();
         when(sapPort.send(any(), any(), any())).thenReturn(new SapResponse(201, "", "loc"));
 
-        assertThatCode(() -> realUseCase.execute(c, "hash-a")).doesNotThrowAnyException();
+        assertThatCode(() -> realUseCase.execute(c, "cyc-1", "hash-a")).doesNotThrowAnyException();
 
         assertThat(repo.states("C-1:ADDRESS")).containsExactly(
                 SyncState.VALIDATING, SyncState.VALID,
@@ -120,12 +127,12 @@ class SyncAddressUseCaseTest {
     @Test
     void reSyncOfAnAlreadySentAddress() {
         InMemoryStateRepo repo = new InMemoryStateRepo();
-        SyncAddressUseCase realUseCase = new SyncAddressUseCase(sapPort, repo, metrics);
+        SyncAddressUseCase realUseCase = new SyncAddressUseCase(sapPort, repo, metrics, Clock.systemUTC());
         Customer c = CustomerFixtures.validCustomer();
         when(sapPort.send(any(), any(), any())).thenReturn(new SapResponse(201, "", "loc"));
 
-        realUseCase.execute(c, "hash-1");
-        assertThatCode(() -> realUseCase.execute(c, "hash-2")).doesNotThrowAnyException();
+        realUseCase.execute(c, "cyc-1", "hash-1");
+        assertThatCode(() -> realUseCase.execute(c, "cyc-1", "hash-2")).doesNotThrowAnyException();
 
         assertThat(repo.states("C-1:ADDRESS")).containsExactly(
                 SyncState.VALIDATING, SyncState.VALID, SyncState.SENDING_SAP, SyncState.SENT_SAP,

@@ -8,7 +8,7 @@
 
 ## 1. Resumen ejecutivo
 
-Total: **314 tests** declarados (medido el 12-09-2026 con JDK 25, `mvn clean test`).
+Total: **447 tests** declarados (medido el 19-09-2026 con JDK 25, `mvn clean test`).
 
 La cifra es de `@Test` **declarados** en `src/test/java` de todos los módulos; la vigila
 `TestCountMatchesDocsTest` (módulo `it`) y el build falla si diverge. Los IT gateados
@@ -17,10 +17,10 @@ El módulo `it` sigue ejecutando los contract dos veces — ver §8 issue 3.
 
 | Módulo     | Tests aprox. | Contenido principal |
 |------------|--------------|---------------------|
-| common     | 103          | dominio (máquina de estados con estado inicial/re-sync, ValidationResult acumulativo), `FeatureSyncPipelineTest` (recorrido por feature con la máquina real), `KafkaErrorHandlingConfigTest` (compartido), Mongo repo (dedupe `alreadySent`), auth providers, **`RestClientSapClientTest`** (retry 5xx, no-retry 4xx, cabeceras, PATCH/DELETE, CSRF completo con auth del destino y 403 sin `Required` contra WireMock) |
-| customer   | 150          | unit + slice + **`CustomerApplicationContextTest`** (smoke de contexto Spring completo) |
-| article    | 45           | unit + slice + **`ArticleApplicationContextTest`** (smoke de contexto) |
-| it         | 16           | contract (WireMock, adaptadores **reales**, failsafe) + `TestCountMatchesDocsTest` + `SyncStateMongoIT`/`InfrastructureSmokeIT` (skip sin `-Ddocker.available=true`) |
+| common     | 169          | dominio (máquina de estados con estado inicial/re-sync, ValidationResult acumulativo, `ConcurrentTransitionExceptionTest`), `FeatureSyncPipelineTest` (recorrido por feature con la máquina real: puerto que lanza, `httpStatus=0`, motivo del error, ciclo y **verificación previa cableada**: alta si SAP no la tiene, actualización con `If-Match` si la tiene, nada si el lookup no concluye, y el re-lookup único ante un `412`), `KafkaErrorHandlingConfigTest` (compartido: no reintentables, reintentables declaradas y backoff del circuito abierto), `KafkaSyncNotificationAdapterTest` (aviso con traza de pasos), Mongo repo (dedupe honesto `alreadySent`, `from` declarado frente al real, fencing por ciclo, consulta por ciclo), auth providers, **`RestClientSapClientTest`** (retry por método y fase del fallo: GET reintenta, POST solo antes de enviar, `If-Match`/`ETag`; no-retry 4xx, cabeceras, CSRF completo con auth del destino y 403 sin `Required` contra WireMock), `TransportFailuresTest` (clasificación antes/tras enviar contra la pila real), `MongoSapKeyStoreTest`, `RetryBudgetGuardTest` (lecturas y escrituras por separado, más el backoff de reentrega de Kafka), **`PayloadHasherTest`** (hash canónico del snapshot: determinista, sensible a cualquier campo, estable ante el orden de un mapa) |
+| customer   | 197          | unit + slice (`SyncCustomerUseCaseTest` con fallo parcial y cero confianza, `CustomerStateUseCaseTest`/`CustomerStateControllerTest` con la traza de pasos y su enmascarado, `SyncCustomerControllerTest` con el `409 Conflict`, `CustomerKafkaListenerTest` con la `concurrency` declarada, los 6 adaptadores OData con `lookup`/`update` y el contacto con datos reales, `BusinessPartnerReadAdapterTest`) + **`CustomerApplicationContextTest`** (smoke de contexto Spring completo) |
+| article    | 54           | unit + slice + **`ArticleApplicationContextTest`** (smoke de contexto) |
+| it         | 27           | contract (WireMock, adaptadores **reales**, failsafe; incluye los de upsert `BusinessPartner*UpsertContractTest` y `S4ContactCommunicationContractTest`) + `TestCountMatchesDocsTest` + `SyncStateMongoIT` (traza por ciclo, lectura desfasada y fencing) / `InfrastructureSmokeIT` (skip sin `-Ddocker.available=true`) |
 | supplier   | 0            | placeholder |
 
 Los smoke tests de contexto levantan cada app sin infraestructura externa
@@ -43,113 +43,25 @@ incompatible, Jackson 3, `spring-kafka` sin autoconfiguración).
 
 ## 3. Estructura por módulo
 
-### 3.1 common (45 tests)
-
-| Fichero | Clase cubierta | # | Tipo | Descripción |
-|---------|----------------|---|------|-------------|
-| SyncStateMachineTest | SyncStateMachine | 7 | unit | Happy path, rama terminal, transiciones inválidas, recuperación de errores |
-| ErrorStateRecoveryTest | SyncStateMachine | 9 | unit | Estados de error (ERROR, COMMUNICATION_ERROR, SAP_ERROR) y recuperación |
-| SyncStateTransitionTest | SyncStateTransition | 3 | unit | Builder del VO, invariantes |
-| ValidationResultTest | ValidationResult | 4 | unit | Factories `success`/`invalid`, chaining `and` |
-| IngestionMessageTest | IngestionMessage | 8 | unit | Builder, invariantes, enums |
-| SyncMetricsTest | SyncMetrics | 4 | unit | Contadores y timers por dominio/estado |
-| BtpAuthProviderTest | BtpAuthProvider | 3 | unit | Token BTP xsuaa, fallback stub |
-| S4NativeAuthProviderTest | S4NativeAuthProvider | 3 | unit | Token S/4 nativo, fallback stub |
-| MongoSyncStateRepositoryTest | MongoSyncStateRepository | 4 | unit | Mapeo `SyncStateDoc`, recuperación de estado |
-
-### 3.2 customer (106 tests)
-
-**Unit domain (28)**:
-
-| Fichero | Clase cubierta | # | Descripción |
-|---------|----------------|---|-------------|
-| CustomerValidationsTest | CustomerValidations | 6 | Aggregate completo + subconjuntos de features |
-| AddressValidatorTest | AddressValidator | 5 | Campos obligatorios, formatos country/postal |
-| FiscalValidatorTest | FiscalValidator | 6 | taxId ES, VAT, legalName, taxResidency |
-| ContactValidatorTest | ContactValidator | 5 | email/phone/url, "al menos un canal" |
-| BankingValidatorTest | BankingValidator | 6 | IBAN/BIC, mandateIds, "iban o mandate" |
-
-**Unit use cases (29)**:
-
-| Fichero | Clase cubierta | # | Descripción |
-|---------|----------------|---|-------------|
-| SyncCustomerUseCaseTest | SyncCustomerUseCase (orchestrador) | 8 | Happy path, empty legacy, invalid, partial features, invalid feature, sap_error, args inválidos |
-| ValidateCustomerUseCaseTest | ValidateCustomerUseCase | 4 | Valid, invalid, missing, partial features |
-| DeleteCustomerUseCaseTest | DeleteCustomerUseCase | 2 | Borra ok, mantiene imagen si SAP falla |
-| SyncAddressUseCaseTest | SyncAddressUseCase | 4 | Happy, invalid, sap_error, featureEntityId |
-| SyncFiscalUseCaseTest | SyncFiscalUseCase | 4 | Happy, invalid, sap_error, featureEntityId |
-| SyncContactUseCaseTest | SyncContactUseCase | 4 | Happy, no-channel invalid, sap_error, featureEntityId |
-| SyncBankingUseCaseTest | SyncBankingUseCase | 4 | Happy, empty banking invalid, sap_error, featureEntityId |
-| DeleteMandateUseCaseTest | DeleteMandateUseCase | 2 | Happy, sap_error |
-| ValidateAddressUseCaseTest | ValidateAddressUseCase | 3 | Valid, invalid, null address |
-| ValidateFiscalUseCaseTest | ValidateFiscalUseCase | 3 | Valid, invalid, null fiscal |
-| ValidateContactUseCaseTest | ValidateContactUseCase | 3 | Valid, invalid, null contact |
-| ValidateBankingUseCaseTest | ValidateBankingUseCase | 3 | Valid, invalid, null banking |
-
-**Unit adapter (5)**:
-
-| Fichero | Clase cubierta | # | Descripción |
-|---------|----------------|---|-------------|
-| JsonCustomerPayloadParserTest | JsonCustomerPayloadParser | 5 | Full payload, defaults, null banking, json inválido |
-
-**Unit SAP adapters (11)**:
-
-| Fichero | Clase cubierta | # | Descripción |
-|---------|----------------|---|-------------|
-| BtpCustomerAdapterTest | BtpCustomerAdapter | 2 | Mapeo JSON, null customer |
-| BtpAddressAdapterTest | BtpAddressAdapter | 2 | Mapeo JSON, null address |
-| BtpFiscalAdapterTest | BtpFiscalAdapter | 2 | Mapeo JSON, null fiscal |
-| BtpContactAdapterTest | BtpContactAdapter | 2 | Mapeo JSON, null contact |
-| BtpBankingAdapterTest | BtpBankingAdapter | 3 | Contrato BTP, mandatos como lista, null banking (antes `S4BankingAdapterTest`) |
-| BusinessPartnerBankODataAdapterTest | BusinessPartnerBankODataAdapter | 2 | `BankIdentification` ordinal sin BIC, `BankCountryKey` del IBAN |
-| SepaMandateODataAdapterTest | SepaMandateODataAdapter | 4 | Alta en `SEPAMandateSet`, revocación por PATCH de estado, acreedor obligatorio, mapa de estados |
-
-**Unit persistence (12)**:
-
-| Fichero | Clase cubierta | # | Descripción |
-|---------|----------------|---|-------------|
-| SqlServerCustomerRepositoryTest | SqlServerCustomerRepository | 5 | Mapping Entity↔Domain, campos legacy↔features |
-| MongoCustomerImageStoreTest | MongoCustomerImageStore | 4 | save/find/delete, banking preservation |
-| ElasticsearchCustomerIndexerTest | ElasticsearchCustomerIndexer | 3 | index, history, doc desde aggregate |
-
-**Slice web (4)**:
-
-| Fichero | Clase cubierta | # | Descripción |
-|---------|----------------|---|-------------|
-| SyncCustomerControllerIT | SyncCustomerController | 4 | sync ok, default UPDATE, validate ok, validate invalid |
-
-> ⚠️ **No se ejecutan** (issue §8.2): nombrado `*IT.java` sin `maven-failsafe-plugin` en `customer/pom.xml`.
-
-**Unit kafka (4)**:
-
-| Fichero | Clase cubierta | # | Descripción |
-|---------|----------------|---|-------------|
-| CustomerKafkaListenerTest | CustomerKafkaListener | 4 | parseo + invoke, default UPDATE, json malformado no propaga, objectMapper |
-
-### 3.3 article (29 tests)
-
-| Fichero | Clase cubierta | # | Tipo | Descripción |
-|---------|----------------|---|------|-------------|
-| ArticleValidationsTest | ArticleValidations | 5 | unit | valid, missing description/unit/status, null |
-| SyncArticleUseCaseTest | SyncArticleUseCase | 4 | unit | happy, empty legacy, invalid, sap_error |
-| SyncArticleControllerTest | SyncArticleController | 3 | slice | sync ok, default UPDATE, endpoint |
-| ArticleKafkaListenerTest | ArticleKafkaListener | 4 | unit | parseo, default op, json malformado |
-| S4ArticleAdapterTest | S4ArticleAdapter | 3 | unit | mapeo, null, formato |
-| PostgresArticleRepositoryTest | PostgresArticleRepository | 3 | unit | Entity↔Domain |
-| MongoArticleImageStoreTest | MongoArticleImageStore | 4 | unit | save/find/delete |
-| ElasticsearchArticleIndexerTest | ElasticsearchArticleIndexer | 3 | unit | index, history |
-
-### 3.4 it (11 + 1 skip)
-
-| Fichero | # | Tipo | Descripción |
-|---------|---|------|-------------|
-| BtpCustomerContractTest | 1 | contract | Contract BTP Customer (201 + Location) |
-| BtpAddressContractTest | 2 | contract | BTP Address 201 + header Idempotency-Key |
-| BtpFiscalContractTest | 2 | contract | BTP Fiscal 202 + 409 conflict |
-| BtpContactContractTest | 2 | contract | BTP Contact 201 + 400 bad request |
-| S4BankingContractTest | 2 | contract | S4 Banking 202 + 401 unauthorized |
-| S4ArticleContractTest | 2 | contract | S4 API_PRODUCT 201 + 400 |
-| InfrastructureSmokeIT | 1 (skip) | integration | Kafka + Mongo Testcontainers (gateado `-Ddocker.available=true`) |
+> Las cifras por módulo están en la tabla de §1 (medidas junto con el total de
+> 447 y vigiladas por `TestCountMatchesDocsTest`); las tablas fichero a fichero
+> que había aquí se desincronizaban en cada cambio y se han retirado. El
+> detalle real —qué cubre cada clase de test— vive en el propio fichero de
+> test (nombre de la clase + Javadoc citando el `AC-n`, según §1.5 de
+> `AGENTS.md`); es la fuente que no puede quedarse desactualizada porque el
+> build la ejecuta.
+>
+> Piezas nuevas relevantes desde el 18-09-2026, para ubicarlas rápido:
+> - `common`: `TransportFailuresTest`, `MongoSapKeyStoreTest`,
+>   `RetryBudgetGuardTest` (lecturas/escrituras separadas + backoff Kafka),
+>   `FeatureSyncPipelineTest` (verificación previa cableada, cubre también
+>   `SyncCycleRecorder` al no tener test dedicado propio).
+> - `customer`: los 6 `*ODataAdapterTest` con `lookup`/`update`,
+>   `SyncCustomerControllerTest` (409), `CustomerStateControllerTest`
+>   (traza de pasos y enmascarado), `BusinessPartnerReadAdapterTest`.
+> - `it`: `BusinessPartnerAddressUpsertContractTest` y similares
+>   (`BusinessPartner*UpsertContractTest`), `S4ContactCommunicationContractTest`,
+>   `BtpAddressContractTest` (renombrado), `SyncStateMongoIT`.
 
 ## 4. Convenciones
 
@@ -195,7 +107,7 @@ JDK 25 (`C:\Program Files\Java\jdk-25.0.3`). **JDK 25 es el mínimo**: el reacto
 
 - **JaCoCo con umbral forzado** (Fase 2 de la auditoría): el parent declara
   `prepare-agent`, `report` y `check` en `verify`. El `check` exige **≥ 75 % de
-  líneas en `**/domain/**`** de cada módulo. Suelo medido el 12-09-2026: common
+  líneas en `**/domain/**`** de cada módulo. Suelo medido el 18-09-2026: common
   90 %, customer 78 %, article 88 %. Si `domain` baja del umbral, `mvn verify`
   falla (comprobado forzando `-Djacoco.domain.line-minimum=0.95`). El dominio lo
   cubren también los tests de use case, así que protege la cobertura agregada, no
@@ -205,12 +117,26 @@ JDK 25 (`C:\Program Files\Java\jdk-25.0.3`). **JDK 25 es el mínimo**: el reacto
   `ApplicationPurityTest` (customer, article): `..application..` no depende de
   Spring, Micrometer ni Jackson (plan Fase 7; el wiring está en
   `bootstrap/*UseCaseConfig`). Las reglas `@ArchTest` no cuentan como `@Test`.
+  **Ojo (hallazgo del 2026-09-18):** con Spring Boot 4 el classpath lleva JUnit
+  Platform **6**, y el módulo `archunit-junit5` (compilado contra Platform 1.x)
+  no se registraba como motor: las reglas aparecían con `Tests run: 0` y **nunca
+  se habían ejecutado**; una regla imposible pasaba en verde. Desde esa fecha el
+  repo usa `archunit-junit6` y surefire/failsafe **≥ 3.6.0** (los primeros con
+  soporte de JUnit 6). La comprobación es trivial: cada clase ArchUnit debe salir
+  con `Tests run: 1` (o el número de sus `@ArchTest`) en el log, no con 0.
 - **Sincronización parcial (ADR-0010)**: `KafkaSyncNotificationAdapterTest`,
   `CustomerStateUseCaseTest` y las aserciones de aviso en `SyncCustomerUseCaseTest`.
 - **Seguridad de la API**: `ApiSecurityTest` (customer y article) levanta el contexto
   completo con la cadena de seguridad activa e inyecta JWT con `spring-security-test`
   (401 sin token, 403 sin rol, PII enmascarada para `external-read`);
   `EndpointsDeclareAccessTest` (ArchUnit) exige `@PreAuthorize` en todo endpoint.
+- **Contrato REST vigilado**: `OpenApiMatchesControllersTest` (customer y article,
+  4 `@Test` cada uno) carga el `openapi.yml` del módulo con SnakeYAML y lo cruza
+  con los controladores descubiertos por reflexión sobre `bootstrap.web`: todo
+  endpoint del código está en el contrato, toda operación del contrato existe en
+  el código, cada operación declara `x-required-role` y coincide con su
+  `@PreAuthorize`, y el contrato lleva `servers` y `securitySchemes`. Spec:
+  [`../sdd/common/contrato-openapi-rest.md`](../sdd/common/contrato-openapi-rest.md).
 - **Recuento de tests vigilado**: `TestCountMatchesDocsTest` (módulo `it`) cuenta
   los `@Test` declarados y falla si §1 de este documento no coincide.
 - **IT con Docker** (`-Ddocker.available=true`): `SyncStateMongoIT` (Mongo 7 real:

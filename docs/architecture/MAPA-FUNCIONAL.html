@@ -291,6 +291,7 @@ tr.nomatch { display: none; }
   <a href="#mapa">Mapa de piezas</a>
   <a href="#como-leer">Cómo leer este mapa</a>
   <strong>Dominios</strong>
+  <a href="#integracion-bpmn">Integración entre apps y servicios</a>
   <a href="#customer">Customer</a>
   <a href="#article">Article</a>
   <a href="#supplier">Supplier</a>
@@ -464,6 +465,198 @@ tr.nomatch { display: none; }
     <code>common</code> es el shared kernel: máquina de estados, cliente SAP, métricas y el repositorio
     de estado, reutilizados por todos los dominios sin dependencias cruzadas entre ellos.
   </p>
+</section>
+
+<!-- =================================================== INTEGRACIÓN BPMN -->
+<section id="integracion-bpmn">
+  <h2>Integración entre apps y servicios <span class="badge impl">Vista de proceso</span></h2>
+  <p class="intro">
+    Un nivel por encima de las secuencias C1-C7: aquí no aparecen estados ni transiciones,
+    solo <strong>qué sistema le entrega qué a quién</strong>. Cada carril (<em>pool</em>) es un
+    sistema o artefacto desplegable independiente; las flechas son mensajes o llamadas entre
+    carriles, no pasos internos de un mismo servicio.
+  </p>
+
+  <p>
+    Se muestra <code>customer-app</code> como referencia: <code>article-app</code> (y cualquier
+    dominio futuro) sigue el mismo patrón de carriles, cambiando solo el origen legacy y el topic.
+  </p>
+
+  <h3 id="integracion-cdc">Iniciador 1 · CDC (camino real)</h3>
+  <p>
+    La BD legacy dispara el ciclo. El topic transporta el JSON completo del cambio
+    (<code>address.*</code>, <code>fiscal.*</code>…) más su hash, pero es solo la
+    <strong>señal</strong>: el pipeline descarta ese cuerpo y vuelve a leer SQL Server en vivo
+    antes de validar nada (<code>SyncCustomerUseCase.java:126</code>).
+  </p>
+  <figure class="diagrama">
+    <figcaption>CDC <span class="badge impl">Implementado</span>
+      <span class="desc">el topic solo dispara; el dato real siempre se relee de SQL Server</span></figcaption>
+    <div class="lienzo"><pre class="mermaid">
+flowchart LR
+    subgraph LEGACY["Origen legacy"]
+        SQL[("SQL Server\ndbo.customers")]
+    end
+
+    subgraph CDC["Captura de cambios"]
+        direction TB
+        DBZ["Debezium /\nKafka Connect"]
+        KCUST(["Topic\noutbox.CUSTOMER\n(lleva el JSON completo + hash)"])
+    end
+
+    subgraph CUSTAPP["customer-app :8081"]
+        CLIST["CustomerKafkaListener"]
+        CCORE["Pipeline de dominio\n(validar · indexar · enviar)"]
+    end
+
+    subgraph DATA["Persistencia compartida"]
+        direction TB
+        MONGO[("MongoDB\nimagen + sync_state")]
+        ES[("Elasticsearch\nhistórico")]
+    end
+
+    subgraph SAP["SAP · las dos vías usan RestClient, no SAP Cloud SDK"]
+        direction TB
+        BTP["BTP\ncontrato propio"]
+        APISAP["API SAP\nOData nativo, sap-api-models"]
+        S4[("SAP S/4HANA")]
+    end
+
+    SQL -- "1 · trigger" --> DBZ
+    DBZ --> KCUST
+    KCUST -- "2 · señal de cambio\n(entityId, hash, JSON — no se usa)" --> CLIST
+    CLIST --> CCORE
+    CCORE -- "3 · relee el estado real\n(el JSON del topic se descarta)" --> SQL
+    CCORE <--> MONGO
+    CCORE --> ES
+    CCORE -. "inactiva por defecto en Spring;\nel servicio intermedio no existe" .-> BTP
+    CCORE -- "ACTIVA por defecto y en k8s" --> APISAP
+    BTP -. sin servicio real detras .-> S4
+    APISAP --> S4
+
+    classDef propuesto fill:#eef1f5,stroke:#75838f,color:#16202b,stroke-dasharray:4 3;
+    classDef cdc fill:#1f5fa8,stroke:#123a68,color:#ffffff;
+    classDef core fill:#4c5a68,stroke:#2e3841,color:#ffffff,stroke-width:2px;
+    classDef data fill:#1c7a4a,stroke:#124f30,color:#ffffff;
+    classDef sap fill:#9a6206,stroke:#674104,color:#ffffff;
+    class SQL,DBZ,KCUST,CLIST cdc
+    class CCORE core
+    class MONGO,ES data
+    class APISAP,S4 sap
+    class BTP propuesto
+</pre></div>
+  </figure>
+
+  <h3 id="integracion-rest">Iniciador 2 · REST (notificación externa)</h3>
+  <p>
+    Un tercero <em>avisa</em> de un cambio, pero no aporta el dato: el pipeline vuelve a leer el
+    estado real en la BD legacy antes de seguir, igual que en el camino CDC.
+  </p>
+  <figure class="diagrama">
+    <figcaption>REST <span class="badge impl">Implementado</span>
+      <span class="desc">la BD legacy sigue siendo la única fuente de datos; el cliente solo notifica o consulta</span></figcaption>
+    <div class="lienzo"><pre class="mermaid">
+flowchart LR
+    CLIENTE(["Sistema cliente\n/ ERP externo"]):::propuesto
+
+    subgraph CUSTAPP["customer-app :8081"]
+        CREST["/customers/*\nREST"]
+        CCORE["Pipeline de dominio\n(validar · indexar · enviar)"]
+    end
+
+    subgraph LEGACY["Origen legacy"]
+        SQL[("SQL Server\ndbo.customers")]
+    end
+
+    subgraph DATA["Persistencia compartida"]
+        direction TB
+        MONGO[("MongoDB\nimagen + sync_state")]
+        ES[("Elasticsearch\nhistórico")]
+    end
+
+    subgraph SAP["SAP · las dos vías usan RestClient, no SAP Cloud SDK"]
+        direction TB
+        BTP["BTP\ncontrato propio"]
+        APISAP["API SAP\nOData nativo, sap-api-models"]
+        S4[("SAP S/4HANA")]
+    end
+
+    CLIENTE -- "1 · notifica el cambio\n(entityId, hash — sin datos)" --> CREST
+    CREST --> CCORE
+    CCORE -- "2 · relee el estado real\n(el payload de la notificación no se usa)" --> SQL
+    CCORE <--> MONGO
+    CCORE --> ES
+    CCORE -. "inactiva por defecto en Spring;\nel servicio intermedio no existe" .-> BTP
+    CCORE -- "ACTIVA por defecto y en k8s" --> APISAP
+    BTP -. sin servicio real detras .-> S4
+    APISAP --> S4
+    CLIENTE -- "3 · consulta\nGET /history · /state" --> CCORE
+
+    classDef propuesto fill:#eef1f5,stroke:#75838f,color:#16202b,stroke-dasharray:4 3;
+    classDef rest fill:#6a4bab,stroke:#453177,color:#ffffff;
+    classDef cdc fill:#1f5fa8,stroke:#123a68,color:#ffffff;
+    classDef core fill:#4c5a68,stroke:#2e3841,color:#ffffff,stroke-width:2px;
+    classDef data fill:#1c7a4a,stroke:#124f30,color:#ffffff;
+    classDef sap fill:#9a6206,stroke:#674104,color:#ffffff;
+    class CREST rest
+    class SQL cdc
+    class CCORE core
+    class MONGO,ES data
+    class APISAP,S4 sap
+    class BTP,CLIENTE propuesto
+</pre></div>
+  </figure>
+
+  <div class="nota ojo">
+    <p><strong>La BD legacy es siempre la fuente de datos, en los dos caminos.</strong>
+    <code>SyncCustomerUseCase.execute()</code> hace exactamente lo mismo venga el mensaje de Kafka o
+    de REST: llama a <code>legacyRepo.fetch(entityId)</code> y descarta cualquier payload que haya
+    llegado con la notificación. En CDC (azul) ese payload es el JSON completo que el trigger metió
+    en el outbox; en REST (morado) es el cuerpo de <code>POST /customers/sync</code>. En ambos casos
+    solo se usa el <code>entityId</code> y el hash (para el dedupe), nunca el contenido. El cliente
+    REST solo aporta datos reales cuando <em>consulta</em> (<code>GET /history</code>,
+    <code>GET /state</code>), no cuando notifica un cambio.</p>
+  </div>
+  <div class="nota fut">
+    <p><strong>BTP y API SAP son dos formas de llegar a lo mismo (SAP S/4HANA), nunca una entrada de
+    SAP hacia nosotros.</strong> Las dos son llamadas salientes de nuestro pipeline (ADR-0004) y las
+    dos usan el mismo transporte HTTP, <code>RestClientSapClient</code> sobre <code>RestClient</code>
+    de Spring — <strong>ninguna pasa por el SAP Cloud SDK</strong> (ese es un camino aparte, ver nota
+    siguiente). <strong>API SAP es la ACTIVA por defecto</strong> (los 6 flags
+    <code>sap.odata.&lt;feature&gt;.enabled</code> se pusieron a <code>true</code> en
+    <code>application-common.yml</code>): son los adaptadores OData nativos
+    (<code>BusinessPartner*ODataAdapter</code>, modelos generados desde las specs de
+    <code>sap-api-models/specs/customer/API_BUSINESS_PARTNER.yaml</code>) contra el
+    <code>API_BUSINESS_PARTNER</code> real de S/4 — es la que se ha validado contra el tenant de test,
+    y <code>deploy/k8s/base/common.yaml</code> ya la traía activa. <strong>BTP queda inactiva por
+    defecto</strong> (<code>Btp*Adapter</code>, contrato propio <code>/sap/btp/odata/*</code>): el
+    servicio intermedio al otro lado no existe todavía, así que esas llamadas no llegarían a ningún
+    sitio real si se activara. Aparte de esto, no hay ningún sitio en este código donde SAP/BTP llame
+    hacia nuestro sistema: esa dirección (inbound) solo existe como pieza <em>propuesta</em> y
+    separada, "Consumer Event Mesh" (eventos de stock).</p>
+  </div>
+  <div class="nota alerta">
+    <p><strong>Esto revierte ADR-0004 D-10 (2026-09-18), que decidía mantener BTP activa por
+    defecto.</strong> El cambio de <code>application-common.yml</code> alinea el default de Spring con
+    lo que ya corría en Kubernetes, pero contradice esa decisión documentada, que sigue sin
+    actualizarse formalmente (falta un ADR D-11 o una revisión de D-10 que lo recoja). El entorno local
+    (<code>scripts/env/local.env</code>) sigue con los 6 flags en <code>false</code> (BTP/stub) sin
+    tocar.</p>
+  </div>
+  <div class="nota ojo">
+    <p><strong>SAP Cloud SDK no está en este flujo.</strong> Existe un módulo aparte,
+    <code>sap-sdk-client</code>, marcado en el mapa de piezas como spike desechable y repo anidado:
+    ahí sí se usa el SAP Cloud SDK en vez de <code>RestClient</code>, pero no lo invoca ningún
+    pipeline de dominio (<code>customer-app</code> / <code>article-app</code>). Si algún día se
+    sustituyera <code>RestClientSapClient</code> por el SDK, sería una tercera vía distinta de BTP y
+    de API SAP, no una variante de ninguna de las dos.</p>
+  </div>
+  <div class="nota fut">
+    <p><strong>Otros elementos punteados:</strong> el "sistema cliente / ERP externo" que llamaría al
+    REST tampoco está identificado con un sistema real hoy. <code>article-app</code> replica
+    exactamente este mismo esquema de carriles y colores, con <code>outbox.ARTICLE</code> como topic
+    y PostgreSQL como origen legacy.</p>
+  </div>
 </section>
 
 <!-- ============================================================ CUSTOMER -->
@@ -1321,10 +1514,11 @@ sequenceDiagram
     <table>
       <thead><tr><th>App</th><th>Método y path</th><th>Qué hace</th></tr></thead>
       <tbody>
-        <tr><td rowspan="4">customer-app :8081</td><td><code>POST /customers/sync</code></td><td>ingesta síncrona; ejecuta el pipeline completo con <code>origin=REST</code></td></tr>
+        <tr><td rowspan="5">customer-app :8081</td><td><code>POST /customers/sync</code></td><td>ingesta síncrona; ejecuta el pipeline completo con <code>origin=REST</code>; <code>409 Conflict</code> (ProblemDetail) si otro ciclo (Kafka o REST) está procesando la misma entidad (<code>ConcurrentTransitionException</code>, ADR-0011)</td></tr>
         <tr><td><code>POST /customers/validate</code></td><td>solo valida, no indexa ni envía a SAP</td></tr>
         <tr><td><code>GET /customers/{id}/history?full=</code></td><td>versiones enviadas a SAP, de más reciente a más antigua</td></tr>
         <tr><td><code>GET /customers/{id}/history/diff?from=&amp;to=</code></td><td>diff campo a campo entre dos <code>payloadHash</code>; sin parámetros, última contra anterior; 404 si falta</td></tr>
+        <tr><td><code>GET /customers/{id}/state</code></td><td>estado del agregado y de cada feature (<code>EntityState</code>), con <code>lastCycle</code>: la traza paso a paso (<code>CycleTrace</code>, una línea por parte con estado y detalle) del último ciclo de sincronización; <code>null</code> si el ciclo es anterior a la traza. El detalle se enmascara para quien no tiene <code>canSeeSensitiveData()</code></td></tr>
         <tr><td rowspan="3">article-app :8082</td><td><code>POST /articles/sync</code></td><td>ingesta síncrona</td></tr>
         <tr><td><code>GET /articles/{id}/history?full=</code></td><td>homólogo</td></tr>
         <tr><td><code>GET /articles/{id}/history/diff?from=&amp;to=</code></td><td>homólogo</td></tr>
@@ -1333,8 +1527,7 @@ sequenceDiagram
     </table>
   </div>
   <div class="nota alerta">
-    <p><strong>Ningún endpoint tiene autenticación.</strong> Es la brecha que bloquea el servidor MCP
-    (F4) y la que habría que resolver antes de publicar cualquier endpoint hacia BTP (F1).
+    <p><strong>Las APIs REST exigen JWT de Keycloak</strong> (<code>APP_SECURITY_ENABLED</code>, ADR-0007; ver <code>docs/tools-integrations/KEYCLOAK.md</code>) desde el 2026-09-12: esta nota, que decía que ningún endpoint tenía autenticación, quedó desactualizada. Sigue pendiente resolver antes de publicar cualquier endpoint hacia BTP (F1).
     No existen endpoints de mandatos, ni de sync por feature individual, ni nada del dominio supplier.</p>
   </div>
 </section>

@@ -1,12 +1,16 @@
 package com.poc.sap.customer.adapters.sap.odata;
 
+import com.poc.sap.common.domain.port.SapOutboundPort.SapLookup;
 import com.poc.sap.common.domain.port.SapOutboundPort.SapResponse;
 import com.poc.sap.common.sap.SapClient;
 import com.poc.sap.common.sap.SapDestination;
+import com.poc.sap.common.sap.SapUpsertSettings;
 import com.poc.sap.common.sap.json.SapJsonMapper;
+import com.poc.sap.common.sap.odata.ODataLookups;
 import com.poc.sap.customer.domain.feature.banking.BankingData;
 import com.poc.sap.customer.domain.port.BankingSapPort;
 import com.poc.sap.integration.api.customer.model.APIBUSINESSPARTNERABusinessPartnerBankTypeCreate;
+import com.poc.sap.integration.api.customer.model.APIBUSINESSPARTNERABusinessPartnerBankTypeUpdate;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
@@ -28,12 +32,48 @@ public class BusinessPartnerBankODataAdapter implements BankingSapPort {
 
     private final SapClient sapClient;
     private final String path;
+    private final SapUpsertSettings upsert;
 
     public BusinessPartnerBankODataAdapter(
             SapClient sapClient,
-            @Value("${sap.odata.banking-path:/sap/opu/odata/sap/API_BUSINESS_PARTNER/A_BusinessPartnerBank}") String path) {
+            @Value("${sap.odata.banking-path:/sap/opu/odata/sap/API_BUSINESS_PARTNER/A_BusinessPartnerBank}") String path,
+            SapUpsertSettings upsert) {
         this.sapClient = sapClient;
         this.path = path;
+        this.upsert = upsert;
+    }
+
+    /**
+     * Verificacion previa por la clave compuesta
+     * {@code (BusinessPartner, BankIdentification)}, determinista mientras haya una
+     * sola cuenta. <b>Con varias cuentas hay que guardar el mapa IBAN -> identificacion</b>
+     * en {@code SapKeyStorePort}: la clave dejaria de ser deducible (spec
+     * upsert-idempotente-sap §4).
+     */
+    @Override
+    public SapLookup lookup(String entityId, BankingData b) {
+        if (!upsert.lookupEnabled()) {
+            return SapLookup.notSupported();
+        }
+        return ODataLookups.fromSingle(sapClient.get(SapDestination.S4_NATIVE, keyPath(entityId)),
+                FIRST_BANK_IDENTIFICATION);
+    }
+
+    /** Actualizacion con If-Match; la clave no se reenvia en el cuerpo. */
+    @Override
+    public SapResponse update(String entityId, String payloadHash, BankingData b, SapLookup found) {
+        var bank = new APIBUSINESSPARTNERABusinessPartnerBankTypeUpdate();
+        if (b != null) {
+            bank.setIBAN(n(b.iban()));
+            bank.setBankCountryKey(countryOf(b.iban()));
+        }
+        return sapClient.patch(SapDestination.S4_NATIVE, keyPath(entityId), entityId, payloadHash,
+                SapJsonMapper.write(bank), found.etag());
+    }
+
+    private String keyPath(String entityId) {
+        return path + "(BusinessPartner='" + ODataLookups.esc(entityId)
+                + "',BankIdentification='" + FIRST_BANK_IDENTIFICATION + "')";
     }
 
     @Override

@@ -1,5 +1,6 @@
 package com.poc.sap.customer.bootstrap.web;
 
+import com.poc.sap.common.domain.ConcurrentTransitionException;
 import com.poc.sap.common.domain.IngestionMessage;
 import com.poc.sap.common.domain.SyncState;
 import com.poc.sap.customer.application.general.SyncCustomerUseCase;
@@ -63,6 +64,24 @@ class SyncCustomerControllerTest {
                 .andExpect(jsonPath("$.state").value("SENT_SAP"));
     }
 
+    /**
+     * AC-9 (contrato-openapi-rest / ADR-0013): el cuerpo sin payloadHash ni
+     * payload es valido; el servicio relee el legacy y calcula el hash.
+     */
+    @Test
+    void syncAcceptsBodyWithoutPayloadHashNorPayload() throws Exception {
+        when(syncUseCase.execute(any(IngestionMessage.class))).thenReturn(SyncState.SENT_SAP);
+
+        mvc.perform(post("/customers/sync")
+                        .contentType("application/json")
+                        .content("""
+                                {"entityId":"C-3","operation":"UPDATE"}
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.entityId").value("C-3"))
+                .andExpect(jsonPath("$.state").value("SENT_SAP"));
+    }
+
     @Test
     void validateReturnsOkWithStateValid() throws Exception {
         when(validateUseCase.execute(eq("C-1"), any())).thenReturn(SyncState.VALID);
@@ -88,5 +107,25 @@ class SyncCustomerControllerTest {
                                 """))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.state").value("INVALID"));
+    }
+
+    /**
+     * ADR-0011: el REST sincrono es el unico camino que puede concurrir con Kafka
+     * sobre la misma entidad. Una colision no es un fallo del servidor: es
+     * "lo esta procesando otro, reintentalo" -> 409 Conflict con ProblemDetail.
+     */
+    @Test
+    void concurrentTransitionAnswers409NotAServerError() throws Exception {
+        when(syncUseCase.execute(any(IngestionMessage.class)))
+                .thenThrow(new ConcurrentTransitionException("customer", "C-9", 4L, null));
+
+        mvc.perform(post("/customers/sync")
+                        .contentType("application/json")
+                        .content("""
+                                {"entityId":"C-9","operation":"UPDATE","payloadHash":"h-9","payload":"{}"}
+                                """))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.status").value(409))
+                .andExpect(jsonPath("$.title").exists());
     }
 }

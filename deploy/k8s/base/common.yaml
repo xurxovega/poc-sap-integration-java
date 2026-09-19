@@ -26,5 +26,11 @@ data:
   SAP_ODATA_READ_ENABLED: "true"
   LOGGING_STRUCTURED_FORMAT_CONSOLE: "ecs"   # Loki/Alloy leen JSON de stdout
   KAFKA_MAX_POLL_INTERVAL_MS: "900000"
+  KAFKA_MAX_POLL_RECORDS: "10"           # lotes cortos: hasta 11 llamadas a SAP por mensaje (ADR-0011)
+  CUSTOMER_KAFKA_CONCURRENCY: "3"        # particiones (12) >= instancias x concurrency
+  ARTICLE_KAFKA_CONCURRENCY: "3"
+  APP_KAFKA_TOPICS_CREATE: "false"       # los topics los crea la plataforma, no la app (deploy/README.md)
+  APP_KAFKA_TOPICS_PARTITIONS: "12"
+  APP_KAFKA_RETRY_CIRCUIT_OPEN_BACKOFF_MS: "30000"   # cubre la ventana de circuito abierto
   SHUTDOWN_TIMEOUT: "30s"
   TRACING_ENABLED: "false"               # true cuando exista Tempo/colector OTLP (ADR-0009)

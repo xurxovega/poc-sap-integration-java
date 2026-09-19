@@ -28,14 +28,19 @@
 - `spring-boot-dependencies` BOM importado en `dependencyManagement`.
 - **Sin perfiles Maven**. No existen perfiles `dev`/`it`/`native` ni `jdk25`;
   la configuración por entorno va por variables de entorno (`scripts/env/`).
-- Plugins fijados en `pluginManagement`: surefire y failsafe 3.5.3 (auditoría
-  B7: sin versión fijada, `SyncCustomerControllerIT` no se ejecutaba nunca).
+- Plugins fijados en `pluginManagement`: surefire y failsafe **3.6.0** (subido
+  desde 3.5.3 el 18-09-2026: 3.5.x no registraba `archunit-junit6` como motor
+  de JUnit Platform 6 y las reglas ArchUnit corrían en verde sin ejecutar
+  ningún test — `Tests run: 0`. Antes, auditoría B7: sin versión fijada,
+  `SyncCustomerControllerIT` no se ejecutaba nunca).
 - **JaCoCo** en el parent: `prepare-agent`, `report` y `check` en `verify`. El
   `check` exige **≥ 75 % de líneas en `**/domain/**`** (suelo medido el
   12-09-2026: common 90 %, customer 78 %, article 88 %).
-- **ArchUnit** 1.5.0: `DomainPurityTest` en `common`, `customer` y `article`
-  prohíbe que `..domain..` dependa de Spring, Jackson, Mongo, Kafka, Micrometer
-  o JPA.
+- **ArchUnit** 1.5.0 con el motor **`archunit-junit6`** (JUnit Platform 6,
+  Boot 4): `DomainPurityTest`, `ApplicationPurityTest` y
+  `EndpointsDeclareAccessTest` en `common`, `customer` y `article`. Verificadas
+  de verdad por primera vez el 18-09-2026 (antes no se ejecutaban, ver más
+  arriba); las 7 reglas pasan.
 - **CI**: [`.github/workflows/ci.yml`](../../.github/workflows/ci.yml) con dos
   jobs: `build` (`mvn verify` sin Docker, sube el informe JaCoCo) y
   `e2e-docker` (`-pl it verify -Ddocker.available=true`, Testcontainers).
@@ -92,21 +97,28 @@ nueve nombres que no existían):
 
 | Puerto | Adaptadores |
 |---|---|
-| `IngestionPort` | **sin implementaciones**: listeners y controllers llaman al use case directamente (código muerto, A18) |
+| ~~`IngestionPort`~~ | **borrado** (auditoría A18, 2026-09-12): la interfaz no tenía implementaciones y nadie la usaba. Los listeners Kafka y los controllers REST llaman al use case directamente. El DTO común del mensaje, `IngestionMessage`, sigue vivo (§6) |
 | `LegacyRepositoryPort<T>` | `SqlServerCustomerRepository`, `PostgresArticleRepository` |
 | `ImageStorePort<T>` | `MongoCustomerImageStore`, `MongoArticleImageStore` |
 | `HistoryIndexerPort<T>` | `ElasticsearchCustomerIndexer`, `ElasticsearchArticleIndexer` |
 | `SyncStateRepositoryPort` | `MongoSyncStateRepository` (en `common`, único) |
-| `SapOutboundPort<P>` | BTP: `BtpAddressAdapter`, `BtpFiscalAdapter`, `BtpContactAdapter`, `BtpCustomerAdapter`, `BtpBankingAdapter` · OData S/4: `BusinessPartnerODataAdapter`, `BusinessPartnerAddressODataAdapter`, `BusinessPartnerTaxODataAdapter`, `BusinessPartnerContactODataAdapter`, `BusinessPartnerBankODataAdapter`, `SepaMandateODataAdapter` (mandato SEPA, `API_APAR_SEPA_MANDATE_SRV`, sin alternativa BTP) · article: `S4ArticleAdapter` |
-| `BusinessPartnerReadPort` | `BusinessPartnerReadAdapter` (GET/search, `sap.odata.read.enabled=true`) |
+| `SapOutboundPort<P>` | BTP: `BtpAddressAdapter`, `BtpFiscalAdapter`, `BtpContactAdapter`, `BtpCustomerAdapter`, `BtpBankingAdapter` (sin `lookup`/`update`: usan los `default` del puerto, alta directa) · OData S/4: `BusinessPartnerODataAdapter`, `BusinessPartnerAddressODataAdapter`, `BusinessPartnerTaxODataAdapter`, `BusinessPartnerContactODataAdapter`, `BusinessPartnerBankODataAdapter` (implementan `lookup`/`update` con verificación previa) y `SepaMandateODataAdapter` (mandato SEPA, `API_APAR_SEPA_MANDATE_SRV`, sin alternativa BTP) · article: `S4ArticleAdapter` |
+| `BusinessPartnerReadPort` | `BusinessPartnerReadAdapter` (GET/search); activo con `sap.odata.read.enabled=true` **o** `sap.odata.customer.enabled=true` (`BusinessPartnerReadEnabled`, decisión D-18): la verificación previa por OData necesita el lector aunque la lectura explícita esté apagada |
+| `SapKeyStorePort` | `MongoSapKeyStore` (colección `sap_keys`): guarda el `AddressID`/`RelationshipNumber` que asigna SAP al dar de alta una subentidad, para que el ciclo siguiente actualice en vez de duplicar. El ETag **no** se persiste: se relee en el `lookup` inmediatamente anterior al `PATCH` |
 
 ## 6. Entradas
 
-Tres fuentes equivalentes alimentan el **mismo caso de uso** del dominio,
-intercambiables a través del puerto `IngestionPort`. Contrato común del mensaje
-(`common/domain/IngestionMessage.java`): identificador de entidad · tipo de
-operación (`create`/`update`/`delete`) · payload · origen (`cdc`/`kafka`/`rest`)
-· hash de idempotencia sobre payload + identificador.
+Tres fuentes equivalentes alimentan el **mismo caso de uso** del dominio. No
+hay puerto de entrada (`IngestionPort` se borró, A18): el listener Kafka y el
+controller REST llaman directamente al use case con el mismo contrato de
+mensaje (`common/domain/IngestionMessage.java`), que desde
+[ADR-0013](adr/0013-outbox-mensaje-fino-sin-payload.md) es un **aviso fino**:
+identificador de entidad · tipo de operación (`create`/`update`/`delete`) ·
+origen (`cdc`/`kafka`/`rest`). El `payload` y el `payloadHash` son **opcionales
+y no son fuente de datos**: el use case relee el estado actual del legacy y
+calcula el hash de idempotencia sobre ese snapshot (`common/domain/PayloadHasher`,
+SHA-256 sobre una forma canónica). Contrato completo:
+[`../sdd/common/contrato-mensaje-de-cambio.md`](../sdd/common/contrato-mensaje-de-cambio.md).
 
 - **CDC**: consumer Kafka (`spring-boot-starter-kafka`; en Boot 4 el
   `spring-kafka` suelto no autoconfigura) sobre topics `outbox.<DOMINIO>`
@@ -114,7 +126,12 @@ operación (`create`/`update`/`delete`) · payload · origen (`cdc`/`kafka`/`res
   dead-letter topic `<topic>-dlt`; `DELETE` enruta al use case de borrado.
 - **Eventos directos**: Spring Kafka sobre `events.<DOMINIO>` (futuro).
 - **REST**: Spring Web `POST /{domain}/sync` y `/validate`, `GET /{domain}/{id}/history[/diff]`.
-  *Sin OpenAPI ni swagger-ui publicados: visión, no implementado.*
+  Cada módulo publica su contrato en `src/main/resources/openapi.yml`
+  (`customer`, `article`): qué se puede pedir, qué devuelve, qué rol hace
+  falta y ejemplos, importable contra local o test. `OpenApiMatchesControllersTest`
+  (JUnit + reflexión + SnakeYAML, sin ArchUnit) carga ese fichero y lo cruza
+  contra los `@RestController` reales: si la API cambia y el contrato no,
+  `mvn verify` falla. Sin swagger-ui publicado.
 - Opcional: Confluent Schema Registry (Avro/Protobuf) cuando maduren contratos.
 
 ## 7. Persistencia
@@ -145,6 +162,30 @@ destino y con qué mapeo; los mapeos son parte del dominio, no del shared kernel
   circuit breaker envuelve al retry y con el circuito abierto se lanza
   `SapCircuitOpenException`; timeouts de conexión/respuesta configurables vía
   `sap.client.*` en `application-common.yml`.
+- **Política de reintento por método y por fase** (`RestClientSapClient.retryFor`,
+  spec [`../sdd/common/resiliencia-cliente-sap.md`](../sdd/common/resiliencia-cliente-sap.md)
+  R-1, R-8, R-9): `GET` y `DELETE` son idempotentes por definición y usan el
+  retry general (`sap`, `sap.client.retry.max-attempts`); un `PATCH` con
+  `If-Match` también, porque un segundo intento con el ETag ya consumido da
+  `412` en vez de una doble escritura. Cualquier otra escritura (`POST`, o un
+  `PATCH` sin `If-Match`) usa el retry `sap-write`
+  (`sap.client.retry.write.max-attempts`, por defecto 2 intentos) con el
+  predicado `TransportFailures::isBeforeSend`: solo se reintenta si el fallo
+  ocurrió **antes** de que la petición saliera; una respuesta perdida por
+  timeout ya no se reintenta a ciegas (antes: hasta 3 Business Partners por
+  un solo `POST`).
+- **Upsert con verificación previa** (spec
+  [`../sdd/common/upsert-idempotente-sap.md`](../sdd/common/upsert-idempotente-sap.md)):
+  antes de escribir, `FeatureSyncPipeline.write` llama a `SapOutboundPort.lookup`
+  (`GET`, `sap.client.lookup.timeout-ms`, `sap.client.lookup.calls-per-message`).
+  Si SAP ya tiene la subentidad se hace `update` (`PATCH` con `If-Match` y el
+  ETag del lookup); si no la tiene, `send` (`POST`); si el lookup no concluye
+  (`UNAVAILABLE`) **no se escribe nada** y la parte termina en
+  `COMMUNICATION_ERROR` — es más seguro reenviar que arriesgarse a duplicar. Un
+  `412` en el `update` repite lookup + escritura una única vez
+  (`sap.client.upsert.refetch-on-precondition-failed`). El `AddressID`/
+  `RelationshipNumber` que asigna SAP se guarda en `SapKeyStorePort`
+  (`sap_keys`), nunca el ETag.
 - OAuth2 client-credentials real con caché por expiración
   (`OAuth2TokenClient`; xsuaa para BTP, token endpoint o basic para S/4). **Sin
   credenciales la app no arranca**; el token stub solo existe con
@@ -184,15 +225,28 @@ Spec: [`../sdd/common/observabilidad.md`](../sdd/common/observabilidad.md).
   con el tag `application` = nombre de cada app (antes idéntico en las dos).
 - **Métricas propias**: `sap_sync_state_total{domain,state}` por transición;
   `sap_sync_stage_duration{domain,stage}` (`fetch`/`validate`/`index`/`send`,
-  p50/p95/p99) desde ambos orquestadores; `sap_client_request_duration
-  {destination,method,outcome}` por cada intento HTTP hacia SAP; y las de
-  Resilience4j del retry y el circuit breaker `sap` (`resilience4j_retry_calls`,
-  `resilience4j_circuitbreaker_state`...).
+  p50/p95/p99) desde ambos orquestadores; `sap_sync_feature_result_total
+  {domain,feature,result}` por cada `FeatureOutcome` de
+  `FeatureSyncPipeline.sync` (`SENT_SAP`/`SAP_ERROR`/`COMMUNICATION_ERROR`/
+  `INVALID`); `sap_client_request_duration{destination,method,outcome}` por
+  cada intento HTTP hacia SAP; y las de Resilience4j del retry y el circuit
+  breaker `sap` (`resilience4j_retry_calls`, `resilience4j_circuitbreaker_state`...).
+- **Aviso de fallo parcial**: canal `sap.sync.alerts` (Kafka,
+  `KafkaSyncNotificationAdapter`), un mensaje JSON por `SyncPartialFailure`
+  con `cycleId`, `aggregateState` y `attempts` — la traza paso a paso de qué
+  parte del cliente entró en SAP y cuál no, no solo el resultado final. Falta
+  quien lo escuche (correo, ticket).
 - **Operación**: `server.shutdown=graceful` (30 s por fase);
   `max.poll.interval.ms` a 15 min y `RetryBudgetGuard`, que al arrancar
-  comprueba que el peor caso de reintentos por mensaje (`calls-per-message ×
-  (intentos × timeout + backoff)`) cabe en ese intervalo y si no, la app no
-  arranca (auditoría A10).
+  comprueba que el peor caso de reintentos por mensaje cabe en ese intervalo y
+  si no, la app no arranca (auditoría A10). Desde el 18-09-2026 la fórmula ya
+  no es una sola multiplicación: separa lecturas (lookup, timeout corto,
+  reintento completo) de escrituras (timeout largo, casi sin reintento) y suma
+  el backoff de reentrega de Kafka con el circuito abierto —
+  `lecturas × (intentos_lectura × timeout_lookup + backoff) + escrituras ×
+  (intentos_escritura × timeout_respuesta + backoff) + (csrf ? 2 ×
+  timeout_respuesta : 0) + intentos_kafka × backoff_circuito_abierto`
+  (`RetryBudgetGuard.worstCaseMillis`).
 - **Logs estructurados**: formato ECS (JSON) nativo de Boot activable con
   `LOGGING_STRUCTURED_FORMAT_CONSOLE=ecs`; en local consola legible. La
   correlación por `traceId` llega con las trazas.

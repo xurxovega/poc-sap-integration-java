@@ -1,6 +1,7 @@
 package com.poc.sap.it.contract;
 
 import com.poc.sap.common.domain.port.SapOutboundPort.SapResponse;
+import com.poc.sap.common.sap.SapUpsertSettings;
 import com.poc.sap.customer.adapters.sap.odata.BusinessPartnerBankODataAdapter;
 import com.poc.sap.customer.domain.feature.banking.BankingData;
 import org.junit.jupiter.api.Test;
@@ -29,7 +30,7 @@ class S4BankODataContractTest extends AbstractSapContractTest {
     void realAdapterPostsBankWithoutBicAndWithCountryFromIban() {
         sap.stubFor(post(urlPathEqualTo(PATH)).willReturn(aResponse().withStatus(201).withBody("{}")));
 
-        SapResponse r = new BusinessPartnerBankODataAdapter(sapClient, PATH).send("C-1", "h-1",
+        SapResponse r = new BusinessPartnerBankODataAdapter(sapClient, PATH, SapUpsertSettings.defaults()).send("C-1", "h-1",
                 new BankingData("ES7621000418401234567890", "BBVAESMM", List.of()));
 
         assertThat(r.httpStatus()).isEqualTo(201);

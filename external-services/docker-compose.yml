@@ -59,6 +59,31 @@ services:
       - poc_sap
 
   # ---------------------------------------------------------------------------
+  # Topologia de topics como codigo (ADR-0011). Kafka auto-crea con 1 particion,
+  # que impide escalar a mas de un consumidor y hace que el orden global de hoy
+  # sea accidental. Aqui se crean explicitamente outbox.<DOMINIO> y su -dlt con
+  # 12 particiones: el DLT recibe el registro en LA MISMA particion que el
+  # original, asi que necesita al menos las mismas o la publicacion falla.
+  # 12 = 2 clusters x 2 instancias x concurrency 3, y divide entre 1,2,3,4,6,12.
+  # En produccion NO crea los topics la app: ver deploy/README.md.
+  # ---------------------------------------------------------------------------
+  kafka-init-topics:
+    image: confluentinc/cp-kafka:7.7.0@sha256:1fa3cdb3ef77b75bc56e7040bbdfa2bd6950b6ee6363381b2493f7a83e07a0b3
+    container_name: kafka-init-topics
+    depends_on:
+      kafka-broker:
+        condition: service_healthy
+    entrypoint: ["/bin/bash", "-c"]
+    command: |
+      "for t in outbox.CUSTOMER outbox.CUSTOMER-dlt outbox.ARTICLE outbox.ARTICLE-dlt; do
+         kafka-topics --bootstrap-server kafka-broker:29092 --create --if-not-exists --topic $$t --partitions ${KAFKA_TOPIC_PARTITIONS:-12} --replication-factor 1
+       done
+       kafka-topics --bootstrap-server kafka-broker:29092 --list"
+    restart: "no"
+    networks:
+      - poc_sap
+
+  # ---------------------------------------------------------------------------
   # Kafka Connect (Debezium) — CDC de las tablas outbox legacy → topics outbox.*
   # Registro de conectores: ver external-services/debezium/README.md
   # ---------------------------------------------------------------------------

@@ -105,6 +105,40 @@ GET /A_Supplier   → Suppliers  (BPs con rol de proveedor)
 | `/A_BusinessPartner('{BP}')/to_BusinessPartnerBank` | Datos bancarios | `BANKING` (`BankingData`) | 10485 |
 | `/A_BusinessPartner('{BP}')/to_BusinessPartnerRole` | Roles SAP | `Customer` general | 10929 |
 
+> ⚠️ **`to_BusinessPartnerContact` NO recibe nuestros `ContactData`.** Esa entidad
+> modela la relación con una **persona** de contacto y exige
+> `BusinessPartnerPerson` (otro Business Partner, de tipo persona) y
+> `RelationshipNumber`. Email, teléfono, fax y web de la empresa cliente son
+> datos de comunicación **de su dirección**: ver la tabla de abajo y
+> [`customer/sincronizacion-contacto.md`](customer/sincronizacion-contacto.md).
+
+### Entidades de comunicación de la dirección (feature `CONTACT`)
+
+Clave `(AddressID, Person, OrdinalNumber)`; el `AddressID` lo asigna SAP al crear
+la dirección.
+
+| Entidad SAP | Campo | Dato nuestro |
+|---|---|---|
+| `A_AddressEmailAddress` | `EmailAddress` | `ContactData.email` |
+| `A_AddressPhoneNumber` | `PhoneNumber` | `ContactData.phone` |
+| `A_AddressFaxNumber` | `FaxNumber` | `ContactData.fax` |
+| `A_AddressHomePageURL` | `WebsiteURL` | `ContactData.website` (clave ampliada con `ValidityStartDate` e `IsDefaultURLAddress`) |
+
+### Claves de verificación previa (upsert) por feature
+
+Qué se pide con un `GET` antes de escribir, y con qué clave. Mecanismo en
+[`common/upsert-idempotente-sap.md`](common/upsert-idempotente-sap.md); **todo a
+confirmar contra el tenant**.
+
+| Feature | Lookup | Clave en SAP | ¿Se persiste en `sap_keys`? |
+|---|---|---|---|
+| Agregado | `GET A_BusinessPartner('<id>')` | `BusinessPartner` (= nuestro id, alta `BPEE`) | No |
+| `ADDRESS` | `GET A_BusinessPartnerAddress(BusinessPartner,AddressID)`, o navegación `to_BusinessPartnerAddress?$top=2` | `AddressID` | **Sí** |
+| `FISCAL` | `GET A_BusinessPartnerTaxNumber(BusinessPartner,BPTaxType)` | compuesta | No |
+| `BANKING` | `GET A_BusinessPartnerBank(BusinessPartner,BankIdentification)` | compuesta | No (sí con varias cuentas) |
+| `CONTACT` | `AddressID` de la dirección + `GET` por entidad de comunicación | `AddressID` (compartida con `ADDRESS`) | **Sí**, la misma fila |
+| Mandato SEPA | `GET SEPAMandateSet(Creditor,SEPAMandate)` | compuesta | No |
+
 ### Endpoints específicos de Customer (rol ya asignado)
 
 | Endpoint | Método | Descripción | Línea YAML |
