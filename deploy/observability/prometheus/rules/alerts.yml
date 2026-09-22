@@ -1,0 +1,66 @@
+groups:
+  - name: sap-integration-v1
+    interval: 30s
+    rules:
+      - alert: SapPartialFailureRateHigh
+        expr: |
+          sum by (domain) (rate(sap_sync_feature_result_total{result="SAP_ERROR"}[5m]))
+          /
+          clamp_min(sum by (domain) (rate(sap_sync_feature_result_total[5m])), 1) > 0.10
+        for: 10m
+        labels:
+          severity: warning
+          team: sap-integration
+          component: customer,article
+        annotations:
+          summary: "Tasa de sincronización parcial > 10% en {{ $labels.domain }}"
+          description: "Más del 10% de las features enviadas a SAP en los últimos 5 min terminaron en SAP_ERROR para el dominio {{ $labels.domain }}."
+          runbook_url: "https://github.com/xurxovega/poc-sap-integration-java/blob/main/docs/operacion/RUNBOOKS.md#3-sap-caido-o-degradado"
+
+      - alert: SapCircuitBreakerOpen
+        expr: resilience4j_circuitbreaker_state{name="sap",state="open"} == 1
+        for: 5m
+        labels:
+          severity: critical
+          team: sap-integration
+          component: sap
+        annotations:
+          summary: "Circuit breaker SAP abierto > 5 min"
+          description: "El circuit breaker hacia SAP lleva más de 5 min abierto. SAP probablemente degradado o caído."
+          runbook_url: "https://github.com/xurxovega/poc-sap-integration-java/blob/main/docs/operacion/RUNBOOKS.md#3-sap-caido-o-degradado"
+
+      - alert: SapSyncDlqDepthGrowing
+        expr: sum(rate(kafka_consumergroup_records_lag{topic=~"outbox.CUSTOMER-dlt|outbox.ARTICLE-dlt"}[5m])) > 0
+        for: 10m
+        labels:
+          severity: warning
+          team: sap-integration
+          component: customer,article
+        annotations:
+          summary: "Lag de la DLT creciendo"
+          description: "Hay mensajes llegando a la DLT de outbox.CUSTOMER-dlt u outbox.ARTICLE-dlt de forma sostenida."
+          runbook_url: "https://github.com/xurxovega/poc-sap-integration-java/blob/main/docs/operacion/RUNBOOKS.md#2-mensaje-en-la-dlt"
+
+      - alert: SapSyncStageLatencyHigh
+        expr: histogram_quantile(0.95, sum by (le, domain, stage) (rate(sap_sync_stage_duration_seconds_bucket{stage="send"}[5m]))) > 30
+        for: 15m
+        labels:
+          severity: warning
+          team: sap-integration
+          component: customer,article
+        annotations:
+          summary: "p95 de la etapa 'send' > 30s"
+          description: "El percentil 95 de la etapa send supera los 30 segundos durante 15 min para el dominio {{ $labels.domain }}."
+          runbook_url: "https://github.com/xurxovega/poc-sap-integration-java/blob/main/docs/operacion/RUNBOOKS.md#3-sap-caido-o-degradado"
+
+      - alert: SapSyncAlertsFlowing
+        expr: sum by (domain) (rate(sap_sync_feature_result_total{result="SAP_ERROR"}[1h])) > 0
+        for: 30m
+        labels:
+          severity: warning
+          team: sap-integration
+          component: customer,article
+        annotations:
+          summary: "Errores SAP_ERROR sostenidos"
+          description: "Hay envío de features a SAP que terminan en SAP_ERROR de forma sostenida durante 30 min."
+          runbook_url: "https://github.com/xurxovega/poc-sap-integration-java/blob/main/docs/operacion/RUNBOOKS.md#3-sap-caido-o-degradado"
