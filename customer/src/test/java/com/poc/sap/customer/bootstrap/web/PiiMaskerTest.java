@@ -6,7 +6,9 @@ import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-/** Spec sdd/common/seguridad-api.md AC-4: PII enmascarada para lectura externa. */
+/** Spec sdd/common/seguridad-api.md AC-4: PII enmascarada para lectura externa.
+ *  La logica vive en {@code com.poc.sap.common.security.PiiMasker} desde UI-001 H-1;
+ *  esta clase es una fachada que delega en ella. */
 class PiiMaskerTest {
 
     @Test
@@ -25,11 +27,13 @@ class PiiMaskerTest {
             assertThat(m.fiscal().taxId()).startsWith("*").hasSize(c.fiscal().taxId().replace(" ", "").length());
         }
         if (c.contact() != null && c.contact().email() != null) {
-            assertThat(m.contact().email()).matches(".\\*\\*\\*@.+");
+            // La nueva API enmascara con **** (UI-001 H-1).
+            assertThat(m.contact().email()).matches(".\\*\\*\\*\\*@.+");
         }
+        // Sanity: las firmas legacy siguen siendo correctas tras la refactorizacion.
         assertThat(PiiMasker.last("ES7621000418401234567890", 4)).isEqualTo("********************7890");
         assertThat(PiiMasker.last("AB", 4)).isEqualTo("**");
-        assertThat(PiiMasker.email("ana@example.com")).isEqualTo("a***@example.com");
+        assertThat(PiiMasker.email("ana@example.com")).isEqualTo("a****@example.com");
         assertThat(PiiMasker.mask(null)).isNull();
     }
 }

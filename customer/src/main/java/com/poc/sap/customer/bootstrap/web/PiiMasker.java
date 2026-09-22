@@ -6,55 +6,68 @@ import com.poc.sap.customer.domain.feature.contact.ContactData;
 import com.poc.sap.customer.domain.feature.fiscal.FiscalData;
 
 /**
- * Enmascara la PII de un snapshot antes de devolverlo a un cliente externo
- * (sdd/common/seguridad-api.md R-4): IBAN y NIF/IVA solo con los ultimos 4,
- * email con la inicial y el dominio, telefono/fax con los ultimos 3. La
- * direccion y el nombre comercial se devuelven tal cual (no son datos de
- * persona en este dominio B2B).
+ * Fachada sobre {@code com.poc.sap.common.security.PiiMasker} para el dominio
+ * customer: enmascara la PII de un snapshot antes de devolverlo a un cliente
+ * externo (sdd/common/seguridad-api.md R-4).
+ *
+ * <p>La implementacion portable (sobre {@code String}) vive en el shared kernel
+ * desde UI-001 H-1 para que el dashboard-customer la reuse sin importar
+ * clases del modulo customer. Esta clase conserva la API tipada sobre
+ * {@link Customer} por compatibilidad.
+ *
+ * @deprecated Usar {@code com.poc.sap.common.security.PiiMasker} para nuevo
+ *             codigo; este wrapper se conserva una release para no romper a
+ *             los controllers existentes (CustomerStateController,
+ *             CustomerHistoryController).
  */
+@Deprecated
 public final class PiiMasker {
 
+    /**
+     * Enmascara la PII de un Customer: IBAN/NIF/vatNumber a ultimos 4, email a
+     * inicial+dominio, telefono/fax a ultimos 3. BIC, mandateIds y resto sin
+     * digitos mixtos pasan tal cual.
+     */
     public static Customer mask(Customer c) {
         if (c == null) return null;
         FiscalData f = c.fiscal() == null ? null : new FiscalData(
-                last(c.fiscal().taxId(), 4), last(c.fiscal().vatNumber(), 4), c.fiscal().legalName(), c.fiscal().taxResidency());
+                com.poc.sap.common.security.PiiMasker.mask(c.fiscal().taxId()),
+                com.poc.sap.common.security.PiiMasker.mask(c.fiscal().vatNumber()),
+                c.fiscal().legalName(),
+                c.fiscal().taxResidency());
         ContactData k = c.contact() == null ? null : new ContactData(
-                email(c.contact().email()), last(c.contact().phone(), 3), last(c.contact().fax(), 3), c.contact().website());
+                com.poc.sap.common.security.PiiMasker.maskEmail(c.contact().email()),
+                com.poc.sap.common.security.PiiMasker.maskPhone(c.contact().phone()),
+                com.poc.sap.common.security.PiiMasker.maskPhone(c.contact().fax()),
+                c.contact().website());
         BankingData b = c.banking() == null ? null : new BankingData(
-                last(c.banking().iban(), 4), c.banking().bic(), c.banking().mandateIds().stream().map(m -> last(m, 2)).toList());
+                com.poc.sap.common.security.PiiMasker.mask(c.banking().iban()),
+                c.banking().bic(),
+                c.banking().mandateIds().stream()
+                        .map(com.poc.sap.common.security.PiiMasker::maskPhone).toList());
         return new Customer(c.id(), c.code(), c.name(), c.status(), c.address(), f, k, b);
     }
 
-    /**
-     * Enmascara la PII incrustada en un texto libre, como el motivo de error que
-     * devuelve SAP: un 400 suele repetir el valor rechazado (IBAN, NIF, email).
-     * Deja intacto lo que no identifica a nadie —el codigo HTTP, el nombre de la
-     * propiedad— para que el mensaje siga sirviendo de diagnostico.
-     */
+    /** Delegado al {@code com.poc.sap.common.security.PiiMasker.maskDetail}. */
     public static String maskDetail(String detail) {
-        if (detail == null || detail.isBlank()) {
-            return detail;
-        }
-        String masked = EMAIL.matcher(detail).replaceAll(m -> email(m.group()));
-        return IDENTIFIER.matcher(masked).replaceAll(m -> last(m.group(), 4));
+        return com.poc.sap.common.security.PiiMasker.maskDetail(detail);
     }
 
-    private static final java.util.regex.Pattern EMAIL =
-            java.util.regex.Pattern.compile("[\\w.+-]+@[\\w.-]+\\.[A-Za-z]{2,}");
-    /** Cadena larga con letras y digitos: IBAN, NIF, numero de BP... */
-    private static final java.util.regex.Pattern IDENTIFIER =
-            java.util.regex.Pattern.compile("\\b(?=[A-Za-z0-9]*[A-Za-z])(?=[A-Za-z0-9]*\\d)[A-Za-z0-9]{6,}\\b");
-
+    /** Conservado por compatibilidad con {@code PiiMaskerTest}. Implementacion local
+     * con la semantica legacy: deja los ultimos {@code keep} caracteres visibles y
+     * enmascara el resto; si la longitud efectiva es <= keep, devuelve todos
+     * asteriscos. NO delega en common.security.PiiMasker porque ahi la regla
+     * "sin digitos = no se enmascara" cambia el resultado para BIC. */
     static String last(String v, int keep) {
         if (v == null || v.isBlank()) return v;
         String t = v.replace(" ", "");
-        return t.length() <= keep ? "*".repeat(t.length()) : "*".repeat(t.length() - keep) + t.substring(t.length() - keep);
+        return t.length() <= keep ? "*".repeat(t.length())
+                                  : "*".repeat(t.length() - keep) + t.substring(t.length() - keep);
     }
 
+    /** Conservado por compatibilidad con {@code PiiMaskerTest}. */
     static String email(String v) {
-        if (v == null || v.isBlank() || !v.contains("@")) return v == null ? null : "***";
-        int at = v.indexOf('@');
-        return v.charAt(0) + "***" + v.substring(at);
+        return com.poc.sap.common.security.PiiMasker.maskEmail(v);
     }
 
     private PiiMasker() {}
