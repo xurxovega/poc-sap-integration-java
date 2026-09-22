@@ -47,6 +47,7 @@
              solo lo habria cazado el e2e con Docker, TEST-1). Visto en vivo el 12-09-2026. -->
         <opentelemetry-semconv.version>1.34.0</opentelemetry-semconv.version>
         <enforcer.version>3.5.0</enforcer.version>
+        <elasticsearch-client.version>8.13.4</elasticsearch-client.version>
         <project.image.registry>poc-sap</project.image.registry>
         <project.image.tag>${project.version}</project.image.tag>
         <cyclonedx.version>2.9.1</cyclonedx.version>
@@ -137,6 +138,12 @@
                 <version>${otel-instrumentation.version}-alpha</version>
                 <type>pom</type>
                 <scope>import</scope>
+            </dependency>
+            <dependency>
+                <!-- Cliente HTTP low-level que requiere co.elastic.clients (rest-client). -->
+                <groupId>org.elasticsearch.client</groupId>
+                <artifactId>elasticsearch-rest-client</artifactId>
+                <version>${elasticsearch-client.version}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>

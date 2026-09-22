@@ -55,6 +55,12 @@
             <groupId>co.elastic.clients</groupId>
             <artifactId>elasticsearch-java</artifactId>
         </dependency>
+        <dependency>
+            <!-- Transporte HTTP low-level para el cliente ES (RestClient sobre
+                 Apache HttpClient). El SDK de ES lo requiere en runtime. -->
+            <groupId>org.elasticsearch.client</groupId>
+            <artifactId>elasticsearch-rest-client</artifactId>
+        </dependency>
 
         <!-- Seguridad (Keycloak resource server igual que common). -->
         <dependency>

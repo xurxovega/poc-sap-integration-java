@@ -28,6 +28,24 @@ db.sync_state.createIndex({ domain: 1, cycleId: 1, seq: 1 }, { name: 'dom_cycle_
 db.createCollection('sap_keys');
 db.sap_keys.createIndex({ domain: 1, entityId: 1 }, { name: 'dom_ent_key_idx' });
 
+// Alertas operativas del dashboard-customer (UI-001 F-9 promoted): el
+// dashboard las persiste con TTL 30 dias para que el operador las
+// reconozca sin acumularlas para siempre. La fuente real es el topic Kafka
+// sap.sync.alerts; otro consumidor las materializa aqui (dashboard-feature
+// o un job). Los indices los necesita el AlertRepository del dashboard.
+db.createCollection('alerts');
+// PK ya viene en el _id (alertId unico). Forzamos el nombre para que el
+// insert con _id manual no choque y para que el dashboard pueda hacer
+// upserts deterministas.
+db.alerts.createIndex({ alertId: 1 }, { name: 'alert_id_uk', unique: true });
+// Listar las alertas abiertas de un cliente: la entidad en su ultima ack.
+db.alerts.createIndex({ entityId: 1, ackedAt: 1 }, { name: 'entity_acked_idx' });
+// Limpieza automatica de alertas reconocidas (ackedAt + 30 dias).
+db.alerts.createIndex({ ackedAt: 1 }, { name: 'acked_ttl', expireAfterSeconds: 30 * 24 * 3600 });
+// Limpieza de alertas que nadie ha reconocido tras 30 dias desde su emision
+// (si nadie reconoce, expire por openedAt).
+db.alerts.createIndex({ openedAt: 1 }, { name: 'opened_ttl', expireAfterSeconds: 30 * 24 * 3600 });
+
 db = db.getSiblingDB('article');
 db.createCollection('articles_current');
 // Sin indice unico sobre 'id': los documentos usan @Id, que Mongo guarda
@@ -53,5 +71,13 @@ db.sync_state.createIndex({ domain: 1, cycleId: 1, seq: 1 }, { name: 'dom_cycle_
 // para listar las claves de una entidad al darla de baja.
 db.createCollection('sap_keys');
 db.sap_keys.createIndex({ domain: 1, entityId: 1 }, { name: 'dom_ent_key_idx' });
+
+// Alertas operativas del dashboard-customer (UI-001 F-9 promoted): mismo
+// shape de indices que en la base customer.
+db.createCollection('alerts');
+db.alerts.createIndex({ alertId: 1 }, { name: 'alert_id_uk', unique: true });
+db.alerts.createIndex({ entityId: 1, ackedAt: 1 }, { name: 'entity_acked_idx' });
+db.alerts.createIndex({ ackedAt: 1 }, { name: 'acked_ttl', expireAfterSeconds: 30 * 24 * 3600 });
+db.alerts.createIndex({ openedAt: 1 }, { name: 'opened_ttl', expireAfterSeconds: 30 * 24 * 3600 });
 
 print('✅ MongoDB initialized: customer and article databases');
