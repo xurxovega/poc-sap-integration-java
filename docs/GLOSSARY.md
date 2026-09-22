@@ -333,6 +333,16 @@ Capacidad de atender a múltiples tenants. El SDK gestiona tenant/principal medi
 
 Estándar construido **encima de REST** que fija por contrato lo que REST deja abierto: filtrado (`$filter`), selección (`$select`), paginación, navegación entre entidades, `$batch` y metadatos (`$metadata`). Es el protocolo de las APIs públicas de S/4HANA. Explicación completa (REST vs OData, con ejemplos) en [`SAP_CLOUD_SDK.md` § OData vs REST](tools-integrations/SAP_CLOUD_SDK.md#odata-vs-rest-y-odata-v2-vs-v4).
 
+### Observability tags (env, cluster)
+
+Tags comunes que la app añade a cada serie Prometheus. `application` distingue
+`customer-app` y `article-app`; `env` toma valores `local`/`test`/`prod`;
+`cluster` identifica el cluster K8s. Se inyectan por variables de entorno
+(`OBS_ENV`, `OBS_CLUSTER`, `spring.application.name`). Default si no se
+definen: `local`/`local`/`${spring.application.name}`.
+
+Ver: [docs/sdd/common/observabilidad.md](../sdd/common/observabilidad.md) R-8.
+
 ### OData V2 vs V4
 
 Dos versiones del estándar con formato distinto: **V2** envuelve las respuestas en `{"d":...}` (y `d.results` en listas), pagina con `$skip` y exige fetch de token CSRF en escrituras; **V4** devuelve la entidad en la raíz, usa `value` + `@odata.nextLink` y no usa el CSRF clásico (OAuth2 puro). Las APIs `API_*` del proyecto son V2; las `CE_*` (bancos, activos fijos, números de serie) son V4. Detalle y ejemplos en [`SAP_CLOUD_SDK.md` § OData V2 vs V4](tools-integrations/SAP_CLOUD_SDK.md#odata-v2-vs-v4); versión de cada API en el [catálogo](sdd/sap-api-catalog.md#catálogo).

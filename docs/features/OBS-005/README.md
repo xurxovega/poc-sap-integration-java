@@ -9,7 +9,7 @@ prod): mismas series, mismas convenciones, mismas URLs configurables.
 
 ## Estado
 
-En curso desde 2026-09-22.
+Incorporada 2026-09-23.
 
 ## Alcance
 
@@ -38,14 +38,17 @@ En curso desde 2026-09-22.
 
 | Tipo | Ruta |
 |---|---|
-| Spec (edición) | `docs/sdd/common/observabilidad.md` |
-| Backlog | `docs/MEJORAS-Y-PROPUESTAS.md` (OBS-1, OBS-2) |
-| Config común | `common/src/main/resources/application-common.yml` |
+| Spec (edición) | `docs/sdd/common/observabilidad.md` (R-8, R-9, AC-6, AC-7, §10) |
+| Changelog del subproyecto | `docs/sdd/common/CHANGELOG.md` |
+| Changelog raíz | `CHANGELOG.md` |
+| Backlog | `docs/MEJORAS-Y-PROPUESTAS.md` (OBS-1, OBS-2 → 🚧 parcial) |
+| Config común | `common/src/main/resources/application-common.yml` (`management.metrics.tags.env/cluster`) |
 | Variables de entorno | `scripts/env/local.env`, `scripts/env/test.env.example`, `scripts/env/prod.env.example` |
-| Despliegue | `deploy/k8s/base/common.yaml`, `deploy/observability/` (NUEVOS) |
-| Docs raíz | `README.md`, `external-services/README.md`, `docs/QUICK_START.md` |
-| Glosario | `docs/GLOSSARY.md` |
-| Registro | `external-services/mysql/init.sql` |
+| Despliegue | `deploy/k8s/base/common.yaml` (`OBS_ENV`/`OBS_CLUSTER`), `deploy/observability/` (NUEVOS: 3 dashboards JSON + 5 reglas YAML) |
+| Tests | `common/src/test/java/com/poc/sap/common/observability/DeployObservabilityStructureTest.java`, `customer/.../CustomerApplicationContextTest.java`, `article/.../ArticleApplicationContextTest.java` (10 tests nuevos OBS-005) |
+| Docs raíz | `README.md`, `external-services/README.md` (sección OBS-005), `docs/features/README.md`, `docs/features/OBS-005/quickstart.md`, `docs/features/OBS-005/feature-execution-graph.html` |
+| Glosario | `docs/GLOSSARY.md` (Observability tags) |
+| Registro | `external-services/mysql/init.sql` (`feature_evento` MODIFICACION) |
 
 ## Criterios de aceptación
 
@@ -70,3 +73,4 @@ En curso desde 2026-09-22.
 | Fecha | Cambio |
 |---|---|
 | 2026-09-22 | Alta de la feature (estado "En curso"). Andamiaje en `docs/features/OBS-005/`. |
+| 2026-09-23 | Cierre de la feature: 4 commits (a2a0f9e tests, 4f2d369 config, e67174a artefactos, 0d7a0b2 docs conteo). QA verde. Spec `observabilidad.md` enmendado (R-8, R-9, AC-6, AC-7). |

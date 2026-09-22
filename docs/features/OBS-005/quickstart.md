@@ -48,10 +48,16 @@ cd ../..                              # raíz del repo
 python -c "import json,glob; [json.load(open(f)) for f in glob.glob('deploy/observability/grafana/dashboards/*.json')]; print('OK')"
 ```
 
-### e) Verificar que las reglas Prometheus referencian series existentes
+### e) Verificar las reglas Prometheus referencian series existentes
 
-> TBD al cierre de la feature — pendiente de la primera versión de los
-> dashboards y reglas.
+```bash
+mvn -pl common test -Dtest='DeployObservabilityStructureTest#everyAlertExpressionReferencesASeriesFromTheApp'
+```
+
+El test parsea `deploy/observability/prometheus/rules/alerts.yml` y comprueba
+que cada identificador que aparece en las `expr` coincide con la whitelist
+de series que la app publica (`sap_sync_*`, `sap_client_*`, `resilience4j_*`,
+`kafka_consumergroup_*`).
 
 ## 4. Cómo deshacer / parar
 

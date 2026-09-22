@@ -20,6 +20,14 @@ identifican por fecha.
 
 ## [Sin publicar]
 
+### 2026-09-23 — Las series de métricas ya distinguen entorno y cluster; los paneles y alertas viven en el repositorio
+
+#### Añadido
+- Cada serie Prometheus lleva ahora tres etiquetas: además del nombre de aplicación, el entorno (`local`, `test` o `prod`) y el nombre del cluster Kubernetes. Sin ellas, los paneles de Grafana mezclaban datos de entornos distintos.
+
+#### Cambiado
+- Los paneles de Grafana y las reglas de Prometheus que se usan para vigilar el sistema están ahora versionados en el repositorio (`deploy/observability/`). Quien opera cada entorno los aprovisiona desde ahí. La operación del propio stack de recolección (Prometheus, Grafana, Loki) sigue siendo de plataforma, no del repositorio.
+
 ### 2026-09-19 — Los avisos de cambio ya no llevan datos personales; el sistema siempre envía a SAP el estado actual
 
 #### Cambiado

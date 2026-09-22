@@ -125,3 +125,29 @@ Consola: http://localhost:9001
   `404` ("no existe en SAP") en vez del `201` genérico: así el flujo local
   ejercita también la rama de alta del upsert idempotente, no solo la de
   actualización.
+
+## Métricas, logs y trazas que expone la app (OBS-005)
+
+Las apps exponen `/actuator/prometheus` con las series documentadas en
+[`docs/sdd/common/observabilidad.md`](../docs/sdd/common/observabilidad.md) §4
+(R-1..R-3, R-6, R-8) y los tags comunes `application`, `env`, `cluster` (R-8).
+Los **dashboards Grafana y las reglas de alerta Prometheus** que la plataforma
+provisionará en cada entorno viven versionados en
+[`deploy/observability/`](../deploy/observability/):
+
+```
+deploy/observability/
+├── README.md
+├── grafana/dashboards/{customer-pipeline,article-pipeline,sap-resilience}.json
+└── prometheus/rules/alerts.yml
+```
+
+El **stack de recolección** (Prometheus/Grafana/Loki/Keycloak) lo aporta la
+plataforma en cada entorno — **no se levanta en este compose**.
+
+## Logs
+
+Activar JSON para Loki/ELK: `LOGGING_STRUCTURED_FORMAT_CONSOLE=ecs` en
+`scripts/env/<entorno>.env` (nativo de Boot, sin código). Con `TRACING_ENABLED=true`
+y `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` apuntando al colector, el `traceId`
+aparece en cada log.

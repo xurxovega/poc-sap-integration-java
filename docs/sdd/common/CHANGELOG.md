@@ -7,6 +7,7 @@
 
 | Fecha | Capacidad | Cambio |
 |---|---|---|
+| 2026-09-23 | [Observabilidad](observabilidad.md) | OBS-005: tags `application`/`env`/`cluster` en las series (R-8); dashboards Grafana y reglas Prometheus versionados en `deploy/observability/` (R-9). AC-6 y AC-7 |
 | 2026-09-19 | [Contrato del mensaje de cambio](contrato-mensaje-de-cambio.md) | Spec inicial (ADR-0013). El aviso de cambio pasa a ser **fino**: identidad del cambio, sin datos ni PII. El hash de idempotencia lo calcula el consumidor sobre el snapshot releido del legacy (`PayloadHasher`); `payloadHash` y `payload` quedan opcionales y se ignoran como fuente de datos, y los listeners siguen aceptando el formato antiguo |
 | 2026-09-19 | [Idempotencia, dedupe y consistencia de la imagen](idempotencia-y-dedupe.md) | R-1 reescrita: el hash deja de venir en el mensaje y se calcula sobre el snapshot releido del legacy. AC-7 y AC-8 nuevos (ADR-0013) |
 | 2026-09-18 | [Contrato REST publicado de cada módulo](contrato-openapi-rest.md) | Spec inicial. Cada módulo con controladores REST publica su contrato OpenAPI 3.1 en `src/main/resources/openapi.yml` (servidores local y test, bearer JWT de Keycloak, `x-required-role` y enmascarado por operación, ejemplos), y `OpenApiMatchesControllersTest` rompe el build si el contrato y los controladores divergen |

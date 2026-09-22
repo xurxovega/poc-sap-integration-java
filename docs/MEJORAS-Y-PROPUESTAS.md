@@ -24,8 +24,8 @@
 
 | # | Mejora | Ámbito | Estado | Notas |
 |---|---|---|---|---|
-| OBS-1 | **Stack Prometheus + Grafana** en `external-services` | proyecto | ✅ plataforma 2026-09-12 | Las apps ya exponen `/actuator/prometheus`, pero no hay quien lo recoja ni dashboards. Aplazado a propósito en la sesión del 2026-09-09 |
-| OBS-2 | **Trazas distribuidas**: Tempo o colector OTLP y `TRACING_ENABLED=true` | proyecto | 📋 | D-7 decidida (ADR-0009): el starter oficial ya está en el código, apagado. Falta el destino de las trazas. Sin esto no hay trazas ni `traceId` en los logs. Todo lo demás de la Fase 5 (métricas, parada ordenada, presupuesto de reintentos) está hecho el 2026-09-12 |
+| OBS-1 | **Stack Prometheus + Grafana** en `external-services` | proyecto | 🚧 parcial | Paneles y reglas versionados en `deploy/observability/`; operación del stack de plataforma pendiente por entorno (R-9) |
+| OBS-2 | **Trazas distribuidas**: Tempo o colector OTLP y `TRACING_ENABLED=true` | proyecto | 🚧 parcial | Starter OTel listo, apagado; colector OTLP agnóstico (R-9) |
 | OBS-3 | Dashboard de estado del pipeline: entidades por estado, tasa de `SAP_ERROR`, profundidad de la DLT | proyecto | 💡 | Depende de OBS-1 |
 | OBS-4 | Logs estructurados en JSON con `traceId` correlado | transversal | 🚧 parcial 2026-09-12 | El formato ECS (JSON) ya se activa con `LOGGING_STRUCTURED_FORMAT_CONSOLE=ecs` (nativo de Boot, sin código). El `traceId` llegará con las trazas (OBS-2, decisión D-7) |
 
