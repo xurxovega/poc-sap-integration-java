@@ -34,3 +34,5 @@ data:
   APP_KAFKA_RETRY_CIRCUIT_OPEN_BACKOFF_MS: "30000"   # cubre la ventana de circuito abierto
   SHUTDOWN_TIMEOUT: "30s"
   TRACING_ENABLED: "false"               # true cuando exista Tempo/colector OTLP (ADR-0009)
+  OBS_ENV: "test"                        # OBS-005: tag env en /actuator/prometheus
+  OBS_CLUSTER: "sap-test-cluster-1"      # OBS-005: tag cluster en /actuator/prometheus

@@ -144,6 +144,11 @@ management:
       # Un valor por app (customer-app / article-app); antes era el mismo en las
       # dos y sus series se mezclaban (auditoria A9).
       application: ${spring.application.name}
+      # Tags de entorno y cluster para que las series de /actuator/prometheus
+      # sean agregables a traves de instancias y despliegues (OBS-005 AC-1).
+      # Por defecto "local" para que en CI y dev el tag nunca falte.
+      env: ${OBS_ENV:local}
+      cluster: ${OBS_CLUSTER:local}
   # Trazas distribuidas (ADR-0009): starter oficial de OpenTelemetry de Boot 4.
   # Apagadas por defecto; con TRACING_ENABLED=true exportan por OTLP/HTTP al
   # colector o Tempo indicado y el traceId aparece en los logs (ECS).
