@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OBS-005 — Recolección y consumo de la observabilidad</title>
+<style>
+  :root{color-scheme:dark;--bg:#020617;--panel:#0f172a;--line:#334155;--muted:#94a3b8;--text:#e2e8f0;--cyan:#22d3ee;--green:#34d399;--amber:#fbbf24;--rose:#fb7185}
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font:14px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;background:var(--bg);color:var(--text);padding:2rem}
+  .wrap{max-width:1100px;margin:auto}
+  .header,.panel{background:rgba(15,23,42,.75);border:1px solid #1e293b;border-radius:.75rem;padding:1.25rem}
+  .header{margin-bottom:1rem}
+  h1{font-size:1.35rem;color:#fff;margin-bottom:.4rem;letter-spacing:-.02em}
+  h2{font-size:.95rem;color:#fff;margin-bottom:.6rem}
+  .muted{color:var(--muted);font-size:.8rem}
+  .meta{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:.6rem;margin-top:1rem}
+  .meta div{border:1px solid var(--line);border-radius:.45rem;padding:.55rem}
+  .meta b{display:block;color:#fff;font-size:.7rem}
+  .meta span{color:var(--muted);font-size:.78rem}
+  .grid{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(280px,.7fr);gap:1rem}
+  .panel{margin-bottom:1rem}
+  .canvas{overflow:auto;border:1px solid #1e293b;border-radius:.5rem;background:repeating-linear-gradient(0deg,transparent 0 144px,rgba(51,65,85,.18) 146px)}
+  svg{display:block;min-width:780px;width:100%}
+  .lane{fill:rgba(15,23,42,.5);stroke:#1e293b}
+  .node{fill:rgba(34,211,238,.12);stroke:var(--cyan);stroke-width:1.5}
+  .edge{stroke:#64748b;stroke-width:1.5;fill:none;marker-end:url(#arrow)}
+  .legend{display:flex;flex-wrap:wrap;gap:.75rem;margin-top:.6rem;font-size:.72rem;color:var(--muted)}
+  .legend span{display:flex;align-items:center;gap:.4rem}
+  .legend i{width:14px;height:8px;border-radius:2px}
+  .step{border-left:3px solid var(--cyan);padding:.6rem .8rem;margin:.55rem 0;background:rgba(2,6,23,.55)}
+  .step h3{margin:0;color:#fff;font-size:.78rem}
+  .step p{margin:.2rem 0;color:var(--muted);font-size:.72rem;line-height:1.6}
+  .step .tag{display:inline-block;border:1px solid var(--line);border-radius:999px;padding:.05rem .5rem;color:var(--amber);font-size:.66rem;margin-left:.4rem}
+  .footer{color:#64748b;font-size:.7rem;margin-top:1rem}
+</style>
+</head>
+<body><main class="wrap">
+  <header class="header">
+    <h1>OBS-005 — Recolección y consumo de la observabilidad</h1>
+    <p class="muted">Agnóstico del entorno: mismas series, mismas convenciones, mismas URLs configurables. La plataforma provisiona dashboards y reglas desde el repo.</p>
+    <div class="meta"><div><b>Proyecto</b><span>poc-sap-integration-java</span></div><div><b>Feature</b><span>OBS-005</span></div><div><b>Estado</b><span>Incorporada</span></div><div><b>Fecha</b><span>2026-09-23</span></div><div><b>Por qué</b><span>Recolección y consumo de la observabilidad deben funcionar en cualquier entorno (local/test/prod) sin que el código sepa dónde corre la plataforma.</span></div></div>
+  </header>
+  <div class="grid">
+    <section class="panel">
+      <h2>Grafo de ejecución</h2>
+      <p class="muted">Secuencia real del trabajo sobre OBS-005, de arriba abajo por orden cronológico. Cada paso registra agente, estado y resumen.</p>
+      <div class="canvas">      <svg viewBox="0 0 880 782" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Grafo vertical de la ejecución de OBS-005: cinco pasos secuenciales (orchestrator, solution-architect, dev-implementer, qa-tester, docs-writer) con flechas entre ellos">
+        <defs>
+          <marker id="arrow" markerWidth="9" markerHeight="7" refX="8" refY="3.5" orient="auto">
+            <path d="M0,0 L9,3.5 L0,7 Z" fill="#64748b"/>
+          </marker>
+          <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+            <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#1e293b" stroke-width="0.5"/>
+          </pattern>
+        </defs>
+        <rect width="100%" height="100%" fill="url(#grid)"/>
+
+        <rect class="lane" x="24" y="24" width="832" height="112" rx="8"/>
+        <text x="40" y="50" fill="#94a3b8" font-size="9" font-weight="700" letter-spacing="0.06em">ORCHESTRATOR</text>
+        <rect class="node" x="190" y="32" width="634" height="96" rx="7"/>
+        <rect x="728" y="40" width="86" height="18" rx="9" fill="rgba(2,6,23,0.7)" stroke="#22d3ee" stroke-width="1"/>
+        <text x="771" y="53" fill="#22d3ee" font-size="9" font-weight="700" text-anchor="middle">En curso</text>
+        <text x="204" y="54" fill="#e2e8f0" font-size="10" font-weight="600">orchestrator</text>
+        <text x="204" y="72" fill="#94a3b8" font-size="9">Handoff inicial con el plan consolidado (plan-f4-features.md §3)</text>
+        <rect class="lane" x="24" y="170" width="832" height="112" rx="8"/>
+        <text x="40" y="196" fill="#94a3b8" font-size="9" font-weight="700" letter-spacing="0.06em">SOLUTION-ARCHITECT</text>
+        <rect class="node" x="190" y="178" width="634" height="96" rx="7"/>
+        <rect x="728" y="186" width="86" height="18" rx="9" fill="rgba(2,6,23,0.7)" stroke="#22d3ee" stroke-width="1"/>
+        <text x="771" y="199" fill="#22d3ee" font-size="9" font-weight="700" text-anchor="middle">En curso</text>
+        <text x="204" y="200" fill="#e2e8f0" font-size="10" font-weight="600">solution-architect</text>
+        <text x="204" y="218" fill="#94a3b8" font-size="9">Decisiones D-OBS005-1..5 cerradas: tags env/cluster, dashboards Grafana JSON,</text>
+        <text x="204" y="232" fill="#94a3b8" font-size="9">alertas Prometheus, estructura deploy/observability/, AC-6 y AC-7</text>
+        <rect class="lane" x="24" y="316" width="832" height="112" rx="8"/>
+        <text x="40" y="342" fill="#94a3b8" font-size="9" font-weight="700" letter-spacing="0.06em">DEV-IMPLEMENTER</text>
+        <rect class="node" x="190" y="324" width="634" height="96" rx="7"/>
+        <rect x="728" y="332" width="86" height="18" rx="9" fill="rgba(2,6,23,0.7)" stroke="#22d3ee" stroke-width="1"/>
+        <text x="771" y="345" fill="#22d3ee" font-size="9" font-weight="700" text-anchor="middle">En curso</text>
+        <text x="204" y="346" fill="#e2e8f0" font-size="10" font-weight="600">dev-implementer</text>
+        <text x="204" y="364" fill="#94a3b8" font-size="9">Fase B tests rojos PRIMERO (10/10 fallan); Fase A config (tags + env</text>
+        <text x="204" y="378" fill="#94a3b8" font-size="9">examples); Fase C artefactos (3 dashboards JSON + 5 reglas YAML); Fase D</text>
+        <text x="204" y="392" fill="#94a3b8" font-size="9">cifra de tests 447→457</text>
+        <rect class="lane" x="24" y="462" width="832" height="112" rx="8"/>
+        <text x="40" y="488" fill="#94a3b8" font-size="9" font-weight="700" letter-spacing="0.06em">QA-TESTER</text>
+        <rect class="node" x="190" y="470" width="634" height="96" rx="7"/>
+        <rect x="728" y="478" width="86" height="18" rx="9" fill="rgba(2,6,23,0.7)" stroke="#34d399" stroke-width="1"/>
+        <text x="771" y="491" fill="#34d399" font-size="9" font-weight="700" text-anchor="middle">HECHO</text>
+        <text x="204" y="492" fill="#e2e8f0" font-size="10" font-weight="600">qa-tester</text>
+        <text x="204" y="510" fill="#94a3b8" font-size="9">mvn verify SUCCESS (3:29 min). 10/10 tests OBS-005 PASS. JaCoCo ≥75% domain.</text>
+        <text x="204" y="524" fill="#94a3b8" font-size="9">ArchUnit OK. TestCountMatchesDocsTest 457 ✅. Sin Docker.</text>
+        <rect class="lane" x="24" y="608" width="832" height="112" rx="8"/>
+        <text x="40" y="634" fill="#94a3b8" font-size="9" font-weight="700" letter-spacing="0.06em">DOCS-WRITER</text>
+        <rect class="node" x="190" y="616" width="634" height="96" rx="7"/>
+        <rect x="728" y="624" width="86" height="18" rx="9" fill="rgba(2,6,23,0.7)" stroke="#22d3ee" stroke-width="1"/>
+        <text x="771" y="637" fill="#22d3ee" font-size="9" font-weight="700" text-anchor="middle">En curso</text>
+        <text x="204" y="638" fill="#e2e8f0" font-size="10" font-weight="600">docs-writer</text>
+        <text x="204" y="656" fill="#94a3b8" font-size="9">Cierre documental: spec enmendado (R-8, R-9, AC-6, AC-7), GLOSSARY, MEJORAS</text>
+        <text x="204" y="670" fill="#94a3b8" font-size="9">(OBS-1/2 parcial), external-services/README, CHANGELOGs raíz y subproyecto,</text>
+        <text x="204" y="684" fill="#94a3b8" font-size="9">registro SDD, feature-execution-graph.html</text>
+        <line class="edge" x1="70" y1="128" x2="70" y2="170"/>
+        <line class="edge" x1="70" y1="274" x2="70" y2="316"/>
+        <line class="edge" x1="70" y1="420" x2="70" y2="462"/>
+        <line class="edge" x1="70" y1="566" x2="70" y2="608"/>
+      </svg></div>
+      <div class="legend">
+        <span><i style="background:#22d3ee"></i> En curso / abierto</span>
+        <span><i style="background:#34d399"></i> HECHO / Incorporada</span>
+        <span><i style="background:#94a3b8"></i> Pendiente</span>
+        <span style="margin-left:auto">Fecha de cierre: 2026-09-23</span>
+      </div>
+    </section>
+    <section class="panel">
+      <h2>Decisiones y evidencias</h2>
+      <div class="step"><h3>Tags comunes application/env/cluster</h3><p>application = ${spring.application.name} (distingue customer-app y article-app). env = ${OBS_ENV:local}. cluster = ${OBS_CLUSTER:local}. Sin variables, los defaults dan señal obvia de entorno sin provisionar: la app no falla.</p></div><div class="step"><h3>Artefactos consumibles por la plataforma versionados en el repo</h3><p>deploy/observability/ contiene dashboards Grafana (3 JSON con datasource ${DS_PROMETHEUS}/${DS_LOKI}) y reglas Prometheus (alerts.yml). La plataforma los aprovisiona por entorno. Variables de datasource resueltas al desplegar.</p></div><div class="step"><h3>Lo que queda fuera del repo</h3><p>Operación del stack de recolección (Prometheus, Grafana, Loki, Keycloak): plataforma. Destino de las trazas (Tempo/colector OTLP): plataforma, código ya exporta con TRACING_ENABLED (ADR-0009).</p></div><div class="step"><h3>Cobertura de tests</h3><p>10 tests nuevos OBS-005: 2 en CustomerApplicationContextTest, 2 en ArticleApplicationContextTest (gemelos), 6 en DeployObservabilityStructureTest (parseo JSON, parseo YAML, variables datasource, referencia a series). Total suite: 457 tests.</p></div>
+    </section>
+  </div>
+  <section class="panel">
+    <h2>Detalle por agente</h2>
+    <article class="step"><h3>1. orchestrator <span class="tag">orchestrator:handoff</span></h3><p>Handoff inicial con el plan consolidado (plan-f4-features.md §3)</p><p><b>Estado:</b> En curso &middot; <b>Evidencia:</b> Plan-f4-features.md §3 (commits OBS-005 secuenciados)</p></article><article class="step"><h3>2. solution-architect <span class="tag">solution-architect:D-OBS005</span></h3><p>Decisiones D-OBS005-1..5 cerradas: tags env/cluster, dashboards Grafana JSON, alertas Prometheus, estructura deploy/observability/, AC-6 y AC-7</p><p><b>Estado:</b> En curso &middot; <b>Evidencia:</b> docs/features/OBS-005/README.md §Alcance</p></article><article class="step"><h3>3. dev-implementer <span class="tag">dev-implementer:fases</span></h3><p>Fase B tests rojos PRIMERO (10/10 fallan); Fase A config (tags + env examples); Fase C artefactos (3 dashboards JSON + 5 reglas YAML); Fase D cifra de tests 447→457</p><p><b>Estado:</b> En curso &middot; <b>Evidencia:</b> Commits a2a0f9e, 4f2d369, e67174a, 0d7a0b2</p></article><article class="step"><h3>4. qa-tester <span class="tag">qa-tester:mvn-verify</span></h3><p>mvn verify SUCCESS (3:29 min). 10/10 tests OBS-005 PASS. JaCoCo ≥75% domain. ArchUnit OK. TestCountMatchesDocsTest 457 ✅. Sin Docker.</p><p><b>Estado:</b> HECHO &middot; <b>Evidencia:</b> Local verification report OBS-005</p></article><article class="step"><h3>5. docs-writer <span class="tag">docs-writer:cierre</span></h3><p>Cierre documental: spec enmendado (R-8, R-9, AC-6, AC-7), GLOSSARY, MEJORAS (OBS-1/2 parcial), external-services/README, CHANGELOGs raíz y subproyecto, registro SDD, feature-execution-graph.html</p><p><b>Estado:</b> En curso &middot; <b>Evidencia:</b> docs/features/OBS-005/feature-execution-graph.html + commits docs-writer</p></article>
+  </section>
+  <p class="footer">Generado por el método datos → generador → validador (skill <code>architecture-diagram</code>) a partir de la constante <code>FEATURE.events</code>. Sin dependencias externas salvo la fuente del sistema.</p>
+</main></body></html>
