@@ -121,3 +121,9 @@ SELECT id,'ALTA','Spec inicial de la máquina de estados',
        'Documenta estados, transiciones y reglas de re-entrada. Añade la re-entrada de líneas de feature por VALIDATING desde SENT_SAP, INVALID y SAP_ERROR.',
        'equipo','2026-09-10 00:00:00'
 FROM feature WHERE subproyecto='common' AND slug='maquina-de-estados';
+
+INSERT INTO feature_evento (feature_id, accion, resumen, detalle, autor, ocurrido_el)
+SELECT id, 'MODIFICACION', 'OBS-005: tags application/env/cluster y artefactos en deploy/observability/',
+       'R-8 (tags comunes) y R-9 (dashboards+alertas versionados) en el spec de observabilidad. AC-6 y AC-7 con sus tests. Implementado en 4 commits (a2a0f9e, 4f2d369, e67174a, 0d7a0b2). QA verde: 10/10 tests OBS-005; mvn verify SUCCESS; ArchUnit y JaCoCo check en verde.',
+       'docs-writer', NOW()
+FROM feature WHERE subproyecto='common' AND slug='observabilidad';
