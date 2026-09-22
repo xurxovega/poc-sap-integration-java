@@ -273,8 +273,8 @@ todo lo sensible. **Nunca commitear secretos.**
 
 ## Testing
 
-Suite de **447 tests** declarados (`@Test` en `common`, `customer`, `article` e
-`it`, medido el 2026-09-18; el build falla si la cifra documentada diverge):
+Suite de **457 tests** declarados (`@Test` en `common`, `customer`, `article` e
+`it`, medido el 2026-09-22; el build falla si la cifra documentada diverge):
 unit, slice web, contract SAP con WireMock, resiliencia del
 cliente SAP, smoke de contexto Spring por app, integration con Testcontainers.
 Cifra exacta y catálogo completo en

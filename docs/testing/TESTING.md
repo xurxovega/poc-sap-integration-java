@@ -8,7 +8,7 @@
 
 ## 1. Resumen ejecutivo
 
-Total: **447 tests** declarados (medido el 19-09-2026 con JDK 25, `mvn clean test`).
+Total: **457 tests** declarados (medido el 22-09-2026 con JDK 25, `mvn clean test`; OBS-005 añade 10: 4 de contexto Spring con tags de Prometheus, 6 estructurales sobre los artefactos de `deploy/observability/`).
 
 La cifra es de `@Test` **declarados** en `src/test/java` de todos los módulos; la vigila
 `TestCountMatchesDocsTest` (módulo `it`) y el build falla si diverge. Los IT gateados
