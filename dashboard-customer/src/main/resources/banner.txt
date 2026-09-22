@@ -1,0 +1,9 @@
+#   # ##### ##### ##### #####  ####  #   #
+ #   # #     #     #     #     #      ##  #
+ ##### ####  ####  #     ####  #      # # #
+ #   # #     #     #     #     #      #  ##
+ #   # ##### #     #     #####  ####  #   #
+
+ :: dashboard-customer :: UI-001 :: puerto ${server.port} ::
+ :: Spring Boot ${spring-boot.version} ::
+ :: Lectura directa Mongo+ES (no consume REST del customer-app)

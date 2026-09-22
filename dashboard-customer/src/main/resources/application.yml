@@ -1,0 +1,49 @@
+# Dashboard-customer (UI-001) - puerto 8091.
+# Lee directo de Mongo y Elasticsearch de customer; no consume las APIs REST
+# del customer-app (DashboardIsolationTest vigila el aislamiento).
+
+server:
+  port: ${DASHBOARD_SERVER_PORT:8091}
+
+spring:
+  application:
+    name: dashboard-customer
+  config:
+    import: "application-common.yml"
+  main:
+    # Web sin DataSource/SQL: sin esta exclusion Boot 4 intenta autoconfigurar
+    # un pool aunque la app no lo pida.
+    web-application-type: servlet
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,metrics
+  endpoint:
+    health:
+      show-details: when-authorized
+
+# Conexion a Mongo del dominio customer. Por defecto la misma del customer-app
+# para que en local arranque contra el compose de external-services.
+spring.mongodb.uri: ${MONGO_URL_CUSTOMER:${MONGO_URL:mongodb://localhost:27017/customer}}
+
+# Elasticsearch: clientes_history esta en el cluster del dominio customer.
+spring.elasticsearch.uris: ${ES_URL:http://localhost:9200}
+
+# Las configs comunes (tags de observabilidad, config import, ...) las aporta
+# application-common.yml via spring.config.import.
+
+dashboard:
+  mongo:
+    database: ${DASHBOARD_MONGO_DATABASE:customer}
+    customer-collection: customers_current
+    sync-state-collection: sync_state
+    alerts-collection: alerts
+  elasticsearch:
+    history-index: customers_history
+  kpi:
+    # Re-calculo de los gauges Prometheus del dashboard (MTTR tecnico,
+    # recuperacion p95). 5 min por defecto.
+    refresh-seconds: ${DASHBOARD_KPI_REFRESH_SECONDS:300}
+    window-days: ${DASHBOARD_KPI_WINDOW_DAYS:7}
