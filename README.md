@@ -49,10 +49,38 @@ La documentación está organizada por **para qué sirve cada cosa**:
 - [`docs/MEJORAS-Y-PROPUESTAS.md`](docs/MEJORAS-Y-PROPUESTAS.md) — **backlog vivo** de mejoras e ideas que aún no se han abordado: observabilidad, calidad, resiliencia, seguridad, utillaje, alcance y método. Incluye lo transversal a otros proyectos.
 - [`docs/GLOSSARY.md`](docs/GLOSSARY.md) — glosario de términos del proyecto con definiciones y enlaces.
 
+### Por subproyecto
+
+- [`common/README.md`](common/README.md) — shared kernel: máquina de estados, cliente SAP, auth, observabilidad, seguridad, persistencia compartida.
+- [`customer/README.md`](customer/README.md) — dominio de cliente.
+- [`article/README.md`](article/README.md) — dominio de artículo.
+- [`supplier/README.md`](supplier/README.md) — dominio de proveedor (placeholder).
+- [`it/README.md`](it/README.md) — pruebas de integración cross-dominio y contratos SAP.
+- [`sap-api-models/README.md`](sap-api-models/README.md) — modelos SAP generados desde specs OpenAPI oficiales.
+
 > **Cómo trabajamos**: SDD *anchor* + TDD. Si cambia el spec, cambia el código;
 > si cambia el código, se ajusta el spec — en el mismo PR. Y ningún código de
 > producción se escribe sin un test que falle antes. Detalle en
 > [`docs/architecture/DESARROLLO.md`](docs/architecture/DESARROLLO.md).
+
+## Features (con quickstart propio)
+
+Cada feature del proyecto tiene su carpeta en
+[`docs/features/`](docs/features/) con un `README.md` (alcance, estado,
+aceptación), un `quickstart.md` (cómo se verifica aislada) y un
+`feature-execution-graph.html` (grafo de la ejecución al cierre). La lista
+activa:
+
+| Código | Nombre | Estado | Quickstart |
+|---|---|---|---|
+| OBS-005 | Recolección y consumo de la observabilidad | En curso | [quickstart](docs/features/OBS-005/quickstart.md) |
+| UI-001 | Dashboard web: vista por entidad y búsqueda | Pendiente | [quickstart](docs/features/UI-001/quickstart.md) |
+| UI-002 | Vista grafo del flujo de integración | Pendiente | [quickstart](docs/features/UI-002/quickstart.md) |
+| OPS-010 | Broker de mensajería: Kafka → Redpanda | Pendiente | [quickstart](docs/features/OPS-010/quickstart.md) |
+
+Las resueltas y su trazabilidad viven en [`docs/sdd/README.md`](docs/sdd/README.md) §6;
+las ideas y mejoras aún no abordadas, en
+[`docs/MEJORAS-Y-PROPUESTAS.md`](docs/MEJORAS-Y-PROPUESTAS.md).
 
 ## Arquitectura
 
