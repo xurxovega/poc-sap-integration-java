@@ -109,4 +109,22 @@
         </dependency>
     </dependencies>
 
+    <build>
+        <!-- OBS-005: los tests estructurales (DeployObservabilityStructureTest)
+             buscan dashboards / reglas / env-examples en rutas relativas a la
+             raiz del repo. Definimos la propiedad a nivel de modulo para que
+             `mvn -pl common test` la resuelva sin flags en CLI. -->
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <configuration>
+                    <systemPropertyVariables>
+                        <obs005.repo-root>${project.basedir}/..</obs005.repo-root>
+                    </systemPropertyVariables>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+
 </project>
