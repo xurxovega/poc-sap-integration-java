@@ -74,7 +74,7 @@ activa:
 | Código | Nombre | Estado | Quickstart |
 |---|---|---|---|
 | OBS-005 | Recolección y consumo de la observabilidad | ✅ Incorporada 2026-09-23 | [quickstart](docs/features/OBS-005/quickstart.md) |
-| UI-001 | Dashboard web: vista por entidad y búsqueda | Pendiente | [quickstart](docs/features/UI-001/quickstart.md) |
+| UI-001 | Dashboard web: vista por entidad y búsqueda | ✅ Incorporada 2026-09-23 | [quickstart](docs/features/UI-001/quickstart.md) |
 | UI-002 | Vista grafo del flujo de integración | Pendiente | [quickstart](docs/features/UI-002/quickstart.md) |
 | OPS-010 | Broker de mensajería: Kafka → Redpanda | Pendiente | [quickstart](docs/features/OPS-010/quickstart.md) |
 

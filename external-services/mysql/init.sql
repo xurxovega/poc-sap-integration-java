@@ -127,3 +127,13 @@ SELECT id, 'MODIFICACION', 'OBS-005: tags application/env/cluster y artefactos e
        'R-8 (tags comunes) y R-9 (dashboards+alertas versionados) en el spec de observabilidad. AC-6 y AC-7 con sus tests. Implementado en 4 commits (a2a0f9e, 4f2d369, e67174a, 0d7a0b2). QA verde: 10/10 tests OBS-005; mvn verify SUCCESS; ArchUnit y JaCoCo check en verde.',
        'docs-writer', NOW()
 FROM feature WHERE subproyecto='common' AND slug='observabilidad';
+
+INSERT INTO feature (subproyecto, slug, nombre, spec_path, estado, solicitada_por, solicitada_el, descripcion) VALUES
+ ('customer','consulta-entidad-ui','Dashboard de consulta de entidad y búsqueda (UI-001)','docs/sdd/customer/consulta-entidad-ui.md','implementada','equipo','2026-09-22',
+  'Web estática del dominio customer (puerto 8091) que lee directo de Mongo y ES; NO consume las APIs REST del customer-app. Thymeleaf+HTMX+Alpine.js. PII enmascarada con common.security.PiiMasker (promovido en este PR). F-9 promoted: POST /customers/alerts/{id}/ack con sap-write y TTL 30d. F-12: métricas Prometheus propias. Job KPIs con cardinalidad ≤ 2.');
+
+INSERT INTO feature_evento (feature_id, accion, resumen, detalle, autor, ocurrido_el)
+SELECT id, 'MODIFICACION', 'Cierre UI-001: spec consulta-entidad-ui.md (AC-1..10, R-1..R-7)',
+       '7 commits (d04b860 andamiaje + ArchUnit, 2622178 PiiMasker promoted, 9ec59d9 dominio + use cases, b6fc4e5 adaptadores Mongo/ES + init.js, 3464e86 controllers Thymeleaf + Grafana var entityId, 83b511b job KPIs + gauges, 2df602c docs). 80 tests nuevos (11 en common, 69 en dashboard-customer). 537 tests totales. JaCoCo >= 75% domain. 5 ArchUnit en verde incluido DashboardIsolationTest (3 reglas). mvn verify SUCCESS 3:44 min; mvn -pl it verify -Ddocker.available=true SUCCESS 4:40 min.',
+       'docs-writer', NOW()
+FROM feature WHERE subproyecto='customer' AND slug='consulta-entidad-ui';
