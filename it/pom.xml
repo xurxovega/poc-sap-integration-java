@@ -54,6 +54,13 @@
             <artifactId>kafka</artifactId>
             <scope>test</scope>
         </dependency>
+        <!-- OPS-010: modulo redpanda de Testcontainers para levantar un broker
+             Kafka-compatible en IT (sustituye a ConfluentKafkaContainer). -->
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>redpanda</artifactId>
+            <scope>test</scope>
+        </dependency>
         <dependency>
             <groupId>org.testcontainers</groupId>
             <artifactId>postgresql</artifactId>

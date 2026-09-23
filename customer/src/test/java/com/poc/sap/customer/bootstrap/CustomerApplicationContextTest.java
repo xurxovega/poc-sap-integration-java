@@ -97,6 +97,23 @@ class CustomerApplicationContextTest {
      * {@code application-common.yml}, asi Spring resolvera a {@code local} si
      * OBS_CLUSTER no existe en el entorno (otro despliegue, CI local...).
      */
+    /**
+     * OPS-010 AC-5: el YAML del módulo debe declarar el bootstrap del broker
+     * con la nueva variable {@code MESSAGING_BOOTSTRAP} y NO con la antigua
+     * {@code KAFKA_BOOTSTRAP}.
+     */
+    @Test
+    void contextStartsWithMessagingBootstrapEnv() throws Exception {
+        java.nio.file.Path yml = java.nio.file.Paths.get(new java.io.File(
+                "src/main/resources/application.yml").getAbsolutePath());
+        String contents = java.nio.file.Files.readString(yml, java.nio.charset.StandardCharsets.UTF_8);
+        assertThat(contents)
+                .as("application.yml debe referenciar MESSAGING_BOOTSTRAP (no KAFKA_BOOTSTRAP) "
+                        + "tras OPS-010")
+                .contains("MESSAGING_BOOTSTRAP")
+                .doesNotContain("KAFKA_BOOTSTRAP");
+    }
+
     @Test
     void defaultClusterTagIsLocalWhenObsClusterMissing() throws Exception {
         java.nio.file.Path yml = java.nio.file.Paths.get(System.getProperty(
