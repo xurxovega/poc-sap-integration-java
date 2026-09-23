@@ -121,9 +121,18 @@ Dos escrituras concurrentes intentaron avanzar el estado de la misma entidad; la
 
 Campo por el que Kafka reparte los mensajes en particiones. Al ser el identificador de la entidad, garantiza que todos los eventos de un cliente o artículo caen en la **misma partición** y se procesan en orden y sin solaparse; es la pieza que hace innecesario un *lease* por entidad. La fija el conector Debezium (`message.key.columns` + `ExtractField$Key`). Ver [ADR-0011](architecture/adr/0011-concurrencia-entre-instancias-fencing-sin-lease.md).
 
-### Consumer group compartido entre clústeres
+### Consumer group por clúster K8s
 
-Un único grupo de consumo por dominio (`customer-consumer`, `article-consumer`) para todas las instancias de **todos** los clústeres, de modo que cada mensaje lo procese exactamente un consumidor. Grupos separados por clúster harían que cada clúster escribiera el mismo cambio en el mismo S/4. Ver [ADR-0011](architecture/adr/0011-concurrencia-entre-instancias-fencing-sin-lease.md).
+Un grupo de consumo por dominio y por clúster K8s (`customer-consumer` y
+`article-consumer` en cada clúster), de modo que cada mensaje lo procese
+exactamente un consumidor **dentro** del clúster. Desde la revisión 2026-09-23
+(OPS-010, [ADR-0014](architecture/adr/0014-redpanda-como-broker-de-mensajeria.md)),
+cada cluster Redpanda es independiente y los offsets no se comparten entre
+clústeres; el supuesto "compartido entre clústeres" quedó obsoleto. Grupos
+distintos dentro de **un mismo** clúster sí serían problemáticos: cada
+consumidor procesaría todos los mensajes y haría dos escrituras en el mismo
+S/4 por cada cambio (los dos ciclos serían legítimos y no hay fencing que los
+distinga entre SAPs distintos). Ver [ADR-0011](architecture/adr/0011-concurrencia-entre-instancias-fencing-sin-lease.md).
 
 ### Contract test (test de contrato)
 

@@ -2,9 +2,9 @@
 
 | | |
 |---|---|
-| **Estado** | ✅ aceptada |
-| **Fecha** | 2026-09-18 |
-| **Decisión del plan** | revisión 3, bloque 3 del diseño «envío a SAP sin duplicar ni perder»; supuesto **D-16** (ver §5) |
+| **Estado** | ✅ aceptada, revisada 2026-09-23 por OPS-010 |
+| **Fecha** | 2026-09-18; revisada 2026-09-23 |
+| **Decisión del plan** | revisión 3, bloque 3 del diseño «envío a SAP sin duplicar ni perder»; supuesto **D-16** cerrado por [ADR-0014](0014-redpanda-como-broker-de-mensajeria.md) (un broker Redpanda por clúster K8s) |
 | **Reevaluar cuando** | `POST /customers/sync` pase a ser un canal de producción de alto volumen, se cambie la **clave de partición**, o se observen `ConcurrentTransitionException` sostenidas en la métrica (runbook «ConcurrentTransitionException sostenida») |
 
 ## 1. Contexto
@@ -16,6 +16,16 @@ desfasadas, la máquina de estados lanzaba `IllegalStateException`, que está
 declarada **no reintentable**: el mensaje iba a la DLT sin un solo reintento, y
 **nadie consume la DLT** — pérdida silenciosa de un cambio de negocio
 (auditoría 2B-2, anexo 05 §5).
+
+> **Revisión 2026-09-23 (OPS-010, [ADR-0014](0014-redpanda-como-broker-de-mensajeria.md))**.
+> Con Redpanda per-cluster, cada clúster K8s (test, prod) tiene su **propio**
+> consumer group (`customer-consumer` en cada clúster, `article-consumer` en
+> cada uno). Los offsets no se comparten entre clústeres. Esto cierra el
+> supuesto abierto D-16 de esta misma ADR (§5) y elimina la necesidad de un
+> Kafka multi-AZ accesible desde los dos clústeres. El fencing por `cycleId`
+> sigue protegiendo el estado en Mongo **dentro** de un clúster; entre
+> clústeres no hay nada que proteger porque cada cluster escribe contra su
+> propio S/4.
 
 Además, los topics se auto-creaban con **una sola partición** (anexo 05 §1): el
 orden por entidad que hoy se observa es accidental, no diseñado, y con una
@@ -47,11 +57,15 @@ compartido entre clústeres, o uno por clúster.
 1. **Fencing por `cycleId`, no *lease*.** La cabecera de estado lleva el ciclo
    que la escribió y una instancia solo avanza si la cabecera es **de su propio
    ciclo**; si no, `ConcurrentTransitionException`, que es **transitoria**.
-2. **Un solo `consumer group` por dominio** (`customer-consumer`,
-   `article-consumer`), **compartido por los dos clústeres**. Grupos distintos
-   por clúster significan que cada clúster procesa todos los mensajes: dos
-   escrituras en el **mismo** S/4 por cada cambio, y ahí no hay fencing que
-   valga, porque los dos ciclos son legítimos.
+2. **Un `consumer group` por dominio y por clúster K8s**
+   (`customer-consumer` y `article-consumer`), **un grupo en test y otro en
+   prod**. Un grupo compartido entre clústeres requería un broker multi-AZ
+   único (supuesto D-16, ahora cerrado por [ADR-0014](0014-redpanda-como-broker-de-mensajeria.md)):
+   con un Redpanda per-cluster (OPS-010) los offsets no se comparten y cada
+   clúster consume su propio topic. **Dentro de un clúster, grupos distintos
+   sí serían problemáticos**: cada consumidor procesaría todos los mensajes y
+   haría dos escrituras en el **mismo** S/4 por cada cambio, sin fencing que
+   valga (los dos ciclos serían legítimos).
 3. **12 particiones** en `outbox.CUSTOMER`, `outbox.ARTICLE` **y en sus `-dlt`**,
    con clave `entity_id`. 12 divide entre 1, 2, 3, 4, 6 y 12, y cumple la regla
    **particiones ≥ instancias × `concurrency`** (2 clústeres × 2 instancias × 3).
@@ -72,11 +86,12 @@ compartido entre clústeres, o uno por clúster.
 7. **La aplicación no crea topics.** `app.kafka.topics.create` es `false`; los
    crea la plataforma (IaC o script), ver [`../../../deploy/README.md`](../../../deploy/README.md).
 
-**Por qué el *lease* no compensa ahora**: con un solo consumer group y clave
-`entity_id`, dos mensajes de la misma entidad van a la misma partición y los
-consume **el mismo hilo, en orden**. El caso que el *lease* resolvería —dos
-ciclos en vuelo de verdad a la vez— queda reducido a la concurrencia entre el
-REST síncrono y Kafka, que es de baja tasa y se cubre con el fencing y el 409.
+**Por qué el *lease* no compensa ahora**: con un consumer group por clúster
+(revisión 2026-09-23) y clave `entity_id`, dentro de un clúster dos mensajes
+de la misma entidad van a la misma partición y los consume **el mismo hilo,
+en orden**. El caso que el *lease* resolvería —dos ciclos en vuelo de verdad a
+la vez, en el mismo clúster— queda reducido a la concurrencia entre el REST
+síncrono y Kafka, que es de baja tasa y se cubre con el fencing y el 409.
 El *lease* pagaría un coste permanente por un riesgo residual.
 
 ## 4. Consecuencias
@@ -99,15 +114,20 @@ El *lease* pagaría un coste permanente por un riesgo residual.
 - Cambiar la clave de partición invalida el punto 1 de esta decisión y obliga a
   reevaluarla (es uno de los disparadores).
 
-## 5. Supuesto abierto (D-16), a confirmar por plataforma
+## 5. Supuesto D-16, **cerrado por ADR-0014**
 
-Esta decisión asume **un único Kafka multi-AZ visible desde los dos clústeres**.
-Un Kafka por clúster obligaría a MirrorMaker 2 con sincronización de *offsets*, y
-un fallo de esa sincronización es reproceso masivo. **Es un supuesto, no un
-hecho**: si finalmente hay un Kafka por clúster, esta decisión **no es
-suficiente** y hay que rediseñar la idempotencia frente a SAP asumiendo dos
-consumidores legítimos. Decisión de infraestructura con coste y latencia entre
-regiones, pendiente del propietario.
+Esta decisión asumió desde 2026-09-18 un único Kafka multi-AZ visible desde
+los dos clústeres. Un Kafka por clúster habría obligado a MirrorMaker 2 con
+sincronización de *offsets*, y un fallo de esa sincronización era reproceso
+masivo.
+
+> **Revisión 2026-09-23 (OPS-010)**: ADR-0014 sustituye Kafka por Redpanda
+> con **un cluster por clúster K8s**. Los offsets ya no se comparten y el
+> supuesto D-16 **se cierra**. Esta ADR se ha actualizado §2 para reflejar
+> que el consumer group es **uno por dominio y por clúster**; lo demás
+> (fencing, `409 Conflict`, 12 particiones, `concurrency`, `max.poll.records`,
+> la política de reintentos, la guarda del presupuesto) sigue idéntico y
+> sigue válido.
 
 Ver también: [ADR-0006](0006-kafka-connect-debezium-como-cdc.md) (CDC),
 [ADR-0008](0008-kubernetes-como-plataforma-de-despliegue.md) (dos clústeres),
