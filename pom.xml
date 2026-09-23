@@ -50,7 +50,7 @@
         <elasticsearch-client.version>8.13.4</elasticsearch-client.version>
         <project.image.registry>poc-sap</project.image.registry>
         <project.image.tag>${project.version}</project.image.tag>
-        <cyclonedx.version>2.9.1</cyclonedx.version>
+        <cyclonedx.version>2.9.3</cyclonedx.version>
         <dependency-plugin.version>3.8.1</dependency-plugin.version>
         <sap-cloud-sdk.version>5.32.0</sap-cloud-sdk.version>
     </properties>
