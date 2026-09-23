@@ -20,6 +20,12 @@ identifican por fecha.
 
 ## [Sin publicar]
 
+_(pendiente — sin entradas nuevas desde la última publicación)_
+
+---
+
+## [0.1.0] - 2026-09-23
+
 ### 2026-09-23 — Cierre de OPS-010: broker de mensajería único, sin máquina virtual extra
 
 Sustitución del broker de Kafka+ZooKeeper por **Redpanda** (mismo *wire*
