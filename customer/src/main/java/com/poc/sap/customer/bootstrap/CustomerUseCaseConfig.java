@@ -104,8 +104,14 @@ public class CustomerUseCaseConfig {
      * {@code sap.odata.read.enabled} o {@code sap.odata.customer.enabled}); si
      * no lo esta, el controller no se inyecta y Spring no registra los
      * endpoints (R-5 del spec).
+     *
+     * <p>{@code @ConditionalOnBean} evita que este bean intente resolverse
+     * cuando el puerto todavia no existe (es condicional a su vez). Mismo
+     * patron que {@code CommonApplication} sigue con el resto de piezas
+     * opcionales del puerto.
      */
     @Bean
+    @org.springframework.boot.autoconfigure.condition.ConditionalOnBean(BusinessPartnerReadPort.class)
     LookupBusinessPartnerUseCase lookupBusinessPartnerUseCase(BusinessPartnerReadPort port) {
         return new LookupBusinessPartnerUseCase(port);
     }

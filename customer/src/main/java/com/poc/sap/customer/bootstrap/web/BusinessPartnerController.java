@@ -5,6 +5,7 @@ import com.poc.sap.common.security.ApiRoles;
 import com.poc.sap.common.security.PiiMasker;
 import com.poc.sap.customer.application.general.LookupBusinessPartnerUseCase;
 import com.poc.sap.customer.domain.port.BusinessPartnerReadPort.BusinessPartnerSummary;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -54,6 +55,7 @@ import java.util.NoSuchElementException;
  */
 @RestController
 @RequestMapping("/business-partners")
+@ConditionalOnBean(LookupBusinessPartnerUseCase.class)
 public class BusinessPartnerController {
 
     private final LookupBusinessPartnerUseCase useCase;
