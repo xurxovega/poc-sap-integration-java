@@ -13,16 +13,19 @@ import com.poc.sap.dashboard.customer.application.GetHistory;
 import com.poc.sap.dashboard.customer.application.GetHistoryDiff;
 import com.poc.sap.dashboard.customer.application.GetOpenAlerts;
 import com.poc.sap.dashboard.customer.application.SearchCustomers;
+import com.poc.sap.dashboard.customer.bootstrap.observability.KpiJob;
 import com.poc.sap.dashboard.customer.domain.port.AlertRepository;
 import com.poc.sap.dashboard.customer.domain.port.CustomerHistoryReader;
 import com.poc.sap.dashboard.customer.domain.port.CustomerImageReader;
 import com.poc.sap.dashboard.customer.domain.port.CustomerSearcher;
 import com.poc.sap.dashboard.customer.domain.port.CustomerStateReader;
+import io.micrometer.core.instrument.MeterRegistry;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 import java.time.Clock;
+import java.time.Duration;
 
 /**
  * Wiring de los use cases y adaptadores (UI-001 H-3). Los use cases del modulo
@@ -92,5 +95,16 @@ public class DashboardUseCaseConfig {
     }
     @Bean GetOpenAlerts getOpenAlerts(AlertRepository repo) {
         return new GetOpenAlerts(repo);
+    }
+
+    /**
+     * Job de KPIs (UI-001 H-5 F-12). El scheduler ya esta activado via
+     * {@link com.poc.sap.dashboard.customer.DashboardCustomerApplication#DashboardCustomerApplication()}.
+     */
+    @Bean
+    KpiJob kpiJob(MeterRegistry registry, MongoClient client,
+                   @Value("${dashboard.mongo.database:customer}") String database,
+                   @Value("${dashboard.kpi.window-days:7}") long windowDays) {
+        return new KpiJob(registry, () -> client.getDatabase(database), Duration.ofDays(windowDays));
     }
 }
