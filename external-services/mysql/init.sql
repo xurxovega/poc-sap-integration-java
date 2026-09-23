@@ -167,8 +167,8 @@ FROM feature WHERE subproyecto='customer' AND slug='consulta-entidad-ui';
 --
 -- Verificacion: `python scripts/sdd-registry-check.py` debe salir sin diferencias.
 -- -----------------------------------------------------------------------------
-INSERT INTO feature (subproyecto, slug, nombre, descripcion, spec_path, estado, solicitada_por, solicitada_el) VALUES
- ('common','broker-de-mensajeria','Broker de mensajeria: sustitucion Kafka+ZooKeeper por Redpanda','docs/sdd/common/broker-de-mensajeria.md','implementada','sdd-registry-check', CURDATE())
+INSERT INTO feature (subproyecto, slug, nombre, spec_path, descripcion, estado, solicitada_por, solicitada_el) VALUES
+ ('common','broker-de-mensajeria','Broker de mensajeria: sustitucion Kafka+ZooKeeper por Redpanda','docs/sdd/common/broker-de-mensajeria.md','Sustituye Kafka 3.x + ZooKeeper por Redpanda (wire Kafka 3.x, sin JVM, sin ZooKeeper). Operado por Redpanda Operator + CRD cluster.redpanda.com/v1alpha2 (kind: Redpanda). Manifiestos Kustomize puros. RF=3 test/prod, RF=1 local. ADR-0014 cierra el supuesto D-16 de ADR-0011.','implementada','sdd-registry-check', CURDATE())
  ON DUPLICATE KEY UPDATE estado='implementada';
 
 INSERT INTO feature_evento (feature_id, accion, resumen, detalle, autor, ocurrido_el)
