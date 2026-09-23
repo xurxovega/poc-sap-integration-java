@@ -20,6 +20,16 @@ identifican por fecha.
 
 ## [Sin publicar]
 
+### 2026-09-23 — Panel web de consulta de entidades y subentidades (UI-001)
+
+#### Añadido
+- Web de consulta del estado de un cliente y su histórico, sin pasar por la API del sistema. Antes había que abrir tres herramientas distintas para reconstruir la historia de un cliente.
+- Reconocimiento explícito de las alertas de sincronización parcial: el operador puede decir "vi esta alerta" y queda registrado con su nombre de usuario.
+
+#### Cambiado
+- Las series de Prometheus pasan a etiquetarse por entorno y cluster (OBS-005). El panel enlaza al dashboard de Grafana correspondiente filtrado por la entidad consultada.
+- La utilidad de enmascarado de datos personales se ha movido a una zona común del proyecto para que el panel web y la API la reutilicen sin acoplarse.
+
 ### 2026-09-23 — Las series de métricas ya distinguen entorno y cluster; los paneles y alertas viven en el repositorio
 
 #### Añadido

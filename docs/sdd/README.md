@@ -90,6 +90,7 @@ con ese nombre la primera vez que se toque la feature.
 | Sincronización de datos bancarios | [`sincronizacion-datos-bancarios.md`](customer/sincronizacion-datos-bancarios.md) | ✅ | ⚠️ contratos S/4 corregidos (BIC fuera de `BankIdentification`, mandato en `API_APAR_SEPA_MANDATE_SRV`), pendientes de validar contra el tenant; los mandatos no llegan del legacy |
 | Baja de cliente | [`baja-cliente.md`](customer/baja-cliente.md) | ✅ | ✅ ejecutable, `DELETE` HTTP real y modelo de bloqueo — verificado en vivo el 2026-09-12 por CDC |
 | Baja de mandato SEPA | [`baja-mandato-sepa.md`](customer/baja-mandato-sepa.md) | ✅ | ⚠️ revoca por `PATCH` de estado (antes `POST` ficticio); sin llamador hasta que el legacy emita mandatos |
+| Dashboard de consulta de entidad (UI-001) | [consulta-entidad-ui.md](customer/consulta-entidad-ui.md) | ✅ implementado 2026-09-23 |
 
 ### `article/` — [ver carpeta](article/)
 

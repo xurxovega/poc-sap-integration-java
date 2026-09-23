@@ -135,6 +135,14 @@ Regla verificable de un spec SDD, numerada `AC-1`, `AC-2`… Cada una debe tener
 
 ## D
 
+### Dashboard UI
+
+Web estática por dominio que muestra el estado de sincronización, el histórico y la búsqueda por clave de negocio de una entidad. Stack: Thymeleaf + HTMX + Alpine.js (sin SPA, sin build de cliente). Lee directo de Mongo y Elasticsearch del bounded context; **no** consume las APIs REST del `customer-app`/`article-app` — el aislamiento entre bounded contexts lo vigila `DashboardIsolationTest`. Ver [`sdd/customer/consulta-entidad-ui.md`](sdd/customer/consulta-entidad-ui.md), [`features/UI-001/`](features/UI-001/README.md).
+
+### DashboardIsolationTest
+
+Regla ArchUnit (3 reglas) sobre el módulo `dashboard-customer`: no importa clases de `customer.application.*`, `customer.bootstrap.*` ni `customer.domain.*`. Refuerza el principio de bounded context: la lectura se hace por driver nativo de Mongo y ES, no reutilizando use cases ni controllers del `customer-app`. Ver [`sdd/customer/consulta-entidad-ui.md`](sdd/customer/consulta-entidad-ui.md) R-1 y AC-4.
+
 ### Debezium
 
 Plataforma CDC de código abierto. Captura cambios del legacy y los publica en Kafka.
@@ -279,6 +287,14 @@ Proveedor de identidad corporativo (OpenID Connect). Emite los JWT que las APIs 
 
 Herramienta nativa de `kubectl` (`kubectl apply -k`) para componer manifiestos: una **base** común y **overlays** por entorno (`deploy/k8s/overlays/test`, `prod`) que cambian namespace, imagen, réplicas y configuración. Elegida frente a Helm por tamaño del proyecto ([ADR-0008](architecture/adr/0008-kubernetes-como-plataforma-de-despliegue.md)).
 
+### KPI retardado de recuperación (KPI-5 UI-001)
+
+Porcentaje de alertas que terminan con un `SENT_SAP` posterior en menos de 24 h. En el dashboard se publica como `business_kpi_recovery_p95_seconds{cycle="last"}` (percentil 95 del tiempo de recuperación del último ciclo cerrado en éxito). Cardinalidad acotada por diseño: la etiqueta solo es `cycle` (`first` o `last`). Ver [`sdd/customer/consulta-entidad-ui.md`](sdd/customer/consulta-entidad-ui.md) §8.
+
+### KRI (Key Risk Indicator) vs KPI
+
+[Sigla que aparece mal en los documentos] Un KRI mide el nivel de riesgo de que algo vaya mal; un KPI mide si algo va bien. El término "KPI retardado de recuperación" es operativo y se mide contra el sistema de sincronización, no contra el negocio; consúltese con [`auditor-business`](../../agents/auditor-business.md) si se quiere formalizar como KRI en lugar de KPI. Ver [`glosario.md`](glosario.md#kpi) y [`glosario.md`](glosario.md#kri).
+
 ## L
 
 ### Lease (arrendamiento) por entidad
@@ -322,6 +338,10 @@ Decisión del 2026-09-11 para la baja de cliente: la ficha local pasa a `status 
 ### MongoDB
 
 Base de datos NoSQL para almacenar imagen actual de la entidad y estado de sincronización. Port: `SyncStateRepositoryPort` / `ImageStorePort`.
+
+### MTTR técnico (KPI-1 UI-001)
+
+Tiempo entre la apertura de una alerta `sap.sync.alerts` y el próximo `SENT_SAP` para la misma `entityId`/`cycleId`. En el dashboard se publica como `business_kpi_mttr_seconds{window="7d"}`. Cardinalidad acotada: la etiqueta es solo `window` (`7d`, `30d`...). Ver [`sdd/customer/consulta-entidad-ui.md`](sdd/customer/consulta-entidad-ui.md) §8.
 
 ### Multitenancy
 
@@ -388,6 +408,10 @@ Hash del payload del evento de ingesta; clave del dedupe de idempotencia: si ya 
 ### PII (información personal identificable)
 
 Datos que identifican a una persona: NIF, IBAN, email, teléfono, dirección. Viven en el legacy, en la imagen (Mongo), en el histórico (ES, snapshot íntegro por decisión explícita) y en los topics Kafka. Condicionan retención, borrado (modelo de bloqueo), enmascarado en logs (SEC-3) y autenticación de las APIs (B4).
+
+### PiiMasker (`common.security`)
+
+Utilidad de enmascarado de datos personales (IBAN, NIF, email, teléfono) promovida a `common.security.PiiMasker` en el H-1 de UI-001 (2026-09-23). La antigua clase `customer.bootstrap.web.PiiMasker` queda como fachada `@Deprecated` que delega en la nueva para no romper los controllers existentes del `customer-app`. Ver [`sdd/customer/consulta-entidad-ui.md`](sdd/customer/consulta-entidad-ui.md) R-3, AC-9.
 
 ### Pipeline agregado vs pipeline por feature
 
@@ -556,7 +580,15 @@ Credencial falsa (`stub-btp-token` / `stub-s4-token`) que los `SapAuthProvider` 
 
 Secuencia ordenada de las transiciones que comparten un mismo `cycleId` a lo largo de todas las líneas de la entidad (agregado y features), con el estado y el **motivo** de cada parte. Es lo que devuelve `GET /customers/{id}/state` en `lastCycle` y lo que viaja en el aviso `SYNC_PARTIAL_FAILURE` de `sap.sync.alerts`. Responde a «¿dónde ha dado el error?» sin ir a los logs. Ver [`sincronizacion-cliente.md`](sdd/customer/sincronizacion-cliente.md) R-9.
 
-## V
+### TTL Mongo (alert)
+
+Índice de Mongo con `expireAfterSeconds` que borra automáticamente los documentos pasados N días desde el campo fecha del índice. UI-001 (2026-09-23) define dos índices TTL en la colección `alerts`: `acked_ttl` (30 días sobre `ackedAt`) y `opened_ttl` (30 días sobre `openedAt`), más el índice único `alert_id_uk` y el compuesto `entity_acked_idx` (`entityId`, `ackedAt`). Definidos en [`external-services/mongodb/init.js`](../../external-services/mongodb/init.js). Ver [`sdd/customer/consulta-entidad-ui.md`](sdd/customer/consulta-entidad-ui.md) AC-10.
+
+## U
+
+### UI-001..UI-007
+
+Filas del backlog [MEJORAS-Y-PROPUESTAS.md](../../MEJORAS-Y-PROPUESTAS.md) §"Panel de operación (dashboard web)". UI-001 ("Dashboard web: vista por entidad y búsqueda") es el primer spec formal del panel; spec en [`sdd/customer/consulta-entidad-ui.md`](sdd/customer/consulta-entidad-ui.md), quickstart en [`features/UI-001/quickstart.md`](features/UI-001/quickstart.md). UI-002 ("Vista grafo del flujo de integración") sigue pendiente. UI-006 (stack React + Vite) se descartó el 2026-09-23: el stack Thymeleaf+HTMX cubre la lectura sin necesidad de SPA.
 
 ### Verificación previa (lookup)
 
