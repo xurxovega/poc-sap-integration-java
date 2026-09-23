@@ -20,7 +20,16 @@ identifican por fecha.
 
 ## [Sin publicar]
 
-_(pendiente — sin entradas nuevas desde la última publicación)_
+### 2026-09-24 — Consulta de Business Partner en SAP (PRD-9, GET, sin coste)
+
+Cuatro endpoints REST GET nuevos en `customer-app` para leer Business
+Partners ya creados en SAP S/4 Public Cloud: `/{code}`, `?category=&top=`,
+`/customers`, `/suppliers`. Las lecturas OData **no se facturan** en SAP,
+así que es una consulta operativa sin coste. La PII del nombre se
+enmascara para `sap-external-read`. Spec
+[`docs/sdd/customer/consulta-business-partner-sap.md`](docs/sdd/customer/consulta-business-partner-sap.md).
+Pendiente: verificación contra el tenant SAP de test (mismo criterio que
+las features de contacto y datos bancarios).
 
 ---
 

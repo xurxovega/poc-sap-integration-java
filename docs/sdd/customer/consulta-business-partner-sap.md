@@ -3,10 +3,10 @@
 | | |
 |---|---|
 | **Dominio** | `customer` |
-| **Estado** | 🚧 en diseño |
+| **Estado** | ✅ implementado 2026-09-24 |
 | **Entradas** | REST `GET /business-partners/...` (este PR) |
 | **Destino SAP** | S/4 nativo (`sap.odata.read.enabled=true` **o** `sap.odata.customer.enabled=true`) |
-| **Última revisión** | 2026-09-23 |
+| **Última revisión** | 2026-09-24 |
 
 ## 1. Objetivo
 
@@ -210,11 +210,11 @@ rompe el contrato de SAP porque solo consume `GET`).
 | R-5 | `BusinessPartnerReadEnabled` (ya existía) + `@ConditionalOnBean(BusinessPartnerReadPort.class)` implícito al inyectar el puerto en el use case | (lo verifica `EndpointsDeclareAccessTest` indirectamente: si no hay bean, el `@PreAuthorize` no se monta y el test no detecta endpoints nuevos) |
 | AC-9 | `BusinessPartnerController#customers` y `#suppliers` | `BusinessPartnerControllerTest#customersAndSuppliersDelegateToUseCase` |
 | AC-10 | `BusinessPartnerController` + `GlobalExceptionHandler` para `IllegalArgumentException` | `BusinessPartnerControllerTest#topOutOfRangeReturns400` |
-| AC-11 | `customer/src/main/resources/openapi.yml` (4 paths nuevos) | `OpenApiMatchesControllersTest` |
-| AC-12 | `@PreAuthorize` en los 4 endpoints | `EndpointsDeclareAccessTest` |
+| AC-11 | `customer/src/main/resources/openapi.yml` (4 paths nuevos) | `OpenApiMatchesControllersTest` (4/4 verde) |
+| AC-12 | `@PreAuthorize` en los 4 endpoints | `EndpointsDeclareAccessTest` (1/1 verde) |
 
 ## 10. Cambios
 
 | Fecha | Cambio | PR |
 |---|---|---|
-| 2026-09-23 | Spec inicial (PRD-9). | este |
+| 2026-09-24 | Spec inicial + implementación: `LookupBusinessPartnerUseCase`, `BusinessPartnerController` (4 endpoints GET), helper `PiiMasker.maskName`, OpenAPI al día, 16 `@Test` nuevos (`LookupBusinessPartnerUseCaseTest`, `BusinessPartnerControllerTest`, 5 tests de `maskName` en `PiiMaskerCommonTest`). Activación condicional (`@ConditionalOnBean` sobre `BusinessPartnerReadPort`). | este |

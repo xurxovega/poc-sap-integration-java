@@ -173,8 +173,8 @@ Propiedades en application-common.yml:
 
 | Flujo | Estado | Dónde |
 |---|---|---|
-| Consulta de Business Partner por API (GET) | parcial: existe `BusinessPartnerReadAdapter`, falta el use case y el endpoint | [`../MEJORAS-Y-PROPUESTAS.md`](../MEJORAS-Y-PROPUESTAS.md) PRD-9 |
-| Alta de Business Partner (POST) y actualización (PATCH) | propuesta | ídem, PRD-10 |
+| Alta de Business Partner (POST) y actualización (PATCH) | propuesta | [`../MEJORAS-Y-PROPUESTAS.md`](../MEJORAS-Y-PROPUESTAS.md) PRD-10 |
+| Consulta de Business Partner por API (GET) | ✅ implementado 2026-09-24: `LookupBusinessPartnerUseCase` + `BusinessPartnerController` + spec [`../sdd/customer/consulta-business-partner-sap.md`](../sdd/customer/consulta-business-partner-sap.md) | ya no en backlog |
 | Modo pull orquestado por BTP | propuesta | ídem, PRD-4 |
 | Batch D+1 y eventos entrantes de S/4 | propuesta | ídem, PRD-5 y PRD-6 |
 
