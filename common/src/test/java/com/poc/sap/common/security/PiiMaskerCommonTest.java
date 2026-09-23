@@ -95,4 +95,40 @@ class PiiMaskerCommonTest {
         assertThat(PiiMasker.mask("AB")).isEqualTo("AB");
         assertThat(PiiMasker.mask("ES12")).isEqualTo("ES12");
     }
+
+    // --- maskName: nombre de Business Partner (sdd/customer/consulta-business-partner-sap.md R-4) ---
+
+    @Test
+    void maskNameKeepsLast4() {
+        // "ACME Internacional S.L." sin espacios = "ACMEInternacionalS.L." = 21 chars.
+        // |asteriscos| = 21 - 4 = 17, ultimos 4 = "S.L.".
+        assertThat(PiiMasker.maskName("ACME Internacional S.L."))
+                .isEqualTo("*****************S.L.");
+    }
+
+    @Test
+    void maskNameOnAllLettersWorks() {
+        // El 'mask(String)' general deja pasar nombres sin digitos (BIC passthrough).
+        // 'maskName' los enmascara SIEMPRE: un nombre de BP es PII aunque no tenga digitos.
+        // "Carlos Garcia" sin espacios = "CarlosGarcia" = 12 chars; ultimos 4 = "rcia".
+        assertThat(PiiMasker.maskName("Carlos Garcia"))
+                .isEqualTo("********rcia");
+    }
+
+    @Test
+    void maskNameShortAllAsterisks() {
+        // longitud efectiva sin espacios <= 4: todo a asteriscos (no hay pista que conservar).
+        assertThat(PiiMasker.maskName("Ana")).isEqualTo("***");
+        assertThat(PiiMasker.maskName("Eva")).isEqualTo("***");
+    }
+
+    @Test
+    void maskNameNullReturnsNull() {
+        assertThat(PiiMasker.maskName(null)).isNull();
+    }
+
+    @Test
+    void maskNameEmptyReturnsEmpty() {
+        assertThat(PiiMasker.maskName("")).isEqualTo("");
+    }
 }
