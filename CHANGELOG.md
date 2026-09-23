@@ -20,6 +20,11 @@ identifican por fecha.
 
 ## [Sin publicar]
 
+### 2026-09-23 — Pausa de la vista grafo de UI-002
+
+#### Pendiente
+- La pestaña "Grafo" del panel de operación queda en pausa. El caso de negocio y los criterios de aceptación están escritos, pero el stack Prometheus del proyecto no garantiza que las métricas del grafo tengan cardinalidad controlada. Se reabre cuando ese trabajo previo esté hecho.
+
 ### 2026-09-23 — Panel web de consulta de entidades y subentidades (UI-001)
 
 #### Añadido

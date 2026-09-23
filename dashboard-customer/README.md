@@ -44,7 +44,12 @@ y arquitectura del módulo en
 | Feature | Spec | Estado |
 |---|---|---|
 | UI-001 — vista por entidad, histórico y búsqueda | [consulta-entidad-ui.md](../docs/sdd/customer/consulta-entidad-ui.md) | ✅ |
-| UI-002 — vista grafo del flujo de integración | (pendiente) | 🔮 |
+| UI-002 — vista grafo del flujo de integración | [consulta-entidad-grafo-ui.md](../docs/sdd/customer/consulta-entidad-grafo-ui.md) | ⏸ pausada 2026-09-23 |
+
+> **UI-002 — Vista grafo del flujo de integración**: pausada el 2026-09-23. Caso de
+> negocio y spec escritos; pendiente de cerrar el bloqueo B-1 (aplanamiento del
+> tag `uri` en Prometheus en `customer-app` / `article-app` / `dashboard-customer`).
+> Reapertura condicional en [`docs/sdd/customer/consulta-entidad-grafo-ui.md`](../docs/sdd/customer/consulta-entidad-grafo-ui.md) §10.bis.
 
 Estado completo y brechas:
 [`docs/sdd/README.md`](../docs/sdd/README.md) §5 y §6.

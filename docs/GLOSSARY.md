@@ -137,7 +137,7 @@ Regla verificable de un spec SDD, numerada `AC-1`, `AC-2`… Cada una debe tener
 
 ### Dashboard UI
 
-Web estática por dominio que muestra el estado de sincronización, el histórico y la búsqueda por clave de negocio de una entidad. Stack: Thymeleaf + HTMX + Alpine.js (sin SPA, sin build de cliente). Lee directo de Mongo y Elasticsearch del bounded context; **no** consume las APIs REST del `customer-app`/`article-app` — el aislamiento entre bounded contexts lo vigila `DashboardIsolationTest`. Ver [`sdd/customer/consulta-entidad-ui.md`](sdd/customer/consulta-entidad-ui.md), [`features/UI-001/`](features/UI-001/README.md).
+Web estática por dominio que muestra el estado de sincronización, el histórico y la búsqueda por clave de negocio de una entidad. Stack: Thymeleaf + HTMX + Alpine.js (sin SPA, sin build de cliente). Lee directo de Mongo y Elasticsearch del bounded context; **no** consume las APIs REST del `customer-app`/`article-app` — el aislamiento entre bounded contexts lo vigila `DashboardIsolationTest`. La pestaña "Grafo" / UI-002 está **planificada pero pausada** (bloqueo B-1: aplanamiento de `uri` en Prometheus no implementado en las tres apps); ver [`sdd/customer/consulta-entidad-grafo-ui.md`](sdd/customer/consulta-entidad-grafo-ui.md) §10.bis. Ver [`sdd/customer/consulta-entidad-ui.md`](sdd/customer/consulta-entidad-ui.md), [`features/UI-001/`](features/UI-001/README.md).
 
 ### DashboardIsolationTest
 
@@ -588,7 +588,7 @@ Secuencia ordenada de las transiciones que comparten un mismo `cycleId` a lo lar
 
 ### UI-001..UI-007
 
-Filas del backlog [MEJORAS-Y-PROPUESTAS.md](../../MEJORAS-Y-PROPUESTAS.md) §"Panel de operación (dashboard web)". UI-001 ("Dashboard web: vista por entidad y búsqueda") es el primer spec formal del panel; spec en [`sdd/customer/consulta-entidad-ui.md`](sdd/customer/consulta-entidad-ui.md), quickstart en [`features/UI-001/quickstart.md`](features/UI-001/quickstart.md). UI-002 ("Vista grafo del flujo de integración") sigue pendiente. UI-006 (stack React + Vite) se descartó el 2026-09-23: el stack Thymeleaf+HTMX cubre la lectura sin necesidad de SPA.
+Filas del backlog [MEJORAS-Y-PROPUESTAS.md](../../MEJORAS-Y-PROPUESTAS.md) §"Panel de operación (dashboard web)". UI-001 ("Dashboard web: vista por entidad y búsqueda") es el primer spec formal del panel; spec en [`sdd/customer/consulta-entidad-ui.md`](sdd/customer/consulta-entidad-ui.md), quickstart en [`features/UI-001/quickstart.md`](features/UI-001/quickstart.md). UI-002 ("Vista grafo del flujo de integración") está **pausada desde el 2026-09-23** por bloqueo B-1 (aplanamiento del tag `uri` en Prometheus no implementado en las tres apps); spec redactado en [`sdd/customer/consulta-entidad-grafo-ui.md`](sdd/customer/consulta-entidad-grafo-ui.md), sin código. UI-006 (stack React + Vite) se descartó el 2026-09-23: el stack Thymeleaf+HTMX cubre la lectura sin necesidad de SPA.
 
 ### Verificación previa (lookup)
 
