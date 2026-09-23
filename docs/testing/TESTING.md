@@ -8,7 +8,7 @@
 
 ## 1. Resumen ejecutivo
 
-Total: **537 tests** declarados (medido el 23-09-2026 con JDK 25, `mvn clean test`; UI-001 añade 80: 11 unit del `PiiMaskerCommonTest` (en `common`, fachada legacy de `customer`), y 69 en el modulo nuevo `dashboard-customer`: 23 del dominio, 21 de los use cases, 14 de los adaptadores Mongo/ES (5 IT Testcontainers), 8 del bootstrap web/controllers (Prometheus, OpenApi, DashboardCompilation, Controllers), 2 del job de KPIs (con 2 IT Testcontainers adicionales si se ejecuta con Docker)).
+Total: **543 tests** declarados (medido el 23-09-2026 con JDK 25, `mvn clean test`; UI-001 añade 80: 11 unit del `PiiMaskerCommonTest` (en `common`, fachada legacy de `customer`), y 69 en el modulo nuevo `dashboard-customer`: 23 del dominio, 21 de los use cases, 14 de los adaptadores Mongo/ES (5 IT Testcontainers), 8 del bootstrap web/controllers (Prometheus, OpenApi, DashboardCompilation, Controllers), 2 del job de KPIs (con 2 IT Testcontainers adicionales si se ejecuta con Docker). OPS-010 añade 6: 3 del `TopologyTest` (renombrado y sustitución), 2 de los `*ApplicationContextTest#contextStartsWithMessagingBootstrapEnv` (uno por dominio), 1 del `InfrastructureSmokeIT` (migrado a `RedpandaContainer`); `DebeziumRedpandaIT` queda como IT Testcontainers (no cuenta en `clean test`).
 
 La cifra es de `@Test` **declarados** en `src/test/java` de todos los módulos; la vigila
 `TestCountMatchesDocsTest` (módulo `it`) y el build falla si diverge. Los IT gateados

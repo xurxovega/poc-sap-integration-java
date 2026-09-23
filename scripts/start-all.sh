@@ -174,7 +174,8 @@ if [[ "$ENV_NAME" == "local" ]]; then
     # start_period 600s porque el primer arranque hace un upgrade interno de msdb.
     wait_healthy postgres-source  120 "$D_POSTGRES  ·  postgres / postgres"
     wait_healthy mongodb          120 "$D_MONGO_CUSTOMER  ·  $D_MONGO_ARTICLE  ·  sin auth"
-    wait_healthy kafka-broker     180 "$D_KAFKA  ·  topics outbox.CUSTOMER / outbox.ARTICLE"
+    wait_healthy redpanda         180 "$D_KAFKA  ·  Redpanda (broker Kafka-compatible)"
+    wait_exit_ok redpanda-init-topics 60  # crea outbox.* + outbox.*-dlt con 12 particiones
     wait_healthy elasticsearch    240 "$D_ES"
     wait_healthy minio            120 "consola $D_MINIO_CONSOLE  ·  minioadmin / minioadmin123"
     wait_healthy mysql-sdd        180 "$D_MYSQL_SDD  ·  sdd / sdd  ·  registro de features SDD"

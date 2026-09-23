@@ -3,7 +3,8 @@
 # equipos y en CI. Para actualizar una: docker pull <img>:<tag> && docker images
 # --digests, y sustituir el sha256.
 # Infraestructura externa para ejecutar poc-sap-integration-java en local.
-# Servicios: Kafka, PostgreSQL, SQL Server, MongoDB, Elasticsearch/Kibana, MinIO (S3).
+# Servicios: Redpanda (broker Kafka-compatible), PostgreSQL, SQL Server,
+# MongoDB, Elasticsearch/Kibana, MinIO (S3).
 #
 # Uso:
 #   cd external-services
@@ -17,68 +18,75 @@ networks:
 services:
 
   # ---------------------------------------------------------------------------
-  # Kafka (Confluent Community)
+  # Redpanda (broker Kafka-compatible, sin ZooKeeper, wire Kafka 3.x)
+  # OPS-010: sustituye al stack Kafka+Zookeeper previo.
+  # Imagen: docker.redpanda.com/redpandadata/redpanda:v25.3.9
+  #   - En local el digest lo fija el usuario tras `docker pull` + `docker
+  #     images --digests` (politica del repo, auditoria A22). Mientras tanto
+  #     se commitea con el tag v25.3.9 y un TODO para el digest.
+  # Formato de listeners moderno (NO el legacy PLAINTEXT://):
+  #   --kafka-addr=internal://0.0.0.0:9092,external://0.0.0.0:19092
+  #     * internal  → puerto 9092, accesible desde dentro de la red Docker
+  #       (kafka-connect y las apps cliente).
+  #     * external  → puerto 19092, el que el host usa (advertised como
+  #       localhost:19092). Spring Kafka conecta a localhost:19092 desde el host.
+  #   --advertise-kafka-addr=internal://redpanda:9092,external://localhost:19092
+  # PandaProxy NO se declara: 8080 es Redpanda Console y el proxy legacy vive
+  # en 8082 (verificado, no lo usamos).
   # ---------------------------------------------------------------------------
-  zookeeper:
-    image: confluentinc/cp-zookeeper:7.7.0@sha256:d4312a5b61b45ab5c4d33d4c77e5a235cdd95a16dbfc1d381639520a2af48f01
-    hostname: zookeeper
-    container_name: zookeeper
+  redpanda:
+    image: docker.redpanda.com/redpandadata/redpanda:v25.3.9
+    container_name: redpanda
+    command:
+      - redpanda
+      - start
+      - --overprovisioned
+      - --smp=1
+      - --memory=512M
+      - --reserve-memory=0M
+      - --check=false
+      - --node-id=0
+      - --mode=dev-container
+      - --kafka-addr=internal://0.0.0.0:9092,external://0.0.0.0:19092
+      - --advertise-kafka-addr=internal://redpanda:9092,external://localhost:19092
     ports:
-      - "2181:2181"
-    environment:
-      ZOOKEEPER_CLIENT_PORT: 2181
-      ZOOKEEPER_TICK_TIME: 2000
+      - "19092:19092"   # external Kafka (host). NO 9092 → 9092.
+      - "9644:9644"     # Admin API
+    volumes:
+      - redpanda_data:/var/lib/redpanda/data
     networks:
       - poc_sap
-
-  kafka-broker:
-    image: confluentinc/cp-kafka:7.7.0@sha256:1fa3cdb3ef77b75bc56e7040bbdfa2bd6950b6ee6363381b2493f7a83e07a0b3
-    container_name: kafka-broker
-    ports:
-      - "9092:9092"
-      - "29092:29092"
-    depends_on:
-      - zookeeper
-    environment:
-      KAFKA_BROKER_ID: 1
-      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
-      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka-broker:29092,PLAINTEXT_HOST://localhost:9092
-      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
-      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
-      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
-      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
     healthcheck:
-      test: ["CMD-SHELL", "kafka-broker-api-versions --bootstrap-server localhost:9092 || exit 1"]
+      test: ["CMD-SHELL", "rpk cluster health --exit-when-healthy || exit 1"]
       interval: 10s
-      timeout: 10s
+      timeout: 5s
       retries: 5
-      start_period: 30s
-    networks:
-      - poc_sap
+      start_period: 10s
 
   # ---------------------------------------------------------------------------
-  # Topologia de topics como codigo (ADR-0011). Kafka auto-crea con 1 particion,
-  # que impide escalar a mas de un consumidor y hace que el orden global de hoy
-  # sea accidental. Aqui se crean explicitamente outbox.<DOMINIO> y su -dlt con
-  # 12 particiones: el DLT recibe el registro en LA MISMA particion que el
-  # original, asi que necesita al menos las mismas o la publicacion falla.
-  # 12 = 2 clusters x 2 instancias x concurrency 3, y divide entre 1,2,3,4,6,12.
-  # En produccion NO crea los topics la app: ver deploy/README.md.
+  # Topologia de topics como codigo (ADR-0011). Redpanda auto-crea con 1
+  # particion por defecto, lo que impide escalar a mas de un consumidor y
+  # hace que el orden global de hoy sea accidental. Aqui se crean
+  # explicitamente outbox.<DOMINIO> y su -dlt con 12 particiones: el DLT
+  # recibe el registro en LA MISMA particion que el original, asi que
+  # necesita al menos las mismas o la publicacion falla. 12 = 2 clusters x 2
+  # instancias x concurrency 3, y divide entre 1,2,3,4,6,12. En produccion NO
+  # crea los topics la app: ver deploy/README.md.
+  # Herramienta: `rpk` (NO `kafka-topics`).
   # ---------------------------------------------------------------------------
-  kafka-init-topics:
-    image: confluentinc/cp-kafka:7.7.0@sha256:1fa3cdb3ef77b75bc56e7040bbdfa2bd6950b6ee6363381b2493f7a83e07a0b3
-    container_name: kafka-init-topics
+  redpanda-init-topics:
+    image: docker.redpanda.com/redpandadata/redpanda:v25.3.9
+    container_name: redpanda-init-topics
     depends_on:
-      kafka-broker:
+      redpanda:
         condition: service_healthy
     entrypoint: ["/bin/bash", "-c"]
     command: |
-      "for t in outbox.CUSTOMER outbox.CUSTOMER-dlt outbox.ARTICLE outbox.ARTICLE-dlt; do
-         kafka-topics --bootstrap-server kafka-broker:29092 --create --if-not-exists --topic $$t --partitions ${KAFKA_TOPIC_PARTITIONS:-12} --replication-factor 1
+      "set -e
+       for t in outbox.CUSTOMER outbox.CUSTOMER-dlt outbox.ARTICLE outbox.ARTICLE-dlt; do
+         rpk topic create $$t --partitions $${KAFKA_TOPIC_PARTITIONS:-12} -r 1 || true
        done
-       kafka-topics --bootstrap-server kafka-broker:29092 --list"
+       rpk topic list"
     restart: "no"
     networks:
       - poc_sap
@@ -86,12 +94,13 @@ services:
   # ---------------------------------------------------------------------------
   # Kafka Connect (Debezium) — CDC de las tablas outbox legacy → topics outbox.*
   # Registro de conectores: ver external-services/debezium/README.md
+  # OPS-010: BOOTSTRAP_SERVERS pasa a `redpanda:9092` (puerto internal).
   # ---------------------------------------------------------------------------
   kafka-connect:
     image: debezium/connect:2.7.3.Final@sha256:997b67feff614549acd20d54bfed398fc73b339881c649d42821c1e55ec9972b
     container_name: kafka-connect
     depends_on:
-      kafka-broker:
+      redpanda:
         condition: service_healthy
       sqlserver-source:
         condition: service_healthy
@@ -100,7 +109,7 @@ services:
     ports:
       - "8083:8083"
     environment:
-      BOOTSTRAP_SERVERS: kafka-broker:29092
+      BOOTSTRAP_SERVERS: redpanda:9092
       GROUP_ID: poc-sap-connect
       CONFIG_STORAGE_TOPIC: connect_configs
       OFFSET_STORAGE_TOPIC: connect_offsets
@@ -344,3 +353,4 @@ volumes:
   mongo_data:
   elastic_data:
   minio_data:
+  redpanda_data:
