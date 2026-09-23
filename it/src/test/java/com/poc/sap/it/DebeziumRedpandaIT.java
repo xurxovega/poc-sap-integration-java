@@ -8,6 +8,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIfSystemProperty;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.MSSQLServerContainer;
+import org.testcontainers.containers.Network;
 import org.testcontainers.containers.wait.strategy.Wait;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
@@ -55,20 +56,46 @@ class DebeziumRedpandaIT {
             DockerImageName.parse("mcr.microsoft.com/mssql/server:2022-CU14-ubuntu-22.04")
                     .asCompatibleSubstituteFor("mcr.microsoft.com/mssql/server");
 
+    // Red compartida por los 3 contenedores static. Sin ella, cada @Container
+    // queda en su propia red aislada y `withNetworkAliases()` no resuelve nada:
+    // `connect` no encontraria `redpanda:19092` (AC-2 falla con
+    // `Couldn't resolve server redpanda:9092 from bootstrap.servers`). El
+    // `Network` debe ser static para que Testcontainers no la cierre al reciclar
+    // contenedores entre tests.
+    //
+    // Ademas, RedpandaContainer por defecto configura `advertised.listeners`
+    // apuntando a `localhost:<puerto-mapeado-al-host>`, que desde dentro de la
+    // red Testcontainers no resuelve: cuando Debezium Connect llama a
+    // `AdminClient.listNodes()` agota con `Timed out waiting for a node
+    // assignment`. Hay que registrar un listener adicional con un puerto
+    // propio (19092) y `address=<alias-red>` para que el anuncio del broker
+    // apunte al alias de la red compartida (patron
+    // `testUsageWithListenerInTheSameNetwork` del test oficial de Testcontainers
+    // v1.21.4). NO se puede usar el 9092 porque la plantilla de
+    // `RedpandaContainer` ya configura un listener `external` en ese puerto y
+    // redpanda rechaza dos listeners con el mismo puerto (exit code 1).
+    private static final Network NETWORK = Network.newNetwork();
+
     @Container
-    static final RedpandaContainer redpanda = new RedpandaContainer(REDPANDA_IMAGE);
+    static final RedpandaContainer redpanda = new RedpandaContainer(REDPANDA_IMAGE)
+            .withNetwork(NETWORK)
+            .withNetworkAliases("redpanda")
+            .withListener("redpanda:19092");
 
     @Container
     static final MSSQLServerContainer<?> mssql = new MSSQLServerContainer<>(MSSQL_IMAGE)
             .acceptLicense()
             .withPassword("SqlServer_Pa55w0rd!")
-            .withInitScript("debezium/sqlserver-init.sql");
+            .withInitScript("debezium/sqlserver-init.sql")
+            .withNetwork(NETWORK)
+            .withNetworkAliases("mssql");
 
     @Container
     static final GenericContainer<?> connect = new GenericContainer<>(DEBEZIUM_IMAGE)
+            .withNetwork(NETWORK)
             .withNetworkAliases("debezium-connect")
             .dependsOn(redpanda)
-            .withEnv("BOOTSTRAP_SERVERS", "redpanda:9092")
+            .withEnv("BOOTSTRAP_SERVERS", "redpanda:19092")
             .withEnv("GROUP_ID", "poc-sap-connect")
             .withEnv("CONFIG_STORAGE_TOPIC", "connect_configs")
             .withEnv("OFFSET_STORAGE_TOPIC", "connect_offsets")
