@@ -1,0 +1,228 @@
+openapi: 3.1.0
+
+# Contrato REST del modulo dashboard-customer.
+# Misma regla que docs/sdd/common/contrato-openapi-rest.md: este YAML y los
+# controladores de dashboard-customer/bootstrap/web son el mismo hecho contado
+# dos veces; lo vigila OpenApiMatchesControllersTest (rompe el build si
+# divergen).
+
+info:
+  title: SAP Integration — Dashboard del Customer
+  version: 0.1.0-SNAPSHOT
+  description: |
+    UI web (UI-001) de consulta del dominio CUSTOMER. Lee directo de
+    Mongo y Elasticsearch de customer (no consume las APIs REST del
+    customer-app: el aislamiento entre bounded contexts lo vigila
+    DashboardIsolationTest).
+
+    - **Entidad**: `GET /customers/{id}` pinta cabecera + tabs + contenido.
+    - **Historico**: `GET /customers/{id}/history` y `/history/diff`.
+    - **Estado**: `GET /customers/{id}/state`.
+    - **Busqueda**: `GET /customers/search?q=NIF`.
+    - **Alertas**: `GET /customers/alerts/open` (lista) y
+      `POST /customers/alerts/{id}/ack` (sap-write).
+
+    **Autenticacion**: JWT de Keycloak en `Authorization: Bearer <token>`.
+    Roles en `x-required-role`:
+    - `SAP_READ` / `SAP_WRITE` / `SAP_ADMIN` / `SAP_SUPERADMIN`: lectura
+      y operacion completas.
+    - `SAP_EXTERNAL_READ`: lectura con PII enmascarada (no puede reconocer
+      alertas).
+
+servers:
+  - url: http://localhost:8091
+    description: Local — la aplicacion arrancada con `./mvnw -pl dashboard-customer spring-boot:run`.
+  - url: https://{host}
+    description: |
+      Entorno de test en Kubernetes. Todavia no hay Ingress definido para
+      el dashboard.
+    variables:
+      host:
+        default: dashboard-customer.test.example.invalid
+        description: Host publico del servicio en el entorno de test.
+
+security:
+  - keycloak: []
+
+tags:
+  - name: Dashboard
+    description: Consulta de entidades, historico, estado y busqueda.
+  - name: Alertas
+    description: Gestion de alertas operativas emitidas por customer-app.
+
+paths:
+
+  /customers/search:
+    get:
+      tags: [Dashboard]
+      operationId: searchCustomers
+      summary: Buscar clientes por NIF/CIF
+      description: |
+        Busca en Mongo `customers_current` por `fiscal.taxId`. Si `q` es
+        blank devuelve una lista vacia. La busqueda esta limitada a un NIF
+        porque el conjunto es chico; si crece, se mueve a ES.
+      x-required-role: SAP_READ
+      parameters:
+        - name: q
+          in: query
+          required: false
+          description: NIF/CIF a buscar.
+          schema:
+            type: string
+            example: B12345678
+      responses:
+        '200':
+          description: Renderiza `search.html` con la lista de matches (posiblemente vacia).
+        '403':
+          $ref: '#/components/responses/SinPermiso'
+
+  /customers/{id}:
+    get:
+      tags: [Dashboard]
+      operationId: getCustomer
+      summary: Vista por entidad (cabecera + tabs + contenido)
+      description: |
+        Renderiza `customer.html` con la cabecera del cliente, las 4 features y
+        la traza del ultimo ciclo. Para `sap-external-read` enmascara IBAN,
+        NIF, telefono, fax y email (sdd/common/seguridad-api.md R-4).
+      x-required-role: SAP_READ
+      x-masked-for-external-read: true
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            example: CUST-001
+      responses:
+        '200':
+          description: Renderiza la vista con snapshot y estado.
+        '404':
+          description: Cliente no encontrado en Mongo.
+        '403':
+          $ref: '#/components/responses/SinPermiso'
+
+  /customers/{id}/history:
+    get:
+      tags: [Dashboard]
+      operationId: getCustomerHistory
+      summary: Historico de versiones enviadas a SAP
+      description: |
+        Lista las versiones indexadas en Elasticsearch, de mas reciente a
+        mas antigua. Cada fila es una entrada por intento (id ES = entityId +
+        payloadHash + epochMillis).
+      x-required-role: SAP_READ
+      x-masked-for-external-read: true
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Renderiza `history.html`.
+        '403':
+          $ref: '#/components/responses/SinPermiso'
+
+  /customers/{id}/history/diff:
+    get:
+      tags: [Dashboard]
+      operationId: diffCustomerHistory
+      summary: Diff entre dos versiones del historico
+      description: |
+        Compara dos entradas del historico y devuelve las diferencias campo a
+        campo. Sin parametros, compara la ultima version contra la anterior.
+      x-required-role: SAP_READ
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+        - name: fromHash
+          in: query
+          required: false
+          schema: { type: string }
+        - name: toHash
+          in: query
+          required: false
+          schema: { type: string }
+      responses:
+        '200':
+          description: Renderiza `diff.html`.
+        '404':
+          description: Sin historico o version no encontrada.
+        '403':
+          $ref: '#/components/responses/SinPermiso'
+
+  /customers/{id}/state:
+    get:
+      tags: [Dashboard]
+      operationId: getCustomerState
+      summary: Estado actual de sincronizacion
+      description: |
+        Estado del agregado + features + traza del ultimo ciclo. Equivalente
+        a `/customers/{id}/state` del customer-app, pero el dashboard lo
+        reconstruye desde su propio puerto (no consume el REST externo).
+      x-required-role: SAP_READ
+      x-masked-for-external-read: true
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Renderiza `state.html`.
+        '403':
+          $ref: '#/components/responses/SinPermiso'
+
+  /customers/alerts/open:
+    get:
+      tags: [Alertas]
+      operationId: listOpenAlerts
+      summary: Alertas operativas abiertas (no reconocidas)
+      description: Lista las alertas que siguen abiertas. Lectura para cualquier rol.
+      x-required-role: SAP_READ
+      responses:
+        '200':
+          description: Renderiza `alerts.html`.
+        '403':
+          $ref: '#/components/responses/SinPermiso'
+
+  /customers/alerts/{id}/ack:
+    post:
+      tags: [Alertas]
+      operationId: acknowledgeAlert
+      summary: Reconocer una alerta
+      description: |
+        Persiste `ackedAt` y `ackedBy` (compuesto por rol + subject del JWT)
+        y redirige a `/customers/alerts/open`.
+      x-required-role: SAP_WRITE
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '303':
+          description: Redirige a `/customers/alerts/open`.
+        '404':
+          description: Alerta no encontrada.
+        '403':
+          $ref: '#/components/responses/SinPermiso'
+
+components:
+  securitySchemes:
+    keycloak:
+      type: oauth2
+      description: Resource server OAuth2 con JWT de Keycloak.
+      flows:
+        implicit:
+          authorizationUrl: https://keycloak.example.com/realms/sap/protocol/openid-connect/auth
+          scopes: {}
+
+  responses:
+    SinToken:
+      description: Falta el token JWT.
+    SinPermiso:
+      description: El rol del token no alcanza para esta operacion.

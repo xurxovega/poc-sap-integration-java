@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{layout :: header}"></head>
+<body>
+<header th:replace="~{layout :: header}"></header>
+<main>
+    <nav class="tabs">
+        <a th:href="@{|/customers/${entityId}|}">Resumen</a>
+        <a th:href="@{|/customers/${entityId}/history|}">Histórico</a>
+        <a class="active" th:href="@{|/customers/${entityId}/history/diff|}">Diff</a>
+        <a th:href="@{|/customers/${entityId}/state|}">Estado</a>
+    </nav>
+
+    <div class="card">
+        <h2>Diff entre versiones de <code th:text="${entityId}">id</code></h2>
+        <p class="muted">
+            <span>de <code th:text="${diff != null ? diff.fromHash() : ''}">from</code></span>
+            <span>a <code th:text="${diff != null ? diff.toHash() : ''}">to</code></span>
+        </p>
+        <table th:if="${diff != null}">
+            <thead><tr><th>Campo</th><th>Anterior</th><th>Nuevo</th></tr></thead>
+            <tbody>
+            <tr th:each="entry : ${diff.changes()}">
+                <td><code th:text="${entry.key}">k</code></td>
+                <td><code th:text="${entry.value.from() != null ? entry.value.from().toString() : ''}">from</code></td>
+                <td><code th:text="${entry.value.to() != null ? entry.value.to().toString() : ''}">to</code></td>
+            </tr>
+            <tr th:if="${#maps.isEmpty(diff.changes())}">
+                <td colspan="3" class="muted">Sin diferencias detectadas.</td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+</main>
+</body>
+</html>

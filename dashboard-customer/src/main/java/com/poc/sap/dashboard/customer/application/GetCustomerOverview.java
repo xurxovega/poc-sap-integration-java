@@ -36,4 +36,29 @@ public class GetCustomerOverview {
                 states.featuresOf(entityId),
                 states.lastCycleOf(entityId)));
     }
+
+    /**
+     * Serializa un {@link CustomerState} en JSON bonito para la pagina de
+     * detalle /state (vista debug del operador). No usa Jackson para no
+     * importar nada del framework en la capa de aplicacion.
+     */
+    public static String pretty(com.poc.sap.dashboard.customer.domain.CustomerState state) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("CustomerState{\n");
+        sb.append("  entityId: ").append(state.entityId()).append('\n');
+        if (state.aggregate() != null) {
+            sb.append("  aggregate: ").append(state.aggregate().state())
+                    .append(" (hash=").append(state.aggregate().payloadHash())
+                    .append(", cycle=").append(state.aggregate().cycleId())
+                    .append(", at=").append(state.aggregate().at()).append(")\n");
+        }
+        state.features().forEach((k, f) -> sb.append("  feature ").append(k)
+                .append(": ").append(f.state()).append('\n'));
+        if (state.lastCycle() != null) {
+            sb.append("  lastCycle: ").append(state.lastCycle().cycleId())
+                    .append(" (").append(state.lastCycle().steps().size()).append(" pasos)\n");
+        }
+        sb.append('}');
+        return sb.toString();
+    }
 }

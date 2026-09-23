@@ -27,6 +27,13 @@
         "refresh": 2
       },
       {
+        "name": "entityId",
+        "type": "textbox",
+        "label": "Entity ID",
+        "query": "",
+        "current": { "text": "", "value": "" }
+      },
+      {
         "name": "cluster",
         "type": "query",
         "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
