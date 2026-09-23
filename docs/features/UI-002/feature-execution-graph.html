@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>UI-002 — Vista grafo del flujo de integración (Pausada)</title>
+<style>:root{color-scheme:dark;--bg:#020617;--panel:#0f172a;--line:#334155;--muted:#94a3b8;--text:#e2e8f0;--cyan:#22d3ee;--green:#34d399;--amber:#fbbf24;--rose:#fb7185;--violet:#a78bfa}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font:14px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;background:var(--bg);color:var(--text);padding:2rem}
+.wrap{max-width:1100px;margin:auto}
+.header,.panel{background:rgba(15,23,42,.75);border:1px solid #1e293b;border-radius:.75rem;padding:1.25rem}
+.header{margin-bottom:1rem}
+h1{font-size:1.35rem;color:#fff;margin-bottom:.4rem;letter-spacing:-.02em}
+h2{font-size:.95rem;color:#fff;margin-bottom:.6rem}
+.muted{color:var(--muted);font-size:.8rem}
+.meta{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:.6rem;margin-top:1rem}
+.meta div{border:1px solid var(--line);border-radius:.45rem;padding:.55rem}
+.meta b{display:block;color:#fff;font-size:.7rem}
+.meta span{color:var(--muted);font-size:.78rem}
+.grid{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(280px,.7fr);gap:1rem}
+.panel{margin-bottom:1rem}
+.canvas{overflow:auto;border:1px solid #1e293b;border-radius:.5rem;background:repeating-linear-gradient(0deg,transparent 0 144px,rgba(51,65,85,.18) 146px)}
+svg{display:block;min-width:880px;width:100%}
+.lane{fill:rgba(15,23,42,.5);stroke:#1e293b}
+.node{fill:rgba(34,211,238,.12);stroke:var(--cyan);stroke-width:1.5}
+.edge{stroke:#22d3ee;stroke-width:2;fill:none;marker-end:url(#arrow);opacity:.9}
+.legend{display:flex;flex-wrap:wrap;gap:.75rem;margin-top:.6rem;font-size:.72rem;color:var(--muted)}
+.legend span{display:flex;align-items:center;gap:.4rem}
+.legend i{width:14px;height:8px;border-radius:2px}
+.step{border-left:3px solid var(--cyan);padding:.6rem .8rem;margin:.55rem 0;background:rgba(2,6,23,.55)}
+.step.paused{border-left-color:var(--amber)}
+.step h3{margin:0;color:#fff;font-size:.78rem}
+.step p{margin:.2rem 0;color:var(--muted);font-size:.72rem;line-height:1.6}
+.step .tag{display:inline-block;border:1px solid var(--line);border-radius:999px;padding:.05rem .5rem;color:var(--amber);font-size:.66rem;margin-left:.4rem}
+.footer{color:#64748b;font-size:.7rem;margin-top:1rem}</style>
+</head>
+<body><main class="wrap">
+  <header class="header">
+    <h1>UI-002 — Vista grafo del flujo de integración (Pausada)</h1>
+    <p class="muted">Pesta&ntilde;a "Grafo" en <code>dashboard-customer/</code>: SVG server-side del &uacute;ltimo ciclo de sincronizaci&oacute;n. Pausada el 2026-09-23 por bloqueo B-1 (aplanamiento del tag <code>uri</code> en Prometheus no implementado en las 3 apps).</p>
+    <div class="meta">
+      <div><b>Proyecto</b><span>poc-sap-integration-java</span></div>
+      <div><b>Feature</b><span>UI-002</span></div>
+      <div><b>Estado</b><span>Pausada</span></div>
+      <div><b>Fecha</b><span>2026-09-23</span></div>
+      <div><b>Por qu&eacute;</b><span>El operario que hoy abre Mongo, Elasticsearch y Grafana por separado para reconstruir la historia de un cliente debiera abrir una sola web y ver, además del estado y el histórico, cómo llegó hasta ahí. La vista grafo del último ciclo de sincronización cubre esa necesidad; hoy está pausada por el bloqueo técnico B-1 (cardinalidad Prometheus con uri no aplanado).</span></div>
+    </div>
+  </header>
+  <div class="grid">
+    <section class="panel">
+      <h2>Grafo de ejecuci&oacute;n</h2>
+      <p class="muted">Secuencia real del trabajo sobre UI-002, de arriba abajo por orden cronol&oacute;gico. Cada paso registra agente, estado y resumen.</p>
+      <div class="canvas">      <svg viewBox="0 0 980 836" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="UI-002 — Vista grafo del flujo de integración (Pausada): grafo vertical por agente con 5 pasos; 4 HECHO, 1 Decisión. Bloqueo B-1: aplanamiento del tag uri en Prometheus.">
+        <defs>
+          <marker id="arrow" markerWidth="9" markerHeight="7" refX="8" refY="3.5" orient="auto">
+            <path d="M0,0 L9,3.5 L0,7 Z" fill="#64748b"/>
+          </marker>
+          <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+            <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#1e293b" stroke-width="0.5"/>
+          </pattern>
+        </defs>
+        <rect width="100%" height="100%" fill="url(#grid)"/>
+        <text x="40" y="42" fill="#94a3b8" font-size="9" font-weight="700" letter-spacing="0.06em">AGENTE</text>
+        <rect class="lane" x="24" y="70" width="932" height="102" rx="8"/>
+        <text x="40" y="92" fill="#94a3b8" font-size="9" font-weight="700" letter-spacing="0.06em">ORCHESTRATOR</text>
+        <rect class="node" x="230" y="76" width="710" height="78" rx="7" fill="rgba(8,51,68,0.42)" stroke="#22d3ee" stroke-width="1.5"/>
+        <rect x="844" y="84" width="86" height="18" rx="9" fill="rgba(2,6,23,0.7)" stroke="#22d3ee" stroke-width="1"/>
+        <text x="887" y="97" fill="#22d3ee" font-size="9" font-weight="700" text-anchor="middle">En curso</text>
+        <text x="244" y="98" fill="#e2e8f0" font-size="10" font-weight="600">orchestrator</text>
+        <text x="244" y="116" fill="#94a3b8" font-size="9" >Handoff con plan consolidado (plan-f4-features.md §4)</text>
+        <rect class="lane" x="24" y="222" width="932" height="102" rx="8"/>
+        <text x="40" y="244" fill="#94a3b8" font-size="9" font-weight="700" letter-spacing="0.06em">SOLUTION-BUSINESS</text>
+        <rect class="node" x="230" y="228" width="710" height="78" rx="7" fill="rgba(6,78,59,0.30)" stroke="#34d399" stroke-width="1.5"/>
+        <rect x="844" y="236" width="86" height="18" rx="9" fill="rgba(2,6,23,0.7)" stroke="#34d399" stroke-width="1"/>
+        <text x="887" y="249" fill="#34d399" font-size="9" font-weight="700" text-anchor="middle">HECHO</text>
+        <text x="244" y="250" fill="#e2e8f0" font-size="10" font-weight="600">solution-business</text>
+        <text x="244" y="268" fill="#94a3b8" font-size="9" >Caso de negocio: 3 KPIs (KPI-6 diagnóstico, KPI-7 latencia, KPI-8 adopción)</text>
+        <text x="244" y="281" fill="#94a3b8" font-size="9" >MoSCoW con 10 Must + 4 Should + 4 Could + 5 Won&#x27;t</text>
+        <rect class="lane" x="24" y="374" width="932" height="102" rx="8"/>
+        <text x="40" y="396" fill="#94a3b8" font-size="9" font-weight="700" letter-spacing="0.06em">AUDITOR-BUSINESS</text>
+        <rect class="node" x="230" y="380" width="710" height="78" rx="7" fill="rgba(6,78,59,0.30)" stroke="#34d399" stroke-width="1.5"/>
+        <rect x="844" y="388" width="86" height="18" rx="9" fill="rgba(2,6,23,0.7)" stroke="#34d399" stroke-width="1"/>
+        <text x="887" y="401" fill="#34d399" font-size="9" font-weight="700" text-anchor="middle">HECHO</text>
+        <text x="244" y="402" fill="#e2e8f0" font-size="10" font-weight="600">auditor-business</text>
+        <text x="244" y="420" fill="#94a3b8" font-size="9" >Dictamen 🟡 Favorable con reservas. KPI-6 ❌ (la métrica agent no existe;</text>
+        <text x="244" y="433" fill="#94a3b8" font-size="9" >sap.sync.alerts es Kafka no Prometheus). KPI-7/KPI-8 ⚠️ (cardinalidad uri no</text>
+        <text x="244" y="446" fill="#94a3b8" font-size="9" >aplanada: rompe R-5/R-6 de UI-001). 3 bloqueantes</text>
+        <rect class="lane" x="24" y="526" width="932" height="102" rx="8"/>
+        <text x="40" y="548" fill="#94a3b8" font-size="9" font-weight="700" letter-spacing="0.06em">SOLUTION-BUSINESS</text>
+        <rect class="node" x="230" y="532" width="710" height="78" rx="7" fill="rgba(76,29,149,0.32)" stroke="#a78bfa" stroke-width="1.5"/>
+        <rect x="844" y="540" width="86" height="18" rx="9" fill="rgba(2,6,23,0.7)" stroke="#a78bfa" stroke-width="1"/>
+        <text x="887" y="553" fill="#a78bfa" font-size="9" font-weight="700" text-anchor="middle">Decisión</text>
+        <text x="244" y="554" fill="#e2e8f0" font-size="10" font-weight="600">solution-business</text>
+        <text x="244" y="572" fill="#94a3b8" font-size="9" >Usuario decide pausar UI-002 hasta cerrar B-1 (WebMvcTagsContributor que</text>
+        <text x="244" y="585" fill="#94a3b8" font-size="9" >aplane uri a template en las 3 apps). No se implementa código</text>
+        <rect class="lane" x="24" y="678" width="932" height="102" rx="8"/>
+        <text x="40" y="700" fill="#94a3b8" font-size="9" font-weight="700" letter-spacing="0.06em">DOCS-WRITER</text>
+        <rect class="node" x="230" y="684" width="710" height="78" rx="7" fill="rgba(8,51,68,0.42)" stroke="#22d3ee" stroke-width="1.5"/>
+        <rect x="844" y="692" width="86" height="18" rx="9" fill="rgba(2,6,23,0.7)" stroke="#22d3ee" stroke-width="1"/>
+        <text x="887" y="705" fill="#22d3ee" font-size="9" font-weight="700" text-anchor="middle">En curso</text>
+        <text x="244" y="706" fill="#e2e8f0" font-size="10" font-weight="600">docs-writer</text>
+        <text x="244" y="724" fill="#94a3b8" font-size="9" >Cierre en pausa: spec con §10.bis; CHANGELOGs, GLOSSARY, MEJORAS,</text>
+        <text x="244" y="737" fill="#94a3b8" font-size="9" >README/quickstart del feature y feature-execution-graph.html. NO</text>
+        <text x="244" y="750" fill="#94a3b8" font-size="9" >se incluye la spec en el registro SDD (no es ALTA).</text>
+        <line class="edge" x1="585" y1="154" x2="585" y2="226"/>
+        <line class="edge" x1="585" y1="306" x2="585" y2="378"/>
+        <line class="edge" x1="585" y1="458" x2="585" y2="530"/>
+        <line class="edge" x1="585" y1="610" x2="585" y2="682"/>
+      </svg>
+      </div>
+      <div class="legend">
+        <span><i style="background:#34d399"></i> HECHO</span>
+        <span><i style="background:#a78bfa"></i> Decisi&oacute;n</span>
+        <span><i style="background:#22d3ee"></i> En curso</span>
+        <span><i style="background:#fb7185"></i> Descartado</span>
+        <span style="margin-left:auto">Fecha de cierre: 2026-09-23</span>
+      </div>
+    </section>
+    <section class="panel">
+      <h2>Bloqueo y condiciones de reapertura</h2>
+      <div class="step paused"><h3>Bloqueo B-1 <span class="tag">prometheus</span></h3><p>El <code>WebMvcTagsContributor</code> que aplane el tag <code>uri</code> a su template no existe en <code>customer-app</code>, <code>article-app</code> ni <code>dashboard-customer</code>. Sin &eacute;l, <code>http_server_requests_seconds{...,uri="/customers/CUST-001/graph"}</code> multiplica la cardinalidad de Prometheus por N clientes y rompe la operativa.</p></div>
+      <div class="step paused"><h3>KPI-6 no aprobado <span class="tag">kpi-6</span></h3><p>El KPI-6 propuesto (diagn&oacute;stico por <code>agent</code>) no es viable hoy: la m&eacute;trica no existe en el stack y la fuente <code>sap.sync.alerts</code> es Kafka, no Prometheus. Auditor&iacute;a independiente requerida al reabrir.</p></div>
+      <div class="step"><h3>Sin c&oacute;digo commiteado <span class="tag">alcance</span></h3><p>El spec, el caso de negocio y el dictamen del auditor viven en <a href="../../sdd/customer/consulta-entidad-grafo-ui.md">el spec</a>. Cero commits de implementaci&oacute;n. La fila no se da de alta en el registro SDD hasta reabrir.</p></div>
+    </section>
+  </div>
+  <section class="panel">
+    <h2>Detalle por agente</h2>
+    <article class="step"><h3>1. orchestrator <span class="tag">orchestrator:en-curso</span></h3>
+      <p>Handoff con plan consolidado (plan-f4-features.md §4)</p>
+      <p><b>Estado:</b> En curso</p></article>
+    <article class="step"><h3>2. solution-business <span class="tag">solution-business:hecho</span></h3>
+      <p>Caso de negocio: 3 KPIs (KPI-6 diagnóstico, KPI-7 latencia, KPI-8 adopción)</p>
+      <p>MoSCoW con 10 Must + 4 Should + 4 Could + 5 Won&#x27;t</p>
+      <p><b>Estado:</b> HECHO</p></article>
+    <article class="step"><h3>3. auditor-business <span class="tag">auditor-business:hecho</span></h3>
+      <p>Dictamen 🟡 Favorable con reservas. KPI-6 ❌ (la métrica agent no existe;</p>
+      <p>sap.sync.alerts es Kafka no Prometheus). KPI-7/KPI-8 ⚠️ (cardinalidad uri no</p>
+      <p>aplanada: rompe R-5/R-6 de UI-001). 3 bloqueantes</p>
+      <p><b>Estado:</b> HECHO</p></article>
+    <article class="step"><h3>4. solution-business <span class="tag">solution-business:decision</span></h3>
+      <p>Usuario decide pausar UI-002 hasta cerrar B-1 (WebMvcTagsContributor que</p>
+      <p>aplane uri a template en las 3 apps). No se implementa código</p>
+      <p><b>Estado:</b> Decisión</p></article>
+    <article class="step"><h3>5. docs-writer <span class="tag">docs-writer:en-curso</span></h3>
+      <p>Cierre en pausa: spec con §10.bis; CHANGELOGs, GLOSSARY, MEJORAS,</p>
+      <p>README/quickstart del feature y feature-execution-graph.html. NO</p>
+      <p>se incluye la spec en el registro SDD (no es ALTA).</p>
+      <p><b>Estado:</b> En curso</p></article>
+  </section>
+  <p class="footer">Generado por el m&eacute;todo datos &rarr; generador &rarr; validador (skill <code>architecture-diagram</code>) a partir de la constante <code>FEATURE.events</code>. Sin dependencias externas salvo la fuente del sistema.</p>
+</main></body></html>
