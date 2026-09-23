@@ -136,13 +136,13 @@ sencilla y lo más liviana posible** que cubra consulta y operación.
 
 | # | Pieza | Ámbito | Estado | Notas |
 |---|---|---|---|---|
-| UI-1 | Vista por entidad: estado actual, línea de tiempo de transiciones y última imagen | proyecto | 💡 | Es lo que hoy se mira a mano en `sync_state` y `*_current` |
-| UI-2 | **Imagen en un momento dado**: elegir una versión del histórico y verla, o comparar dos | proyecto | 💡 | El histórico ya está indexado en ES y hay `/history/diff`; falta la vista |
-| UI-3 | **Buscador**: por id interno, por id externo (SAP) y por clave de dominio | proyecto | 💡 | NIF / NIE / CIF / cartão para el Business Partner; código de producto de la empresa para artículos. Cada dominio declara sus claves buscables |
+| UI-1 | Vista por entidad: estado actual, línea de tiempo de transiciones y última imagen | proyecto | ✅ 2026-09-23 | Cubierto por `dashboard-customer` con `GET /customers/{id}` (cabecera + tabs + contenido) y `GET /customers/{id}/state` con `lastCycle`. Spec [`sdd/customer/consulta-entidad-ui.md`](sdd/customer/consulta-entidad-ui.md) AC-1 |
+| UI-2 | **Imagen en un momento dado**: elegir una versión del histórico y verla, o comparar dos | proyecto | ✅ 2026-09-23 | Cubierto por `dashboard-customer` con `GET /customers/{id}/history[?full=true]` y `GET /customers/{id}/history/diff?from=&to=` (consume ES directamente). Spec [`sdd/customer/consulta-entidad-ui.md`](sdd/customer/consulta-entidad-ui.md) AC-3 |
+| UI-3 | **Buscador**: por id interno, por id externo (SAP) y por clave de dominio | proyecto | ✅ 2026-09-23 | Cubierto por `dashboard-customer` con `GET /customers/search?q={taxId}` contra `customers_current` (Mongo) y orden por `code`. Spec [`sdd/customer/consulta-entidad-ui.md`](sdd/customer/consulta-entidad-ui.md) AC-3 |
 | UI-4 | **Acciones administrativas**: desatascar una entidad, forzar re-sync, reprocesar un mensaje de la DLT | proyecto | 💡 | Depende de OPS-1 y OPS-2; sin ellas no hay nada que invocar |
-| UI-5 | Organizada **por dominios** (`customer`, `article`, `supplier`) | proyecto | 💡 | `common` no aparece: es infraestructura, no tiene entidades que mostrar |
-| UI-6 | Stack: SPA estática, previsiblemente **React + Vite**, consumiendo las APIs REST | extra | 💡 | Criterio: lo más liviano posible y sin servidor propio. Alternativa aún más ligera si el alcance se queda en consulta: HTML + JS sin framework |
-| UI-7 | Backend de soporte: endpoints de búsqueda y de acciones | proyecto | 💡 | Hoy solo existen `/sync`, `/validate`, `/history`, `/history/diff` y `/state` (este último ya trae `lastCycle` con la traza del último ciclo, útil como base de la vista UI-1) |
+| UI-5 | Organizada **por dominios** (`customer`, `article`, `supplier`) | proyecto | 📋 | Acordada (preparada): `dashboard-customer/` es el patrón, `dashboard-article/` será otra feature cuando llegue el momento. Spec [`sdd/customer/consulta-entidad-ui.md`](sdd/customer/consulta-entidad-ui.md) §2 (fuera) |
+| UI-6 | Stack: SPA estática, previsiblemente **React + Vite**, consumiendo las APIs REST | extra | ❌ descartada 2026-09-23 | El stack Thymeleaf + HTMX + Alpine.js cubre la lectura sin necesidad de SPA, sin build de cliente ni servidor adicional. El dashboard lee directo de Mongo y ES (R-1 del spec); React+Vite habría añadido una capa sin ganancia |
+| UI-7 | Backend de soporte: endpoints de búsqueda y de acciones | proyecto | ✅ 2026-09-23 | Cubierto por `dashboard-customer` con cliente Mongo y ES nativos (no REST síncrono al `customer-app`). Las acciones se reducen al `POST /customers/alerts/{id}/ack` de F-9 promoted (TTL 30d). Spec [`sdd/customer/consulta-entidad-ui.md`](sdd/customer/consulta-entidad-ui.md) |
 
 ### Prerrequisitos
 
