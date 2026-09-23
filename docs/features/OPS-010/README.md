@@ -124,3 +124,10 @@ Pendiente fuera de OPS-010:
   [`GUIA-PRUEBAS.md`](../../testing/GUIA-PRUEBAS.md)).
 - Sustituir los tags por digest `repo:tag@sha256:...` en el primer
   despliegue real (criterio A22).
+
+## Visualización
+
+El recorrido completo de la feature (11 commits sobre
+`origin/feature/saneamiento-integracion-sap`, 4 fixes del bucle QA y
+4 commits de cierre documental) está documentado visualmente en
+[feature-execution-graph.html](feature-execution-graph.html).

@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OPS-010 — Broker de mensajería: Kafka → Redpanda (grafo de ejecución)</title>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'JetBrains Mono', ui-monospace, monospace; background: #020617; min-height: 100vh; padding: 2rem; color: white; }
+    .container { max-width: 1280px; margin: 0 auto; }
+    h1 { font-size: 1.4rem; font-weight: 700; letter-spacing: -0.02em; }
+    .sub { color: #94a3b8; font-size: 0.8rem; margin: 0.4rem 0 1.5rem; line-height: 1.6; }
+    .wrap { background: rgba(15, 23, 42, 0.5); border: 1px solid #1e293b; border-radius: 1rem; padding: 1.5rem; overflow-x: auto; }
+    svg { width: 100%; min-width: 900px; display: block; }
+    .foot { color: #475569; font-size: 0.7rem; margin-top: 1.25rem; }
+    a { color: #22d3ee; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>OPS-010 — Broker de mensajería: Kafka → Redpanda (grafo de ejecución)</h1>
+    <p class="sub">Ejecución completa sobre la rama <code>feature/saneamiento-integracion-sap</code>: 11 commits directos sobre <code>origin</code> y 4 commits de cierre documental (este PR). Hitos H-0 a H-5 con el bucle correctivo del QA al final (3 fixes técnicos + 1 fix de Testcontainers). AC-1/AC-2/AC-4/AC-5/AC-6 firmados; AC-3/AC-7 implementados y pendientes de validación contra el cluster k3s real.</p>
+    <div class="wrap">
+      <svg viewBox="0 0 1100 1372" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Grafo de ejecución por fase de la feature OPS-010: once commits de implementación (H-0..H-5) más cuatro fixes derivados del bucle QA y cuatro commits de cierre documental.">
+        <defs>
+          <marker id="ah" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+            <polygon points="0 0, 10 3.5, 0 7" fill="#64748b"/>
+          </marker>
+          <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+            <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#1e293b" stroke-width="0.5"/>
+          </pattern>
+        </defs>
+        <rect width="100%" height="100%" fill="url(#grid)"/>
+
+        <rect x="26" y="1014" width="1048" height="124" rx="10" fill="rgba(120, 53, 15, 0.10)" stroke="#fbbf24" stroke-width="1.2" stroke-dasharray="7,5" opacity="0.75"/>
+        <text x="1074" y="1028" fill="#fbbf24" font-size="8" font-weight="700" letter-spacing="0.06em" text-anchor="end">BUCLE CORRECTIVO QA (3 vueltas)</text>
+        <text x="40" y="48" fill="#64748b" font-size="8" font-weight="700" letter-spacing="0.08em">BRIEFING INICIAL (orquestador → dev-implementer)</text>
+        <rect x="410" y="56" width="280" height="90" rx="7" fill="rgba(30, 41, 59, 0.45)" stroke="#94a3b8" stroke-width="1.5"/>
+        <text x="550" y="78" fill="white" font-size="11" font-weight="700" text-anchor="middle">Briefing OPS-010 H-0</text>
+        <text x="550" y="96" fill="#94a3b8" font-size="9" text-anchor="middle">2026-09-23 mañana</text>
+        <text x="550" y="109" fill="#94a3b8" font-size="9" text-anchor="middle">Plan §6 (OPS-010)</text>
+        <text x="550" y="122" fill="#94a3b8" font-size="9" text-anchor="middle">incluye sqlserver-init.sql con bugs TDS</text>
+        <text x="40" y="188" fill="#64748b" font-size="8" font-weight="700" letter-spacing="0.08em">H-0 — TESTS ROJOS (TDD)</text>
+        <rect x="410" y="196" width="280" height="90" rx="7" fill="rgba(127, 29, 29, 0.45)" stroke="#f87171" stroke-width="1.5"/>
+        <text x="550" y="218" fill="white" font-size="11" font-weight="700" text-anchor="middle">da09f34 — tests rojos</text>
+        <text x="550" y="236" fill="#94a3b8" font-size="9" text-anchor="middle">renombrado broker</text>
+        <text x="550" y="249" fill="#94a3b8" font-size="9" text-anchor="middle">Kafka → Redpanda en YAML</text>
+        <text x="550" y="262" fill="#94a3b8" font-size="9" text-anchor="middle">TopologyTest ×3 + 2 ApplicationContextTest</text>
+        <text x="550" y="275" fill="#94a3b8" font-size="9" text-anchor="middle">DebeziumRedpandaIT añadido (rojo)</text>
+        <text x="40" y="328" fill="#64748b" font-size="8" font-weight="700" letter-spacing="0.08em">H-1 — REFACTOR (renombrado)</text>
+        <rect x="410" y="336" width="280" height="90" rx="7" fill="rgba(120, 53, 15, 0.45)" stroke="#fbbf24" stroke-width="1.5"/>
+        <text x="550" y="358" fill="white" font-size="11" font-weight="700" text-anchor="middle">4f41596 — renombrado</text>
+        <text x="550" y="376" fill="#94a3b8" font-size="9" text-anchor="middle">KAFKA_BOOTSTRAP → MESSAGING_BOOTSTRAP</text>
+        <text x="550" y="389" fill="#94a3b8" font-size="9" text-anchor="middle">YAML, scripts, ConfigMaps y ADRs</text>
+        <text x="550" y="402" fill="#94a3b8" font-size="9" text-anchor="middle">common/, customer/, article/</text>
+        <text x="550" y="415" fill="#94a3b8" font-size="9" text-anchor="middle">0 cambios funcionales</text>
+        <text x="40" y="468" fill="#64748b" font-size="8" font-weight="700" letter-spacing="0.08em">H-2 — COMPOSE LOCAL</text>
+        <rect x="410" y="476" width="280" height="90" rx="7" fill="rgba(8, 51, 68, 0.42)" stroke="#22d3ee" stroke-width="1.5"/>
+        <text x="550" y="498" fill="white" font-size="11" font-weight="700" text-anchor="middle">c2e425e — compose</text>
+        <text x="550" y="516" fill="#94a3b8" font-size="9" text-anchor="middle">ZooKeeper + Kafka + kafka-init-topics</text>
+        <text x="550" y="529" fill="#94a3b8" font-size="9" text-anchor="middle">↓ Redpanda + redpanda-init-topics</text>
+        <text x="550" y="542" fill="#94a3b8" font-size="9" text-anchor="middle">kafka-connect (Debezium) → redpanda:9092</text>
+        <text x="550" y="555" fill="#94a3b8" font-size="9" text-anchor="middle">Conectores: kafka-broker:29092 → redpanda:9092</text>
+        <text x="40" y="608" fill="#64748b" font-size="8" font-weight="700" letter-spacing="0.08em">H-3 — MANIFIESTOS KUBERNETES</text>
+        <rect x="410" y="616" width="280" height="90" rx="7" fill="rgba(76, 29, 149, 0.40)" stroke="#a78bfa" stroke-width="1.5"/>
+        <text x="550" y="638" fill="white" font-size="11" font-weight="700" text-anchor="middle">50e1273 — Operator + CRD</text>
+        <text x="550" y="656" fill="#94a3b8" font-size="9" text-anchor="middle">deploy/k8s/base/redpanda.yaml (NUEVO)</text>
+        <text x="550" y="669" fill="#94a3b8" font-size="9" text-anchor="middle">deploy/k8s/base/kafka-connect.yaml (NUEVO)</text>
+        <text x="550" y="682" fill="#94a3b8" font-size="9" text-anchor="middle">common.yaml + overlays test/prod</text>
+        <text x="550" y="695" fill="#94a3b8" font-size="9" text-anchor="middle">RF=3 / RF=1 / Tiered Storage OFF</text>
+        <text x="40" y="748" fill="#64748b" font-size="8" font-weight="700" letter-spacing="0.08em">H-4 — DECISIÓN DOCUMENTADA</text>
+        <rect x="410" y="756" width="280" height="90" rx="7" fill="rgba(136, 19, 55, 0.40)" stroke="#fb7185" stroke-width="1.5"/>
+        <text x="550" y="778" fill="white" font-size="11" font-weight="700" text-anchor="middle">5cdc987 — ADR-0014</text>
+        <text x="550" y="796" fill="#94a3b8" font-size="9" text-anchor="middle">ADR nuevo: Redpanda como broker</text>
+        <text x="550" y="809" fill="#94a3b8" font-size="9" text-anchor="middle">Revisión ADR-0011 (concurrencia)</text>
+        <text x="550" y="822" fill="#94a3b8" font-size="9" text-anchor="middle">D-16 cerrado: 1 cluster/cluster K8s</text>
+        <text x="550" y="835" fill="#94a3b8" font-size="9" text-anchor="middle">consumer group por clúster (dentro)</text>
+        <text x="40" y="888" fill="#64748b" font-size="8" font-weight="700" letter-spacing="0.08em">H-5 — DOCS, CHANGELOG Y REGISTRO</text>
+        <rect x="410" y="896" width="280" height="90" rx="7" fill="rgba(6, 78, 59, 0.40)" stroke="#34d399" stroke-width="1.5"/>
+        <text x="550" y="918" fill="white" font-size="11" font-weight="700" text-anchor="middle">f4d39c3 — docs y registro</text>
+        <text x="550" y="936" fill="#94a3b8" font-size="9" text-anchor="middle">spec common/broker-de-mensajeria.md</text>
+        <text x="550" y="949" fill="#94a3b8" font-size="9" text-anchor="middle">RUNBOOKS.md con equivalencias rpk</text>
+        <text x="550" y="962" fill="#94a3b8" font-size="9" text-anchor="middle">GLOSSARY.md (Redpanda, rpk, Operator)</text>
+        <text x="550" y="975" fill="#94a3b8" font-size="9" text-anchor="middle">feature_evento: ALTA en MySQL</text>
+        <text x="40" y="1028" fill="#64748b" font-size="8" font-weight="700" letter-spacing="0.08em">BUCLE QA — 4 FIXES</text>
+        <rect x="41" y="1036" width="241" height="90" rx="7" fill="rgba(124, 45, 18, 0.40)" stroke="#fb923c" stroke-width="1.5"/>
+        <text x="161" y="1058" fill="white" font-size="11" font-weight="700" text-anchor="middle">6f6f175 — sqlserver-init.sql</text>
+        <text x="161" y="1076" fill="#94a3b8" font-size="9" text-anchor="middle">fix(ops-010): anade init script</text>
+        <text x="161" y="1089" fill="#94a3b8" font-size="9" text-anchor="middle">que faltaba en H-0</text>
+        <text x="161" y="1102" fill="#94a3b8" font-size="9" text-anchor="middle">dev-implementer lo detecto</text>
+        <text x="161" y="1115" fill="#94a3b8" font-size="9" text-anchor="middle">comentado en el body del commit</text>
+        <rect x="300" y="1036" width="241" height="90" rx="7" fill="rgba(124, 45, 18, 0.40)" stroke="#fb923c" stroke-width="1.5"/>
+        <text x="420" y="1058" fill="white" font-size="11" font-weight="700" text-anchor="middle">85cb657 — orden columnas</text>
+        <text x="420" y="1076" fill="#94a3b8" font-size="9" text-anchor="middle">fix(ops-010): corrige orden</text>
+        <text x="420" y="1089" fill="#94a3b8" font-size="9" text-anchor="middle">columnas INSERT vs CREATE TABLE</text>
+        <text x="420" y="1102" fill="#94a3b8" font-size="9" text-anchor="middle">derivado de reescribir init.sql</text>
+        <text x="420" y="1115" fill="#94a3b8" font-size="9" text-anchor="middle">alinea el INSERT con la tabla</text>
+        <rect x="559" y="1036" width="241" height="90" rx="7" fill="rgba(124, 45, 18, 0.40)" stroke="#fb923c" stroke-width="1.5"/>
+        <text x="679" y="1058" fill="white" font-size="11" font-weight="700" text-anchor="middle">2cecfbd — pin 1.21.4</text>
+        <text x="679" y="1076" fill="#94a3b8" font-size="9" text-anchor="middle">fix(ops-010): pin testcontainers</text>
+        <text x="679" y="1089" fill="#94a3b8" font-size="9" text-anchor="middle">1.21.1 incompatible Docker 29.x</text>
+        <text x="679" y="1102" fill="#94a3b8" font-size="9" text-anchor="middle">subido a 1.21.4 en it/</text>
+        <text x="679" y="1115" fill="#94a3b8" font-size="9" text-anchor="middle">estabiliza DebeziumRedpandaIT</text>
+        <rect x="818" y="1036" width="241" height="90" rx="7" fill="rgba(124, 45, 18, 0.40)" stroke="#fb923c" stroke-width="1.5"/>
+        <text x="938" y="1058" fill="white" font-size="11" font-weight="700" text-anchor="middle">b78c301 — red Testcontainers</text>
+        <text x="938" y="1076" fill="#94a3b8" font-size="9" text-anchor="middle">fix(ops-010): comparte red</text>
+        <text x="938" y="1089" fill="#94a3b8" font-size="9" text-anchor="middle">redpanda + mssql + connect</text>
+        <text x="938" y="1102" fill="#94a3b8" font-size="9" text-anchor="middle">en Network.SHARED</text>
+        <text x="938" y="1115" fill="#94a3b8" font-size="9" text-anchor="middle">27/27 verdes con Docker</text>
+        <text x="40" y="1168" fill="#64748b" font-size="8" font-weight="700" letter-spacing="0.08em">CIERRE DOCUMENTAL (este PR)</text>
+        <rect x="41" y="1176" width="241" height="90" rx="7" fill="rgba(30, 41, 59, 0.45)" stroke="#94a3b8" stroke-width="1.5"/>
+        <text x="161" y="1198" fill="white" font-size="11" font-weight="700" text-anchor="middle">incidencia MSSQL</text>
+        <text x="161" y="1216" fill="#94a3b8" font-size="9" text-anchor="middle">4.ª recurrencia</text>
+        <text x="161" y="1229" fill="#94a3b8" font-size="9" text-anchor="middle">infra-local:contradice-a-la-app</text>
+        <text x="161" y="1242" fill="#94a3b8" font-size="9" text-anchor="middle">post-mortem + tarea de diseño</text>
+        <text x="161" y="1255" fill="#94a3b8" font-size="9" text-anchor="middle">validar briefings SQL antes</text>
+        <rect x="300" y="1176" width="241" height="90" rx="7" fill="rgba(30, 41, 59, 0.45)" stroke="#94a3b8" stroke-width="1.5"/>
+        <text x="420" y="1198" fill="white" font-size="11" font-weight="700" text-anchor="middle">sdd/README §5 y §6</text>
+        <text x="420" y="1216" fill="#94a3b8" font-size="9" text-anchor="middle">fila broker-de-mensajeria al día</text>
+        <text x="420" y="1229" fill="#94a3b8" font-size="9" text-anchor="middle">entrada Resueltas 2026-09-23</text>
+        <text x="420" y="1242" fill="#94a3b8" font-size="9" text-anchor="middle">enlace al post-mortem</text>
+        <text x="420" y="1255" fill="#94a3b8" font-size="9" text-anchor="middle">AC firmados visibles</text>
+        <rect x="559" y="1176" width="241" height="90" rx="7" fill="rgba(30, 41, 59, 0.45)" stroke="#94a3b8" stroke-width="1.5"/>
+        <text x="679" y="1198" fill="white" font-size="11" font-weight="700" text-anchor="middle">CHANGELOG raiz</text>
+        <text x="679" y="1216" fill="#94a3b8" font-size="9" text-anchor="middle">[Sin publicar] con bullets negocio</text>
+        <text x="679" y="1229" fill="#94a3b8" font-size="9" text-anchor="middle">ahorro operativo (2 JVM)</text>
+        <text x="679" y="1242" fill="#94a3b8" font-size="9" text-anchor="middle">p99 baseline pendiente</text>
+        <text x="679" y="1255" fill="#94a3b8" font-size="9" text-anchor="middle">ADR-0014 + cierre D-16</text>
+        <rect x="818" y="1176" width="241" height="90" rx="7" fill="rgba(30, 41, 59, 0.45)" stroke="#94a3b8" stroke-width="1.5"/>
+        <text x="938" y="1198" fill="white" font-size="11" font-weight="700" text-anchor="middle">feature-execution-graph</text>
+        <text x="938" y="1216" fill="#94a3b8" font-size="9" text-anchor="middle">este HTML+SVG</text>
+        <text x="938" y="1229" fill="#94a3b8" font-size="9" text-anchor="middle">11 commits + 4 cierres</text>
+        <text x="938" y="1242" fill="#94a3b8" font-size="9" text-anchor="middle">skill architecture-diagram</text>
+        <text x="938" y="1255" fill="#94a3b8" font-size="9" text-anchor="middle">validado sin solapamientos</text>
+        <line x1="550" y1="146" x2="550" y2="194" stroke="#94a3b8" stroke-width="1.6" marker-end="url(#ah)"/>
+        <rect x="524" y="162" width="52" height="15" rx="3" fill="#020617" stroke="#1e293b" stroke-width="1"/>
+        <text x="550" y="173" fill="#94a3b8" font-size="8" text-anchor="middle">arranque</text>
+        <line x1="550" y1="286" x2="550" y2="334" stroke="#64748b" stroke-width="1.6" marker-end="url(#ah)"/>
+        <rect x="532" y="302" width="37" height="15" rx="3" fill="#020617" stroke="#1e293b" stroke-width="1"/>
+        <text x="550" y="313" fill="#94a3b8" font-size="8" text-anchor="middle">verde</text>
+        <line x1="550" y1="426" x2="550" y2="474" stroke="#64748b" stroke-width="1.6" marker-end="url(#ah)"/>
+        <rect x="532" y="442" width="37" height="15" rx="3" fill="#020617" stroke="#1e293b" stroke-width="1"/>
+        <text x="550" y="453" fill="#94a3b8" font-size="8" text-anchor="middle">verde</text>
+        <line x1="550" y1="566" x2="550" y2="614" stroke="#64748b" stroke-width="1.6" marker-end="url(#ah)"/>
+        <rect x="532" y="582" width="37" height="15" rx="3" fill="#020617" stroke="#1e293b" stroke-width="1"/>
+        <text x="550" y="593" fill="#94a3b8" font-size="8" text-anchor="middle">verde</text>
+        <line x1="550" y1="706" x2="550" y2="754" stroke="#64748b" stroke-width="1.6" marker-end="url(#ah)"/>
+        <rect x="532" y="722" width="37" height="15" rx="3" fill="#020617" stroke="#1e293b" stroke-width="1"/>
+        <text x="550" y="733" fill="#94a3b8" font-size="8" text-anchor="middle">verde</text>
+        <line x1="550" y1="846" x2="550" y2="894" stroke="#64748b" stroke-width="1.6" marker-end="url(#ah)"/>
+        <rect x="532" y="862" width="37" height="15" rx="3" fill="#020617" stroke="#1e293b" stroke-width="1"/>
+        <text x="550" y="873" fill="#94a3b8" font-size="8" text-anchor="middle">verde</text>
+        <line x1="550" y1="986" x2="161" y2="1034" stroke="#fb923c" stroke-width="1.6" stroke-dasharray="6,4" marker-end="url(#ah)"/>
+        <rect x="324" y="1002" width="62" height="15" rx="3" fill="#020617" stroke="#1e293b" stroke-width="1"/>
+        <text x="355" y="1013" fill="#94a3b8" font-size="8" text-anchor="middle">QA loop v2</text>
+        <line x1="282" y1="1081" x2="298" y2="1081" stroke="#fb923c" stroke-width="1.6" marker-end="url(#ah)"/>
+        <rect x="274" y="1018" width="32" height="15" rx="3" fill="#020617" stroke="#1e293b" stroke-width="1"/>
+        <text x="290" y="1029" fill="#94a3b8" font-size="8" text-anchor="middle">v2.1</text>
+        <line x1="541" y1="1081" x2="557" y2="1081" stroke="#fb923c" stroke-width="1.6" marker-end="url(#ah)"/>
+        <rect x="533" y="1018" width="32" height="15" rx="3" fill="#020617" stroke="#1e293b" stroke-width="1"/>
+        <text x="549" y="1029" fill="#94a3b8" font-size="8" text-anchor="middle">v2.2</text>
+        <line x1="800" y1="1081" x2="816" y2="1081" stroke="#fb923c" stroke-width="1.6" marker-end="url(#ah)"/>
+        <rect x="782" y="1018" width="52" height="15" rx="3" fill="#020617" stroke="#1e293b" stroke-width="1"/>
+        <text x="808" y="1029" fill="#94a3b8" font-size="8" text-anchor="middle">v3 verde</text>
+        <line x1="938" y1="1126" x2="161" y2="1174" stroke="#94a3b8" stroke-width="1.6" stroke-dasharray="6,4" marker-end="url(#ah)"/>
+        <rect x="516" y="1142" width="67" height="15" rx="3" fill="#020617" stroke="#1e293b" stroke-width="1"/>
+        <text x="549" y="1153" fill="#94a3b8" font-size="8" text-anchor="middle">docs-writer</text>
+        <line x1="282" y1="1221" x2="298" y2="1221" stroke="#64748b" stroke-width="1.6" marker-end="url(#ah)"/>
+        <rect x="274" y="1158" width="32" height="15" rx="3" fill="#020617" stroke="#1e293b" stroke-width="1"/>
+        <text x="290" y="1169" fill="#94a3b8" font-size="8" text-anchor="middle">PR-2</text>
+        <line x1="541" y1="1221" x2="557" y2="1221" stroke="#64748b" stroke-width="1.6" marker-end="url(#ah)"/>
+        <rect x="533" y="1158" width="32" height="15" rx="3" fill="#020617" stroke="#1e293b" stroke-width="1"/>
+        <text x="549" y="1169" fill="#94a3b8" font-size="8" text-anchor="middle">PR-3</text>
+        <line x1="800" y1="1221" x2="816" y2="1221" stroke="#64748b" stroke-width="1.6" marker-end="url(#ah)"/>
+        <rect x="792" y="1158" width="32" height="15" rx="3" fill="#020617" stroke="#1e293b" stroke-width="1"/>
+        <text x="808" y="1169" fill="#94a3b8" font-size="8" text-anchor="middle">PR-4</text>
+        <text x="40" y="1302" fill="white" font-size="9" font-weight="700">Leyenda — el color marca la fase de OPS-010</text>
+        <rect x="40" y="1318" width="16" height="10" rx="2" fill="rgba(136, 19, 55, 0.40)" stroke="#fb7185" stroke-width="1"/>
+        <text x="62" y="1326" fill="#94a3b8" font-size="8">fase-adr</text>
+        <rect x="270" y="1318" width="16" height="10" rx="2" fill="rgba(30, 41, 59, 0.45)" stroke="#94a3b8" stroke-width="1"/>
+        <text x="292" y="1326" fill="#94a3b8" font-size="8">fase-cierre</text>
+        <rect x="500" y="1318" width="16" height="10" rx="2" fill="rgba(8, 51, 68, 0.42)" stroke="#22d3ee" stroke-width="1"/>
+        <text x="522" y="1326" fill="#94a3b8" font-size="8">fase-compose</text>
+        <rect x="730" y="1318" width="16" height="10" rx="2" fill="rgba(6, 78, 59, 0.40)" stroke="#34d399" stroke-width="1"/>
+        <text x="752" y="1326" fill="#94a3b8" font-size="8">fase-docs</text>
+        <rect x="40" y="1336" width="16" height="10" rx="2" fill="rgba(124, 45, 18, 0.40)" stroke="#fb923c" stroke-width="1"/>
+        <text x="62" y="1344" fill="#94a3b8" font-size="8">fase-fix</text>
+        <rect x="270" y="1336" width="16" height="10" rx="2" fill="rgba(76, 29, 149, 0.40)" stroke="#a78bfa" stroke-width="1"/>
+        <text x="292" y="1344" fill="#94a3b8" font-size="8">fase-k8s</text>
+        <rect x="500" y="1336" width="16" height="10" rx="2" fill="rgba(120, 53, 15, 0.45)" stroke="#fbbf24" stroke-width="1"/>
+        <text x="522" y="1344" fill="#94a3b8" font-size="8">fase-refactor</text>
+        <rect x="730" y="1336" width="16" height="10" rx="2" fill="rgba(127, 29, 29, 0.45)" stroke="#f87171" stroke-width="1"/>
+        <text x="752" y="1344" fill="#94a3b8" font-size="8">fase-rojo</text>
+        <text x="40" y="1366" fill="#64748b" font-size="8">Flecha continua: dependencia directa. Flecha discontinua: re-trabajo o bucle. Los flujos verticales descienden por orden cronológico.</text>
+      </svg>
+    </div>
+    <p class="foot">Capa inicial: briefing inicial (orquestador → dev-implementer) más el post-mortem 2026-09-23 sobre el briefing MSSQL defectuoso (4.ª recurrencia del fingerprint <code>infra-local:contradice-a-la-app</code>). Las 4 entradas inferiores son los commits de cierre documental (incidencia + sdd/README §5/§6 + CHANGELOG raíz + este grafo). Color marca <strong>fase</strong>, no dominio técnico (reinterpretación del mapa de colores de la skill, declarada explícitamente).</p>
+  </div>
+</body>
+</html>

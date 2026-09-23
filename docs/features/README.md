@@ -42,7 +42,7 @@ si falla. Estructura fija.
 | OBS-005 | Recolección y consumo de la observabilidad | Incorporada 2026-09-23 | [quickstart](OBS-005/quickstart.md) · [grafo](OBS-005/feature-execution-graph.html) | [docs/sdd/common/observabilidad.md](../sdd/common/observabilidad.md) (enmienda) |
 | UI-001 | Dashboard web: vista por entidad y búsqueda | Incorporada 2026-09-23 | [quickstart](UI-001/quickstart.md) · [grafo](UI-001/feature-execution-graph.html) | [docs/sdd/customer/consulta-entidad-ui.md](../sdd/customer/consulta-entidad-ui.md) |
 | UI-002 | Vista grafo del flujo de integración por entidad | ⏸ Pausada 2026-09-23 | [quickstart](UI-002/quickstart.md) · [grafo](UI-002/feature-execution-graph.html) | [docs/sdd/customer/consulta-entidad-grafo-ui.md](../sdd/customer/consulta-entidad-grafo-ui.md) |
-| OPS-010 | Broker de mensajería: Kafka → Redpanda | Pendiente | [quickstart](OPS-010/quickstart.md) | [docs/sdd/common/broker-de-mensajeria.md](../sdd/common/broker-de-mensajeria.md) + [ADR-0014](../architecture/adr/0014-redpanda-como-broker-de-mensajeria.md) |
+| OPS-010 | Broker de mensajería: Kafka → Redpanda | ✅ Incorporada 2026-09-23 | [quickstart](OPS-010/quickstart.md) · [grafo](OPS-010/feature-execution-graph.html) | [docs/sdd/common/broker-de-mensajeria.md](../sdd/common/broker-de-mensajeria.md) + [ADR-0014](../architecture/adr/0014-redpanda-como-broker-de-mensajeria.md) |
 
 > Los códigos siguen a las filas ya existentes en
 > [`docs/MEJORAS-Y-PROPUESTAS.md`](../MEJORAS-Y-PROPUESTAS.md): `OBS-1..4`,
