@@ -4,5 +4,9 @@ resources:
   - common.yaml
   - customer-app.yaml
   - article-app.yaml
-commonLabels:
-  app.kubernetes.io/part-of: sap-integration
+  - redpanda.yaml
+  - kafka-connect.yaml
+labels:
+  - includeSelectors: false
+    pairs:
+      app.kubernetes.io/part-of: sap-integration

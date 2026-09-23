@@ -54,7 +54,34 @@ kubectl apply -k deploy/k8s/overlays/test
 kubectl -n sap-integration-test rollout status deploy/customer-app
 ```
 
-## Topología Kafka: quién crea los topics (ADR-0011)
+### Validación local con k3s
+
+Antes de empujar a un clúster corporativo, se recomienda validar el operador
+Redpanda y el cluster CRD en un k3s local con `~/.kube/config`. Pasos:
+
+```bash
+# 1. dry-run del lado cliente: kubectl solo imprime YAML, no toca nada
+kubectl --context=<k3s> apply -k deploy/k8s/overlays/test --dry-run=client
+
+# 2. instalación real y espera a que el operador cree el cluster
+kubectl --context=<k3s> apply -k deploy/k8s/overlays/test
+kubectl --context=<k3s> -n sap-integration-test get redpanda -w
+# esperar a phase=Running y condition.ready=True (puede tardar 3-5 min la 1.ª vez)
+
+# 3. operator y CRD
+kubectl --context=<k3s> -n sap-integration-test get pods
+kubectl --context=<k3s> -n sap-integration-test logs deploy/redpanda-operator -c operator
+
+# 4. smoke del broker desde un pod de debug
+kubectl --context=<k3s> -n sap-integration-test run rpk-debug --rm -it --restart=Never \
+  --image=redpandadata/redpanda:v25.3.9 --command -- rpk cluster health
+```
+
+Si `StorageClass` por defecto del clúster no es `local-path` (k3s), editar
+`deploy/k8s/base/redpanda.yaml` y descomentar el `storageClassName` en
+`clusterSpec.statefulset.podTemplate.persistence` antes de aplicar.
+
+## Topología del broker: quién crea los topics (ADR-0011, OPS-010)
 
 **La aplicación no crea topics.** `app.kafka.topics.create` es `false` (y el
 overlay de producción lo fija explícitamente); la auto-creación del broker deja
@@ -70,9 +97,19 @@ script de alta del entorno) **antes** del primer despliegue:
 | `outbox.ARTICLE-dlt` | 12 | ídem | — |
 
 ```bash
+# Antes con Kafka: kafka-topics --bootstrap-server "$KAFKA_BOOTSTRAP" --create ...
+# Con Redpanda (broker Kafka 3.x wire-compatible), el comando nativo es `rpk`:
 for t in outbox.CUSTOMER outbox.CUSTOMER-dlt outbox.ARTICLE outbox.ARTICLE-dlt; do
-  kafka-topics --bootstrap-server "$KAFKA_BOOTSTRAP" --create --if-not-exists     --topic "$t" --partitions 12 --replication-factor 3
+  rpk topic create "$t" --partitions 12 --replication 3 \
+    --brokers "$MESSAGING_BOOTSTRAP"
 done
+
+# Comprobación:
+rpk topic list --brokers "$MESSAGING_BOOTSTRAP"
+# outbox.CUSTOMER        12  3
+# outbox.CUSTOMER-dlt    12  3
+# outbox.ARTICLE         12  3
+# outbox.ARTICLE-dlt     12  3
 ```
 
 Otras variables `APP_KAFKA_*`/de aplicación relevantes al desplegar

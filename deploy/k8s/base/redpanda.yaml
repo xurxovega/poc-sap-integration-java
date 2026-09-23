@@ -1,0 +1,114 @@
+# =============================================================================
+# Redpanda (broker Kafka-compatible, sin ZooKeeper, wire Kafka 3.x)
+# OPS-010: stack del broker de mensajeria.
+#
+# Tres documentos:
+#   1) ServiceAccount del Operator
+#   2) Deployment del Redpanda Operator (CRD `cluster.redpanda.com/v1alpha2`)
+#   3) Recurso Redpanda (CRD moderno, NO `RedpandaCluster` legacy)
+#
+# Version pin: v25.3.9 LTS (NO v24.2.7, fuera de soporte desde 2025-07).
+# El digest se calcula tras `docker pull` + `docker images --digests` por el
+# criterio del repo (auditoria A22); mientras tanto queda con el tag y un TODO.
+#
+# StorageClass por defecto: `local-path` (k3s). Si el cluster usa otro, editar
+# `storageClassName` (linea comentada en `clusterSpec.statefulset.podTemplate`).
+#
+# Tiered Storage desactivado (ADR-0014, OPS-011 propuesto para activarlo).
+#
+# Para el cluster de test (namespace sap-integration-test), ver
+# deploy/k8s/overlays/test/kustomization.yaml (que sustituye el namespace y
+# aplica el mismo base).
+# =============================================================================
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: sap-integration
+  labels:
+    app.kubernetes.io/part-of: sap-integration
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: redpanda-operator
+  namespace: sap-integration
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redpanda-operator
+  namespace: sap-integration
+  labels:
+    app: redpanda-operator
+    app.kubernetes.io/part-of: sap-integration
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: redpanda-operator
+  template:
+    metadata:
+      labels:
+        app: redpanda-operator
+        app.kubernetes.io/part-of: sap-integration
+    spec:
+      serviceAccountName: redpanda-operator
+      containers:
+        - name: operator
+          image: docker.redpanda.com/redpandadata/redpanda-operator:v25.3.9
+          args:
+            - "--crds-enabled=true"
+            - "--scope=cluster"
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          ports:
+            - containerPort: 8443
+              name: https
+            - containerPort: 8080
+              name: http-metrics
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 10
+---
+# Cluster Redpanda (CRD moderno v1alpha2, NO RedpandaCluster legacy).
+# Schema: spec.clusterSpec.* (no spec.* plano).
+apiVersion: cluster.redpanda.com/v1alpha2
+kind: Redpanda
+metadata:
+  name: redpanda
+  namespace: sap-integration
+  labels:
+    app.kubernetes.io/part-of: sap-integration
+spec:
+  clusterSpec:
+    image:
+      # TODO: pinear por digest sha256:... tras `docker pull` en el cluster de
+      # referencia (politica A22). Mientras tanto, tag LTS v25.3.9.
+      tag: v25.3.9
+    statefulset:
+      replicas: 3
+      podTemplate:
+        persistence:
+          # StorageClass por defecto en k3s es `local-path`. Si tu cluster usa
+          # otro (p.ej. longhorn, rook-cephfs), descomentar y ajustar.
+          # storageClassName: local-path
+          storage: 100Gi
+    resources:
+      requests:
+        cpu: 500m
+        memory: 1Gi
+      limits:
+        cpu: 2
+        memory: 4Gi
+    # Tiered Storage desactivado en v1 (ADR-0014). Activarlo abre OPS-011.
+    tieredStorage:
+      disabled: true
