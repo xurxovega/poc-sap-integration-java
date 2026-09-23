@@ -29,7 +29,7 @@
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
 
         <spring-boot.version>4.1.1</spring-boot.version>
-        <resilience4j.version>2.3.0</resilience4j.version>
+        <resilience4j.version>2.4.0</resilience4j.version>
         <testcontainers.version>1.21.1</testcontainers.version>
         <wiremock.version>3.13.0</wiremock.version>
         <jacoco.version>0.8.13</jacoco.version>
