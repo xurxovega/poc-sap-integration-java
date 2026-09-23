@@ -124,6 +124,12 @@ class TopologyTest {
         if (rel.endsWith("TopologyTest.java")) {
             return false;
         }
+        // Excluir tests de contexto cuyo literal cita el nombre antiguo en el
+        // Javadoc/mensaje de error: la asercion NEGATIVA necesita el nombre.
+        if (rel.endsWith("CustomerApplicationContextTest.java")
+                || rel.endsWith("ArticleApplicationContextTest.java")) {
+            return false;
+        }
         // Solo ficheros donde apareceria un servicio, env var o host operativo.
         return name.endsWith(".yml") || name.endsWith(".yaml")
                 || name.endsWith(".env") || name.endsWith(".example")

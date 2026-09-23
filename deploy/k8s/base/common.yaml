@@ -12,7 +12,7 @@ kind: ConfigMap
 metadata:
   name: sap-integration-config
 data:
-  KAFKA_BOOTSTRAP: "kafka.messaging.svc:9092"
+  MESSAGING_BOOTSTRAP: "redpanda.sap-integration.svc.cluster.local:9092"
   ES_URL: "http://elasticsearch.data.svc:9200"
   SAP_AUTH_ALLOW_STUB: "false"          # nunca true fuera del mock local
   APP_SECURITY_ENABLED: "true"           # JWT de Keycloak obligatorio
