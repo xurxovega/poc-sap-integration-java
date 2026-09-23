@@ -20,7 +20,12 @@ identifican por fecha.
 
 ## [Sin publicar]
 
-### 2026-09-23 — Broker de mensajería único, sin máquina virtual extra
+### 2026-09-23 — Cierre de OPS-010: broker de mensajería único, sin máquina virtual extra
+
+Sustitución del broker de Kafka+ZooKeeper por **Redpanda** (mismo *wire*
+Kafka 3.x, sin JVM, sin ZooKeeper) en **todos los entornos** a la vez. La
+aplicación cliente no cambia: solo se renombra la variable de entorno y el
+puerto por defecto.
 
 #### Cambiado
 
@@ -31,25 +36,39 @@ identifican por fecha.
   `KAFKA_BOOTSTRAP` por `MESSAGING_BOOTSTRAP`, y los nombres
   operativos pasan de `kafka-*` a `rpk`. Se aplica a **todos los
   entornos** a la vez (local, test, producción).
+- **Ahorro operativo**: 2 JVM menos por clúster de Kubernetes (ZooKeeper
+  + broker Kafka en Java) y arranque del broker local en segundos en
+  lugar del minuto largo del antiguo Kafka + ZooKeeper.
 
 #### Añadido
 
 - Un cluster de Redpanda por clúster de Kubernetes (test, producción),
-  operado por el **Redpanda Operator** con la CRD `cluster.redpanda.com/v1alpha2`
-  (`kind: Redpanda`), cada uno con tres réplicas y factor de réplica 3
-  en los topics de la aplicación. En local el broker arranca en unos
-  segundos, frente al minuto largo del antiguo Kafka + ZooKeeper.
-- Manifiestos Kubernetes del operador, del cluster Redpanda, del *worker*
-  de Debezium Connect apuntando a Redpanda, y procedimiento de validación
-  en un k3s local.
+  operado por el **Redpanda Operator** con la CRD
+  `cluster.redpanda.com/v1alpha2` (`kind: Redpanda`), 3 nodos HA con
+  factor de réplica 3 en los topics de la aplicación.
+- **Manifiestos Kubernetes** con Redpanda Operator + CRD `Redpanda`,
+  3 nodos HA, **Tiered Storage desactivado** (la activación se deja
+  como propuesta `OPS-011` para después de la prueba de carga), y el
+  *worker* de Debezium Connect apuntando al servicio `redpanda:9092`
+  dentro del clúster. Procedimiento de validación en un k3s local.
+- Test de integración nuevo `DebeziumRedpandaIT` en verde contra
+  `RedpandaContainer` v25.3.9 LTS (sustituye al antiguo
+  `ConfluentKafkaContainer` que ya no se podía usar en Testcontainers
+  1.21). `InfrastructureSmokeIT` migrado al mismo contenedor.
+- Cierre del acuerdo **D-16** de [ADR-0011](../docs/architecture/adr/0011-concurrencia-entre-instancias-fencing-sin-lease.md):
+  ya no se comparte un Kafka multi-AZ entre clusters; cada clúster K8s
+  tiene su propio cluster Redpanda y un *consumer group* por clúster.
+  [ADR-0014](../docs/architecture/adr/0014-redpanda-como-broker-de-mensajeria.md)
+  justifica la elección.
 
 #### Pendiente
 
-- Las cifras definitivas de rendimiento se miden cuando se desmonte el
+- **Cifras definitivas de rendimiento**: se miden cuando se desmonte el
   broker antiguo (próximo PR, fuera de OPS-010). En el apartado de
   *baseline* de producción queda el hueco para anotar el *throughput*
-  CDC, la latencia p99 de extremo a extremo y el heap JVM que se ahorra
-  por clúster.
+  CDC, la **latencia p99** de extremo a extremo del flujo CDC→SAP y el
+  heap JVM que se ahorra por clúster. El plan es medir *después* de
+  cerrar el cambio para que la cifra sea comparable.
 
 ### 2026-09-23 — Pausa de la vista grafo de UI-002
 
