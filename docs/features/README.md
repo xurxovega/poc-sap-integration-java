@@ -39,6 +39,7 @@ si falla. Estructura fija.
 
 | Código | Nombre | Estado | Quickstart | Spec |
 |---|---|---|---|---|
+| PRD-9 | Consulta de Business Partner en SAP (GET, sin coste) | ✅ Incorporada 2026-09-24 | [quickstart](PRD-9/quickstart.md) | [docs/sdd/customer/consulta-business-partner-sap.md](../sdd/customer/consulta-business-partner-sap.md) |
 | OBS-005 | Recolección y consumo de la observabilidad | Incorporada 2026-09-23 | [quickstart](OBS-005/quickstart.md) · [grafo](OBS-005/feature-execution-graph.html) | [docs/sdd/common/observabilidad.md](../sdd/common/observabilidad.md) (enmienda) |
 | UI-001 | Dashboard web: vista por entidad y búsqueda | Incorporada 2026-09-23 | [quickstart](UI-001/quickstart.md) · [grafo](UI-001/feature-execution-graph.html) | [docs/sdd/customer/consulta-entidad-ui.md](../sdd/customer/consulta-entidad-ui.md) |
 | UI-002 | Vista grafo del flujo de integración por entidad | ⏸ Pausada 2026-09-23 | [quickstart](UI-002/quickstart.md) · [grafo](UI-002/feature-execution-graph.html) | [docs/sdd/customer/consulta-entidad-grafo-ui.md](../sdd/customer/consulta-entidad-grafo-ui.md) |
