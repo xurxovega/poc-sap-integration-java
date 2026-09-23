@@ -30,8 +30,8 @@
 
         <spring-boot.version>4.1.1</spring-boot.version>
         <resilience4j.version>2.3.0</resilience4j.version>
-        <testcontainers.version>1.21.1</testcontainers.version>
-        <wiremock.version>3.13.0</wiremock.version>
+        <testcontainers.version>2.0.5</testcontainers.version>
+        <wiremock.version>3.13.2</wiremock.version>
         <jacoco.version>0.8.13</jacoco.version>
         <otel.version>1.44.0</otel.version>
         <otel-instrumentation.version>2.13.3</otel-instrumentation.version>
