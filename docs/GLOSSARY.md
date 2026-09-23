@@ -282,11 +282,70 @@ Librería Java para conectividad RFC/BAPI con sistemas SAP.
 
 ### Kafka
 
-Plataforma de eventos. Recibe mensajes CDC (`outbox.<DOMINIO>`) y eventos directos (`events.<DOMINIO>`).
+Plataforma de eventos. Recibía mensajes CDC (`outbox.<DOMINIO>`) y eventos
+directos (`events.<DOMINIO>`) hasta OPS-010 (2026-09-23). **Sustituida por
+[Redpanda](#redpanda)** en todos los entornos; la app cliente no se tocó
+porque el wire Kafka 3.x es compatible.
 
 ### Kafka Connect
 
-Marco de conectores de Kafka en el que corre Debezium (`kafka-connect`, puerto 8083). Los conectores se registran por REST (`scripts/start-all.sh --with-cdc`). Alternativa evaluable: Debezium Server sin Connect (decisión D-3, [ADR-0006](architecture/adr/0006-kafka-connect-debezium-como-cdc.md)).
+Marco de conectores de Kafka en el que corre Debezium (`kafka-connect`, puerto 8083). Tras OPS-010, el worker arranca con `BOOTSTRAP_SERVERS=redpanda:9092` (servicio in-cluster del compose o del K8s); los conectores se registran por REST (`scripts/start-all.sh --with-cdc`). Alternativa evaluable: Debezium Server sin Connect (decisión D-3, [ADR-0006](architecture/adr/0006-kafka-connect-debezium-como-cdc.md)).
+
+### Redpanda
+
+Broker de eventos wire-compatible con Kafka 3.x, escrito en C++ y **sin
+ZooKeeper**. En este proyecto sustituye a Kafka desde OPS-010
+([ADR-0014](architecture/adr/0014-redpanda-como-broker-de-mensajeria.md));
+un cluster por clúster K8s (3 réplicas en test/prod, 1 en local), operado
+por el Redpanda Operator (`cluster.redpanda.com/v1alpha2`,
+`kind: Redpanda`). Para diagnóstico se usa `rpk` (no `kafka-*`). Ver
+[`sdd/common/broker-de-mensajeria.md`](sdd/common/broker-de-mensajeria.md).
+
+### `Redpanda` (CRD)
+
+Recurso Kubernetes del Redpanda Operator para declarar un cluster
+broker. **Nombre oficial**: `Redpanda` en
+`cluster.redpanda.com/v1alpha2` (esquema `spec.clusterSpec.*`); un alias
+antiguo `RedpandaCluster` quedó obsoleto. La base Kustomize del proyecto
+declara `kind: Redpanda` directamente.
+
+### Redpanda Operator
+
+Controlador oficial de Redpanda para Kubernetes. Imagen
+`docker.redpanda.com/redpandadata/redpanda-operator:v25.3.9` (LTS pin);
+gestiona el ciclo de vida del CRD `Redpanda` y de los PVC del StatefulSet.
+Sus Helm charts activan FluxCD por defecto (issue #23083) —manifests
+Kustomize puros en este repo. Ver
+[`deploy/README.md`](deploy/README.md#validación-local-con-k3s).
+
+### `rpk`
+
+CLI de Redpanda. Sustituye a las utilidades `kafka-*` (Apache Kafka) en
+todos los runbooks del proyecto: `rpk topic list`, `rpk topic describe`,
+`rpk topic create`, `rpk topic consume`, `rpk cluster health`,
+`rpk group list`. Tabla de equivalencias en
+[`operacion/RUNBOOKS.md`](operacion/RUNBOOKS.md#equivalencias-kafka---rpk).
+
+### `MESSAGING_BOOTSTRAP`
+
+Variable de entorno y `ConfigMap` que sustituye a `KAFKA_BOOTSTRAP` desde
+OPS-010. Apunta al *bootstrap servers* del broker Kafka 3.x que use la
+app cliente: Redpanda en OPS-010. Local en compose: `localhost:19092`
+(puerto externo) o `redpanda:9092` (interno). K8s:
+`redpanda.sap-integration[-test].svc.cluster.local:9092`. El renombrado
+fue cosmético: solo es el literal que va a `bootstrap.servers`; el resto
+de variables `KAFKA_*` (`KAFKA_MAX_POLL_INTERVAL_MS`,
+`KAFKA_MAX_POLL_RECORDS`, `APP_KAFKA_*`) **no** se renombran porque son
+propiedades de Spring Kafka, no del broker.
+
+### Tiered Storage
+
+Capa de almacenamiento remota (S3, GCS, MinIO) en la que Redpanda descarga
+segments de logs viejos para liberar disco local sin perder histórico.
+Equivale al `log.retention` extendido por almacenamiento objeto. **En OPS-010
+está desactivado** (`tieredStorage.disabled: true`); activarlo es `OPS-011`
+en [`MEJORAS-Y-PROPUESTAS.md`](MEJORAS-Y-PROPUESTAS.md), condicionado al
+plan de capacidad.
 
 ### Keycloak
 

@@ -6,15 +6,51 @@ Los comandos son los del entorno local (`scripts/env/local.env`); en test
 cambian host y credenciales, no el procedimiento. Quién opera esto y con qué
 guardias: pendiente ([`APTITUD-PRODUCCION.md`](APTITUD-PRODUCCION.md)).
 
+> **Broker**: a partir de OPS-010 (2026-09-23) el broker del proyecto ya no
+> es Apache Kafka sino **Redpanda** (v25.3.9 LTS, K8s Operator + CRD
+> `cluster.redpanda.com/v1alpha2`). La app cliente sigue hablando Kafka 3.x
+> sobre el wire — por eso los *listeners* y los *contract tests* no
+> cambian. Los comandos operativos pasan de `kafka-*` a `rpk`. Equivalencias
+> en [Equivalencias `kafka-*` ↔ `rpk`](#equivalencias-kafka---rpk) más abajo.
+
 | # | Síntoma | Runbook |
 |---|---|---|
 | 1 | Una entidad no se sincroniza y su estado es intermedio (`SENDING_SAP`, `INDEXING`...) o `SAP_ERROR` | [Entidad atascada o en error](#1-entidad-atascada-o-en-sap_error) |
 | 2 | Hay mensajes en `outbox.CUSTOMER-dlt` / `outbox.ARTICLE-dlt` | [Mensaje en la DLT](#2-mensaje-en-la-dlt) |
 | 3 | Muchas entidades pasan a `SAP_ERROR`; `resilience4j_circuitbreaker_state` en `open` | [SAP caído o degradado](#3-sap-caído-o-degradado) |
 | 4 | La app no arranca | [La app no arranca](#4-la-app-no-arranca) |
-| 5 | Rebalanceos de Kafka en cascada, el mismo mensaje se procesa varias veces | [Presupuesto de reintentos](#5-rebalanceos-de-kafka-y-presupuesto-de-reintentos) |
+| 5 | Rebalanceos del broker en cascada, el mismo mensaje se procesa varias veces | [Presupuesto de reintentos](#5-rebalanceos-y-presupuesto-de-reintentos) |
 | 6 | Hay que dar de baja a un cliente o revocar un mandato | [Baja y bloqueo](#6-baja-de-cliente-y-revocación-de-mandato) |
 | 7 | `ConcurrentTransitionException` repetida sobre las mismas entidades | [Colisiones de concurrencia sostenidas](#7-concurrenttransitionexception-sostenida) |
+| 8 | El broker Redpanda no arranca, no acepta escrituras, o pierde particiones | [Broker Redpanda sano o degradado](#8-broker-redpanda-sano-o-degradado) |
+| 9 | No hay conectores o aparecen `FAILED` en Kafka Connect | [Conectores Debezium](#9-conectores-debezium) |
+
+### Equivalencias `kafka-*` ↔ `rpk`
+
+Cuando el comando viejo asumía un broker Kafka + utilidades de Apache,
+sustitúyelo por el equivalente nativo de Redpanda. **Los flags cambian de
+forma**, por eso la tabla es referencia rápida y no una traducción
+mecánica:
+
+| Para… | Kafka (antes) | Redpanda (ahora) |
+|---|---|---|
+| Listar topics | `kafka-topics --bootstrap-server $MESSAGING_BOOTSTRAP --list` | `rpk topic list --brokers $MESSAGING_BOOTSTRAP` |
+| Describir un topic | `kafka-topics --bootstrap-server $MESSAGING_BOOTSTRAP --describe --topic outbox.CUSTOMER` | `rpk topic describe outbox.CUSTOMER --brokers $MESSAGING_BOOTSTRAP` |
+| Crear un topic (12 particiones, RF=3 test/prod / RF=1 local) | `kafka-topics --bootstrap-server $MESSAGING_BOOTSTRAP --create --if-not-exists --topic X --partitions 12 --replication-factor 3` | `rpk topic create X --partitions 12 --replication 3 --brokers $MESSAGING_BOOTSTRAP` |
+| Consumir desde un topic | `kafka-console-consumer --bootstrap-server $MESSAGING_BOOTSTRAP --topic X --from-beginning --property print.headers=true --max-messages 5` | `rpk topic consume X --brokers $MESSAGING_BOOTSTRAP --num 5 --print-headers` |
+| Listar consumer groups | `kafka-consumer-groups --bootstrap-server $MESSAGING_BOOTSTRAP --list` | `rpk group list --brokers $MESSAGING_BOOTSTRAP` |
+| Describir un consumer group | `kafka-consumer-groups --bootstrap-server $MESSAGING_BOOTSTRAP --describe --group customer-consumer` | `rpk group describe customer-consumer --brokers $MESSAGING_BOOTSTRAP` |
+| Salud del cluster | `kafka-broker-api-versions --bootstrap-server $MESSAGING_BOOTSTRAP` | `rpk cluster health --brokers $MESSAGING_BOOTSTRAP` |
+| Info del cluster | `kafka-broker-api-versions`, `kafka-metadata-quorum` | `rpk cluster info --brokers $MESSAGING_BOOTSTRAP` |
+
+En docker compose local el broker es accesible desde el host en
+`localhost:19092` (puerto externo del `external listener`); dentro de la
+red Docker, los servicios usan `redpanda:9092` (puerto interno). Sustituir
+`$MESSAGING_BOOTSTRAP` por el que aplique:
+
+- Local: `MESSAGING_BOOTSTRAP='localhost:19092'` (en `scripts/env/local.env`)
+- K8s test: el servicio in-cluster del CRD `Redpanda`
+- K8s prod: idem
 
 ## 1. Entidad atascada o en `SAP_ERROR`
 
@@ -63,11 +99,21 @@ actualizar, aunque el dato en Mongo sea correcto.
 **Detección**: consumidor de `outbox.<DOM>-dlt` con mensajes; log
 `DeadLetterPublishingRecoverer`.
 
-**Confirmar**:
+**Confirmar** (Redpanda; antes era `kafka-broker`/`kafka-console-consumer`):
+
 ```bash
-docker exec kafka-broker kafka-console-consumer --bootstrap-server localhost:9092 \
-  --topic outbox.CUSTOMER-dlt --from-beginning --max-messages 5 --property print.headers=true
+docker exec redpanda rpk topic consume outbox.CUSTOMER-dlt \
+  --brokers localhost:19092 --num 5 --print-headers
 ```
+
+Equivalente si el broker está en K8s y se diagnostica desde un pod de debug:
+
+```bash
+kubectl -n sap-integration-test run rpk-debug --rm -it --restart=Never \
+  --image=redpandadata/redpanda:v25.3.9 -- rpk topic consume outbox.CUSTOMER-dlt \
+  --brokers <redpanda.svc>:9092 --num 5 --print-headers
+```
+
 La cabecera `kafka_dlt-exception-message` dice por qué.
 
 **Qué hacer** según la causa:
@@ -112,21 +158,30 @@ propósito y dicen qué falta:
 | `Port 8081 was already in use` | Instancia anterior viva (en Windows `pkill` no la mata) | `netstat -ano \| grep :8081` → `taskkill //PID <pid> //F`, o `scripts/stop-all.sh --apps-only` |
 | `ddl-auto: validate` falla | El legacy aún no tiene el DDL (SQL Server tarda minutos) | Esperar a `sqlserver-init`; `start-all.sh` ya lo hace |
 
-## 5. Rebalanceos de Kafka y presupuesto de reintentos
+## 5. Rebalanceos y presupuesto de reintentos
 
 **Detección**: log `Member ... sending LeaveGroup request ... poll interval`,
 el mismo `entityId` procesándose varias veces, `SAP_ERROR` en ráfaga.
 
 **Causa**: un mensaje tarda más que `max.poll.interval.ms` (SAP degradado ×
 reintentos × features). El arranque ya lo comprueba (`RetryBudgetGuard`); si
-pasa en caliente es porque Kafka o SAP están más lentos que el peor caso
-calculado.
+pasa en caliente es porque el broker o SAP están más lentos que el peor caso
+calculado. **Vale tanto para Kafka como para Redpanda** (la app cliente es la
+misma, wire Kafka 3.x).
 
 **Qué hacer**: confirmar el cálculo en el log de arranque («Presupuesto de
 reintentos por mensaje: N ms»); si N se acerca a `max.poll.interval.ms`, bajar
 `SAP_CLIENT_RESPONSE_TIMEOUT_MS` o `SAP_CLIENT_RETRY_MAX_ATTEMPTS`, o subir
 `KAFKA_MAX_POLL_INTERVAL_MS`. Ver
 [`../sdd/common/observabilidad.md`](../sdd/common/observabilidad.md) R-4.
+
+**Comprobar el lado broker** (Redpanda) cuando la sospecha es de su parte:
+rebalanceos no esperados suelen ir acompañados de un broker que perdió
+*leadership* de una partición (`rpk cluster health --brokers $MESSAGING_BOOTSTRAP`
+lo muestra) o de un cambio de *advertised listeners* (port-forward, NAT).
+`rpk topic describe outbox.CUSTOMER --brokers $MESSAGING_BOOTSTRAP`
+incluye el *leader* y el `in-sync-replicas` (ISR) por partición: si es < RF,
+una réplica está caída y el ISR se recupera en cuanto vuelve.
 
 ## 6. Baja de cliente y revocación de mandato
 
@@ -147,17 +202,19 @@ mensajes llegando a la DLT tras agotar los tres reintentos. Una colisión suelta
 es **normal** y se recupera sola (es reintentable, ADR-0011); lo que hay que
 investigar es la colisión **sostenida** sobre las mismas entidades.
 
-**Confirmar**:
+**Confirmar** (Redpanda; antes era `kafka-consumer-groups` / `kafka-topics`):
 
 ```bash
-# 1) Un solo consumer group por dominio, y que sus miembros sean TODAS las
-#    instancias de los dos clusters (si hay dos grupos, esa es la causa).
-kafka-consumer-groups --bootstrap-server "$KAFKA_BOOTSTRAP" --list
-kafka-consumer-groups --bootstrap-server "$KAFKA_BOOTSTRAP" --describe --group customer-consumer
+# 1) Un consumer group por dominio y por cluster K8s, y que sus miembros
+#    sean TODAS las instancias de ESE cluster (si hay dos grupos en el mismo
+#    cluster, esa es la causa).
+MESSAGING_BOOTSTRAP='<redpanda.svc>:9092'   # o localhost:19092 en compose
+rpk group list --brokers "$MESSAGING_BOOTSTRAP"
+rpk group describe customer-consumer --brokers "$MESSAGING_BOOTSTRAP"
 
 # 2) Particiones del topic y de su -dlt: deben coincidir y ser >= instancias x concurrency.
-kafka-topics --bootstrap-server "$KAFKA_BOOTSTRAP" --describe --topic outbox.CUSTOMER
-kafka-topics --bootstrap-server "$KAFKA_BOOTSTRAP" --describe --topic outbox.CUSTOMER-dlt
+rpk topic describe outbox.CUSTOMER --brokers "$MESSAGING_BOOTSTRAP"
+rpk topic describe outbox.CUSTOMER-dlt --brokers "$MESSAGING_BOOTSTRAP"
 
 # 3) Traza de la entidad: dos cycleId distintos entrelazados en la misma ventana.
 mongosh "$MONGO_URL_CUSTOMER" --eval 'db.sync_state.find({entityId:"CUST-001"}).sort({seq:1})'
@@ -167,7 +224,7 @@ mongosh "$MONGO_URL_CUSTOMER" --eval 'db.sync_state.find({entityId:"CUST-001"}).
 
 | Causa | Señal | Acción |
 |---|---|---|
-| **Dos consumer groups** (uno por clúster) | `--list` devuelve `customer-consumer` más de una vez, o con sufijo de clúster | corregir `CUSTOMER_KAFKA_GROUP` para que sea el **mismo** en los dos clústeres y reiniciar; es la causa que además **duplica escrituras en SAP** |
+| **Dos consumer groups en el mismo cluster** (uno por réplica) | `rpk group list` devuelve `customer-consumer` más de una vez, o con sufijo de clúster | corregir `CUSTOMER_KAFKA_GROUP` para que sea el **mismo** en todas las réplicas y reiniciar; es la causa que además **duplica escrituras en SAP**. Desde OPS-010 cada cluster K8s ya tiene su **propio** consumer group por dominio ([ADR-0011](../architecture/adr/0011-concurrencia-entre-instancias-fencing-sin-lease.md) revisado 2026-09-23): los offsets NO se comparten entre clusters y eso es lo correcto. |
 | **Clave de partición perdida** | mensajes de la misma entidad en particiones distintas | revisar `message.key.columns` / `ExtractField$Key` del conector Debezium: la clave debe ser `entity_id` |
 | **REST síncrono concurriendo con CDC** | los 409 coinciden con cargas manuales o de un cliente externo | es el comportamiento esperado: que el llamante reintente. Si es un canal de alto volumen, es **disparador de reevaluación** de ADR-0011 (valorar el *lease*) |
 | **Reproceso masivo** (reset de offsets, resincronización) | muchas entidades a la vez, tras una operación conocida | esperar a que drene; si satura, bajar `CUSTOMER_KAFKA_CONCURRENCY` temporalmente |
@@ -180,3 +237,64 @@ mensajes en la DLT, reprocesarlos según el runbook 2.
 estado, cuando la llamada a SAP ya pudo salir. Que un cambio no se escriba dos
 veces en SAP depende de la verificación previa (*lookup*), no de esto
 ([ADR-0011](../architecture/adr/0011-concurrencia-entre-instancias-fencing-sin-lease.md) §4).
+
+## 8. Broker Redpanda sano o degradado
+
+**Detección** (todas opcionales; cualquiera basta):
+
+- `rpk cluster health --brokers $MESSAGING_BOOTSTRAP` ≠ `Healthy`.
+- Métricas de la app: `sap_client_request_duration{outcome="transport_error"}`
+  sube; `recordStageDuration{stage="fetch"}` sigue normal (la lectura de
+  legacy no pasa por el broker).
+- Logs del Pod de Redpanda con `ERROR` en
+  `vectorized_cluster::archival` (cuestiones de storage) o
+  `cluster::partition` (cambios de liderazgo, OOM).
+
+**Confirmar**:
+
+```bash
+# Estado del cluster y brokers (leader, réplicas, particiones)
+rpk cluster info --brokers $MESSAGING_BOOTSTRAP
+rpk cluster health --brokers $MESSAGING_BOOTSTRAP
+
+# Estado de un topic concreto: leader, ISR, RF efectivo
+rpk topic describe outbox.CUSTOMER --brokers $MESSAGING_BOOTSTRAP
+
+# Si la infra está en K8s: replicas del StatefulSet
+kubectl -n sap-integration-test get redpanda -o jsonpath='{.status.replicas}'
+kubectl -n sap-integration-test get pods -l app.kubernetes.io/name=redpanda
+```
+
+**Qué hacer**:
+
+| Causa probable | Señal | Acción |
+|---|---|---|
+| Réplicas en Pod `CrashLoopBackOff` | `kubectl get pods` muestra `redpanda-N` con `Ready=0` | `kubectl describe pod redpanda-N -n <ns>` y revisar `Events` (PVC no provisionado, `StorageClass` inexistente, OOMKilled). El broker se recupera solo cuando la réplica vuelve y el ISR se re-completa: los consumidores seguirán en el broker sano con un breve rebalanceo. |
+| `NotEnoughReplicasException` en la app | `KAFKA_BOOTSTRAP` apunta a un broker del que solo 1 réplica está arriba y el topic tiene RF=3 | bajar RF (`rpk topic alter-config --set replication=1`) en local/dev, o traer la réplica caída arriba. En producción la recuperación la hace el controlador. |
+| Pod del Operator en `CrashLoopBackOff` | `kubectl logs deploy/redpanda-operator -c operator` | el Operator no puede reconciliar el CRD; los Pods ya levantados siguen funcionando, pero no se aplicarán cambios futuros. Reiniciar el Operator; si persiste, abrir incidencia. |
+| Tiered Storage deshabilitado y disco lleno | métrica de disco del Pod al 100 %, write-rejecting | `kubectl exec` en el Pod, liberar o ampliar el PVC. **La desactivación de Tiered Storage es decisión de v1** (ADR-0014); abrir OPS-011 si esto se vuelve operacional. |
+
+**Comprobar que quedó bien**: `rpk cluster health` vuelve a `Healthy`,
+las alertas callan, la app retoma el flujo.
+
+## 9. Conectores Debezium
+
+**Detección**: `curl -s http://localhost:8083/connectors?expand=status | jq`
+muestra `connector.state=FAILED` o el worker de Connect no responde.
+
+**Confirmar**:
+
+```bash
+curl -s http://localhost:8083/connectors/outbox-customer-sqlserver/status | jq
+docker exec redpanda rpk topic list --brokers localhost:19092
+# Deben existir outbox.CUSTOMER, outbox.CUSTOMER-dlt, connect-configs,
+# connect-offsets, connect-statuses
+```
+
+**Causas y qué hacer**:
+
+| Causa | Señal | Acción |
+|---|---|---|
+| Worker sin arrancar | `8083/connectors` devuelve error 5xx | `kubectl logs deploy/debezium-connect -c connect` o `docker logs kafka-connect`; `BOOTSTRAP_SERVERS=redpanda:9092` y los `*_STORAGE_TOPIC` en el ConfigMap deben estar correctos |
+| Topic interno `connect-offsets` no existe o RF incompatible | `ERROR topics with replication.factor: 3 > available brokers` | `rpk topic create connect-offsets --partitions 25 --replication 3` (o RF=1 en local); `connect-configs` y `connect-statuses` igual |
+| Conector en `FAILED` por cambio de esquema del legacy | `WARN Table definition ... not found` | recrear el conector con el `register-*.json` actualizado; **Detalle completo** en [`../tools-integrations/SERVICIO-AUTENTICACION.md`](../tools-integrations/SERVICIO-AUTENTICACION.md) (placeholder; en su defecto, [`../../external-services/debezium/README.md`](../../external-services/debezium/README.md)) |

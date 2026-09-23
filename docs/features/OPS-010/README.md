@@ -9,7 +9,9 @@ mejorada, simplificación operativa.
 
 ## Estado
 
-Pendiente desde 2026-09-22.
+✅ Implementada 2026-09-23 (5 commits H-0..H-5 en la rama
+`feature/saneamiento-integracion-sap`). Pendiente del cierre definitivo
+(ver §"Cierre" abajo).
 
 ## Alcance
 
@@ -25,10 +27,11 @@ Pendiente desde 2026-09-22.
 - Conectores Debezium (`external-services/debezium/register-*.json`):
   `kafka-broker:29092` → `redpanda:9092`.
 - Manifiestos K8s nuevos:
-  - `deploy/k8s/base/redpanda.yaml` (Operator + CRD `RedpandaCluster`,
-    3 nodos HA, Tiered Storage desactivado).
+  - `deploy/k8s/base/redpanda.yaml` (Operator + CRD `Redpanda` — nombre
+    moderno, NO `RedpandaCluster` legacy — 3 nodos HA, Tiered Storage
+    desactivado).
   - `deploy/k8s/base/kafka-connect.yaml` (Debezium Connect apuntando al
-    Redpanda del cluster).
+    Redpanda del cluster, `BOOTSTRAP_SERVERS=redpanda:9092` in-cluster).
 - Renombrado `KAFKA_BOOTSTRAP` → `MESSAGING_BOOTSTRAP` en YAML, scripts,
   ConfigMaps y ADRs.
 - `deploy/k8s/base/common.yaml`: `MESSAGING_BOOTSTRAP: "redpanda.messaging.svc:9092"`.
@@ -95,3 +98,29 @@ Pendiente desde 2026-09-22.
 | Fecha | Cambio |
 |---|---|
 | 2026-09-22 | Alta de la feature (estado "Pendiente"). Andamiaje en `docs/features/OPS-010/`. |
+| 2026-09-23 | Implementación H-0..H-5: `TopologyTest` × 3 + `*ApplicationContextTest#contextStartsWithMessagingBootstrapEnv` × 2 + `DebeziumRedpandaIT` + `InfrastructureSmokeIT` migrado a `RedpandaContainer` v25.3.9; renombrado `KAFKA_BOOTSTRAP` → `MESSAGING_BOOTSTRAP`; compose con Redpanda (un solo binario, sin ZooKeeper); manifiestos K8s del Operator + CRD `Redpanda` y `kafka-connect` apuntando al servicio in-cluster; ADR-0014 nuevo, ADR-0011 revisado (consumer group por clúster K8s); spec [`broker-de-mensajeria.md`](../../sdd/common/broker-de-mensajeria.md); RUNBOOKS con tabla de equivalencias `kafka-*` ↔ `rpk`; GLOSSARY (`Redpanda`, `rpk`, Redpanda Operator, `MESSAGING_BOOTSTRAP`, Tiered Storage); CHANGELOGs raíz y `common/CHANGELOG.md`; baseline pre-Redpanda anotado en [`APTITUD-PRODUCCION.md` §3-bis](../../operacion/APTITUD-PRODUCCION.md#3-bis-baseline-del-broker--pre-y-post-ops-010); evento `ALTA` en `sdd_registry.feature_evento`. Estado: ✅ Implementada. |
+
+## Cierre
+
+Esta feature queda **incorporada** con 5 commits en la rama
+`feature/saneamiento-integracion-sap`:
+
+| Hito | Título | Commit |
+|---|---|---|
+| H-0 | tests rojos | `da09f34` |
+| H-1 | renombrado `KAFKA_BOOTSTRAP` → `MESSAGING_BOOTSTRAP` | `4f41596` |
+| H-2 | compose local con Redpanda | `c2e425e` |
+| H-3 | manifiestos K8s (Operator + CRD `Redpanda`, Kafka Connect) | `50e1273` |
+| H-4 | ADR-0014 + revisión ADR-0011 | `5cdc987` |
+| H-5 | spec, RUNBOOKS, GLOSSARY, CHANGELOG, `feature_evento`, baseline (este commit H-5) | (ver `git log`) |
+
+Pendiente fuera de OPS-010:
+
+- Aplicar los manifiestos K8s en el cluster de test real (accede SRE):
+  `kubectl apply -k deploy/k8s/overlays/test` + validación contra k3s.
+- Medir el baseline definitivo en `external-services/` con Kafka 3.x
+  contra la columna "Pre Redpanda" de [`APTITUD-PRODUCCION.md` §3-bis](../../operacion/APTITUD-PRODUCCION.md#3-bis-baseline-del-broker--pre-y-post-ops-010)
+  (procedimiento en
+  [`GUIA-PRUEBAS.md`](../../testing/GUIA-PRUEBAS.md)).
+- Sustituir los tags por digest `repo:tag@sha256:...` en el primer
+  despliegue real (criterio A22).

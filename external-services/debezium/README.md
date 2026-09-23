@@ -111,14 +111,12 @@ docker exec -it sqlserver-source /opt/mssql-tools18/bin/sqlcmd -S localhost -U s
 docker exec -it postgres-source psql -U postgres -d poc \
   -c "UPDATE articles SET description = 'Laptop Dell XPS 15 (2026)' WHERE id = 'ART-001'"
 
-# Consumir los topics
-docker exec -it kafka-broker kafka-console-consumer \
-  --bootstrap-server localhost:9092 --topic outbox.CUSTOMER --from-beginning \
-  --property print.key=true
+# Consumir los topics (Redpanda sustituye a kafka-broker desde OPS-010)
+docker exec redpanda rpk topic consume outbox.CUSTOMER \
+  --brokers localhost:19092 --num 10 --print-key
 
-docker exec -it kafka-broker kafka-console-consumer \
-  --bootstrap-server localhost:9092 --topic outbox.ARTICLE --from-beginning \
-  --property print.key=true
+docker exec redpanda rpk topic consume outbox.ARTICLE \
+  --brokers localhost:19092 --num 10 --print-key
 ```
 
 ## Notas / límites conocidos
@@ -149,7 +147,7 @@ docker exec -it kafka-broker kafka-console-consumer \
   available log position», es este mismo caso.
 - **Topics ya existentes no se reparticionan.** `kafka-init-topics` usa
   `--create --if-not-exists`: un topic creado antes con 1 partición se queda
-  con 1. Para subirlo: `kafka-topics --alter --topic outbox.CUSTOMER --partitions 12`
+  con 1. Para subirlo: `rpk topic add-partitions outbox.CUSTOMER --partitions 12 --brokers localhost:19092`
   (y lo mismo para `-dlt` y `outbox.ARTICLE`); comprueba con `--describe`.
 - La outbox no se purga (PoC). En producción habría que borrar filas ya
   capturadas (job de retención) y valorar el SMT `EventRouter` oficial de Debezium.

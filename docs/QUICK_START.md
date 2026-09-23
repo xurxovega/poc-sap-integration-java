@@ -44,11 +44,11 @@ Elasticsearch → SAP) está funcionando.
 
 | | Estado |
 |---|---|
-| Kafka + Zookeeper, SQL Server, PostgreSQL, MongoDB, Elasticsearch, Kibana, MinIO | ✅ `docker compose` de `external-services/` |
+| Redpanda (sustituye a Kafka + ZooKeeper), SQL Server, PostgreSQL, MongoDB, Elasticsearch, Kibana, MinIO | ✅ `docker compose` de `external-services/` |
 | Seeds y DDL del legacy (`sqlserver-init`, `minio-init`) | ✅ contenedores one-shot del compose |
 | SAP simulado (WireMock) con stub catch-all | ✅ lo levanta el script (no está en el compose) |
 | `customer-app` (8081) y `article-app` (8082) | ✅ compiladas y arrancadas por el script |
-| Conectores Debezium (CDC real) | ⚠️ solo con `--with-cdc`; sin ellos la ingesta es REST/Kafka manual |
+| Conectores Debezium (CDC real) | ⚠️ solo con `--with-cdc`; sin ellos la ingesta es REST/Kafka manual. Debezium apunta a Redpanda (mismo wire, sin tocar el conector) |
 | `supplier-app` | ❌ placeholder no desplegable (`SupplierApplicationPlaceholder` lanza `UnsupportedOperationException`) |
 | Prometheus / Grafana / colector OTLP | 🔜 **aplazado a propósito**. Las apps ya exponen `/actuator/prometheus` y aceptan el javaagent de OTel; el stack de observabilidad se montará más adelante |
 
@@ -154,9 +154,8 @@ docker compose ps                     # espera a que todo esté healthy
 
 | Servicio | Contenedor | Puerto host | Uso | Credenciales |
 |---|---|---|---|---|
-| Kafka | `kafka-broker` | `9092` | Topics `outbox.CUSTOMER` / `outbox.ARTICLE` | — |
-| Zookeeper | `zookeeper` | `2181` | Coordinación de Kafka | — |
-| Kafka Connect (Debezium) | `kafka-connect` | `8083` | CDC de las outbox legacy | — |
+| Redpanda | `redpanda` | `19092` (externo) / `9092` (interno Docker) | Topics `outbox.CUSTOMER` / `outbox.ARTICLE` (wire Kafka 3.x, sin ZooKeeper). La app cliente habla el mismo wire: `MESSAGING_BOOTSTRAP='localhost:19092'` | — |
+| Kafka Connect (Debezium) | `kafka-connect` | `8083` | CDC de las outbox legacy — el worker arranca con `BOOTSTRAP_SERVERS=redpanda:9092` (servicio interno del compose), no `kafka-broker` | — |
 | SQL Server | `sqlserver-source` | `1433` | Legacy de **customer** (BD `poc`) | `sa` / `SqlServer_Pa55w0rd!` |
 | PostgreSQL | `postgres-source` | `5432` | Legacy de **article** (BD `poc`) | `postgres` / `postgres` |
 | MongoDB | `mongodb` | `27017` | Imagen actual + `sync_state` | sin auth |
@@ -227,11 +226,11 @@ Variables por bloque:
 | Legacy article | `POSTGRES_URL`, `POSTGRES_USER`, `POSTGRES_PASSWORD` |
 | Imagen + estado | `MONGO_URL_CUSTOMER`, `MONGO_URL_ARTICLE` — una base por dominio (con `?authSource=admin` si el Mongo de test tiene auth) |
 | Histórico | `ES_URL` |
-| Mensajería | `KAFKA_BOOTSTRAP`, `KAFKA_CONNECT_URL` |
+| Mensajería | `MESSAGING_BOOTSTRAP`, `KAFKA_CONNECT_URL` |
 | SAP BTP | `SAP_BTP_BASE_URL`, `SAP_BTP_TOKEN_URL`, `SAP_BTP_CLIENT_ID`, `SAP_BTP_CLIENT_SECRET` |
 | SAP S/4 | `SAP_S4_BASE_URL`, `SAP_S4_AUTH_TYPE`, `SAP_S4_TOKEN_URL`, `SAP_S4_CLIENT_ID`, `SAP_S4_CLIENT_SECRET`, `SAP_S4_CSRF_ENABLED` |
 | Timeouts | `SAP_CLIENT_CONNECT_TIMEOUT_MS`, `SAP_CLIENT_RESPONSE_TIMEOUT_MS` (súbelos contra remotos; `RetryBudgetGuard` exige que `5 × (intentos × timeout + backoff)` quepa en `KAFKA_MAX_POLL_INTERVAL_MS`, 15 min por defecto) |
-| Operación | `SAP_AUTH_ALLOW_STUB`, `KAFKA_MAX_POLL_INTERVAL_MS`, `SHUTDOWN_TIMEOUT`, `LOGGING_STRUCTURED_FORMAT_CONSOLE=ecs` (logs JSON para Loki/ELK), `TRACING_ENABLED` + `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` |
+| Operación | `SAP_AUTH_ALLOW_STUB`, `KAFKA_MAX_POLL_INTERVAL_MS`, `SHUTDOWN_TIMEOUT`, `LOGGING_STRUCTURED_FORMAT_CONSOLE=ecs` (logs JSON para Loki/ELK), `TRACING_ENABLED` + `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT`. Nota: las props `KAFKA_MAX_POLL_*` se llaman así porque son **del cliente Kafka** (Spring Kafka), no del broker; el broker se llama por `MESSAGING_BOOTSTRAP`. |
 | Seguridad de la API | `APP_SECURITY_ENABLED` (`false` en local), `KEYCLOAK_ISSUER_URI`, `KEYCLOAK_CLIENT_ID` ([`tools-integrations/KEYCLOAK.md`](tools-integrations/KEYCLOAK.md)) |
 
 > **Sin credenciales OAuth2 la app no arranca** (`SAP_AUTH_ALLOW_STUB=false`, el
@@ -321,10 +320,10 @@ curl -s http://localhost:8082/actuator/health
 | `SQLSERVER_URL` / `POSTGRES_URL` | `localhost:1433` / `localhost:5432` | Legacy source |
 | `MONGO_URL_CUSTOMER` / `MONGO_URL_ARTICLE` | `mongodb://localhost:27017/customer` / `.../article` | Imagen + estado. Una base **por dominio**: `MONGO_URL` sigue valiendo como fallback, pero serviría la misma a las dos apps |
 | `ES_URL` | `http://localhost:9200` | Histórico |
-| `KAFKA_BOOTSTRAP` | `localhost:9092` | Broker |
+| `MESSAGING_BOOTSTRAP` | `localhost:19092` | Broker (Redpanda). El host usa el puerto **externo** `19092` del *listener* `external`; los servicios dentro del Docker usan `redpanda:9092` (interno) |
 | `SAP_ODATA_*_ENABLED` | `false` | Conmuta cada adaptador OData S/4 (por defecto se usa la ruta BTP) |
 | `SAP_CLIENT_LOOKUP_ENABLED` | `true` | Verificación previa (`GET`) antes de dar de alta en SAP (upsert idempotente). Con `false`, alta directa como antes de 2026-09-18 — ver §4 |
-| `KAFKA_TOPIC_PARTITIONS` | `12` | Particiones de los topics `outbox.*` que crea `kafka-init-topics` en `docker compose` |
+| `APP_KAFKA_TOPICS_PARTITIONS` | `12` | Particiones esperadas de los topics `outbox.*` que crea `redpanda-init-topics` en docker compose |
 
 Lista completa con sus defaults en [`scripts/env/local.env`](../scripts/env/local.env).
 
@@ -398,9 +397,8 @@ docker exec sqlserver-source /opt/mssql-tools18/bin/sqlcmd -C \
   -Q "UPDATE dbo.customers SET phone = '+34 600 999 000' WHERE id = 'CUST-001'"
 
 # 3. Ver el mensaje en el topic
-docker exec kafka-broker kafka-console-consumer \
-  --bootstrap-server localhost:9092 --topic outbox.CUSTOMER \
-  --from-beginning --property print.key=true --max-messages 5
+docker exec redpanda rpk topic consume outbox.CUSTOMER \
+  --brokers localhost:19092 --num 5 --print-key
 ```
 
 La app, si está arrancada, consume el topic y repite el pipeline del paso 6.
@@ -526,20 +524,34 @@ docker exec mongodb mongosh customer --quiet --eval \
   'db.sync_state.find({entityId:"CUST-001"}).sort({timestamp:-1}).limit(5)'
 ```
 
-### Kafka — topics, mensajes y DLT
+### Redpanda — topics, mensajes y DLT
 
-Sin UI en el compose; las herramientas del broker bastan:
+Sin UI específica en el compose; las herramientas nativas (`rpk`) y los
+clientes externos Kafka-compatible valen:
 
 ```bash
-docker exec kafka-broker kafka-topics --bootstrap-server localhost:9092 --list
-docker exec kafka-broker kafka-console-consumer --bootstrap-server localhost:9092 \
-  --topic outbox.CUSTOMER --from-beginning --max-messages 5
-docker exec kafka-broker kafka-console-consumer --bootstrap-server localhost:9092 \
-  --topic outbox.CUSTOMER-dlt --from-beginning     # mensajes que agotaron los reintentos
+# Listar topics (broker Redpanda)
+docker exec redpanda rpk topic list --brokers localhost:19092
+docker exec redpanda rpk topic describe outbox.CUSTOMER --brokers localhost:19092
+
+# Consumir desde un topic (5 mensajes)
+docker exec redpanda rpk topic consume outbox.CUSTOMER \
+  --brokers localhost:19092 --num 5 --print-headers
+
+# Mensajes que agotaron los reintentos (DLT)
+docker exec redpanda rpk topic consume outbox.CUSTOMER-dlt \
+  --brokers localhost:19092 --num 5
+
+# Consumer groups y descripción
+docker exec redpanda rpk group list --brokers localhost:19092
+docker exec redpanda rpk group describe customer-consumer --brokers localhost:19092
 ```
 
-Si prefieres UI, cualquier cliente externo apuntando a `localhost:9092`
-(Offset Explorer, Redpanda Console, AKHQ) funciona sin tocar el compose.
+Tabla de equivalencias `kafka-*` ↔ `rpk` (Redpanda Console, Offset
+Explorer, AKHQ…) en [`operacion/RUNBOOKS.md`](operacion/RUNBOOKS.md#equivalencias-kafka---rpk).
+Si prefieres UI, cualquier cliente externo apuntando a `localhost:19092`
+(Redpanda Console, Offset Explorer, AKHQ) funciona sin tocar el compose.
+**Redpanda Console** se monta aparte, no está en el compose.
 
 ### MinIO — consola S3
 
@@ -573,7 +585,7 @@ preparado para un futuro `S3ImageStoreAdapter`.
 | http://localhost:9200 | Elasticsearch |
 | http://localhost:5601 | Kibana |
 | http://localhost:9001 | Consola de MinIO |
-| `localhost:9092` | Kafka (broker) |
+| `localhost:19092` | Redpanda (broker Kafka 3.x wire-compatible, puerto *externo* en compose). Las apps dentro del Docker usan `redpanda:9092`. En K8s, el servicio in-cluster del CRD `Redpanda` |
 | `localhost:1433` / `localhost:5432` / `localhost:3306` | SQL Server / PostgreSQL / MySQL (registro SDD) |
 | `localhost:27017` | MongoDB |
 

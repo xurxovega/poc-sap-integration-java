@@ -120,6 +120,7 @@ Capacidades transversales del shared kernel, no features de negocio.
 | Autenticación hacia SAP (OAuth2/basic, sin stub silencioso) | [`autenticacion-sap.md`](common/autenticacion-sap.md) | ✅ | ✅ implementada (`BtpAuthProvider`, `S4NativeAuthProvider`; `sap.auth.allow-stub`) |
 | Contrato REST publicado de cada módulo (OpenAPI) | [`contrato-openapi-rest.md`](common/contrato-openapi-rest.md) | ✅ | ✅ implementado: `openapi.yml` en `customer` y `article`, con el rol y el enmascarado de cada operación; `OpenApiMatchesControllersTest` rompe el build si contrato y controladores divergen |
 | Observabilidad y operación del pipeline | [`observabilidad.md`](common/observabilidad.md) | ✅ | ⚠️ métricas (estado, etapa, HTTP SAP, Resilience4j), parada ordenada y presupuesto de reintentos hechos; trazas pendientes de D-7 |
+| Broker de mensajería (Kafka → Redpanda) | [`broker-de-mensajeria.md`](common/broker-de-mensajeria.md) | ✅ aceptada 2026-09-23 | ✅ implementado (OPS-010, H-0..H-5): Redpanda v25.3.9 LTS, Operator + CRD `Redpanda`, un cluster por clúster K8s, RF=3 en test/prod / RF=1 en local, Tiered Storage desactivado. `TopologyTest` × 3, `DebeziumRedpandaIT` (Testcontainers), `InfrastructureSmokeIT` migrado; cero cambios funcionales en Java (`KAFKA_BOOTSTRAP` → `MESSAGING_BOOTSTRAP`). |
 
 > Las features ya implementadas se escribieron antes de adoptar SDD. Regla de
 > transición: **la primera vez que se toca una feature, se escribe su spec** a

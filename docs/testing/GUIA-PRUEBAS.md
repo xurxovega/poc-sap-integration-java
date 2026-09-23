@@ -197,10 +197,12 @@ docker exec sqlserver-source /opt/mssql-tools18/bin/sqlcmd -C \
   -Q "SELECT TOP 3 id, entity_id, operation, occurred_at, message FROM dbo.outbox_customer ORDER BY id DESC"
 
 # b) Debezium lo publicó en el topic (key=entityId, value=aviso fino:
-#    {"entityId":"CUST-001","operation":"UPDATE","occurredAt":"..."} — sin datos)
-docker exec kafka-broker kafka-console-consumer \
-  --bootstrap-server localhost:9092 --topic outbox.CUSTOMER \
-  --from-beginning --property print.key=true --max-messages 5
+#    {"entityId":"CUST-001","operation":"UPDATE","occurredAt":"..."} — sin datos).
+#    Antes era `kafka-broker` + `kafka-console-consumer --bootstrap-server localhost:9092`;
+#    con Redpanda (OPS-010) el contenedor se llama `redpanda` y se conecta por el
+#    puerto externo 19092. Mismo wire Kafka 3.x.
+docker exec redpanda rpk topic consume outbox.CUSTOMER \
+  --brokers localhost:19092 --num 5 --print-key
 
 # c) La app lo procesó (log de customer-app) y el estado avanzó
 docker exec mongodb mongosh customer --quiet --eval \
@@ -272,14 +274,14 @@ para restaurar.
 ### 5.2 DLT (mensaje envenenado en Kafka)
 
 ```bash
-# Publica un mensaje que no es JSON en el topic
-echo 'esto-no-es-json' | docker exec -i kafka-broker kafka-console-producer \
-  --bootstrap-server localhost:9092 --topic outbox.CUSTOMER
+# Publica un mensaje que no es JSON en el topic. Antes era
+# `kafka-broker`+`kafka-console-producer`; con Redpanda se usa `rpk topic produce`.
+echo 'esto-no-es-json' | docker exec -i redpanda rpk topic produce outbox.CUSTOMER \
+  --brokers localhost:19092
 
 # Tras 3 reintentos con backoff, acaba en el dead-letter topic:
-docker exec kafka-broker kafka-console-consumer \
-  --bootstrap-server localhost:9092 --topic outbox.CUSTOMER-dlt \
-  --from-beginning --max-messages 1
+docker exec redpanda rpk topic consume outbox.CUSTOMER-dlt \
+  --brokers localhost:19092 --num 1
 ```
 
 ### 5.3 CSRF (solo escrituras a S/4 nativo, OData V2)

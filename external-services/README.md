@@ -15,9 +15,8 @@ Equivalente al `docker-compose.yml` del proyecto Python de referencia, pero adap
 
 | Servicio | Puerto | Uso | Credenciales |
 |---|---|---|---|
-| Zookeeper | `2181` | Coordinación de Kafka | — |
-| Kafka | `9092` (`localhost`), `29092` (red Docker) | Eventos CDC y directos | — |
-| Kafka Connect (Debezium) | `8083` | CDC outbox legacy → topics `outbox.*` | — |
+| Redpanda | `19092` (`localhost`), `9092` (red Docker) | **Broker Kafka 3.x wire-compatible, single-binary C++**. Sustituye a Kafka+ZooKeeper desde OPS-010 ([ADR-0014](../docs/architecture/adr/0014-redpanda-como-broker-de-mensajeria.md)). La app cliente (Spring Kafka) habla el mismo *wire* y la única variable renombrada es `KAFKA_BOOTSTRAP` → `MESSAGING_BOOTSTRAP`. Diagnóstico con `rpk` | — |
+| Kafka Connect (Debezium) | `8083` | CDC outbox legacy → topics `outbox.*`. El worker arranca con `BOOTSTRAP_SERVERS=redpanda:9092` (puerto interno del servicio Docker, **no** `localhost:19092`) | — |
 | PostgreSQL | `5432` | Legacy source (artículos) | `postgres` / `postgres` |
 | SQL Server | `1433` | Legacy source (clientes) | `sa` / `SqlServer_Pa55w0rd!` |
 | MongoDB | `27017` | Imagen actual + estado | sin auth |
@@ -33,13 +32,13 @@ cd external-services
 docker compose up -d
 ```
 
-El servicio `kafka-init-topics` crea `outbox.CUSTOMER`, `outbox.CUSTOMER-dlt`,
-`outbox.ARTICLE` y `outbox.ARTICLE-dlt` con 12 particiones
-(`KAFKA_TOPIC_PARTITIONS`, por defecto 12) en cuanto `kafka-broker` está sano,
-y termina (`restart: "no"`). Solo actúa sobre topics que **no existan**: uno
-creado antes con 1 partición hay que ampliarlo a mano con `kafka-topics --alter`
-(ver [`debezium/README.md`](debezium/README.md)). Las apps **no** crean topics
-(`APP_KAFKA_TOPICS_CREATE=false`, ver [`../deploy/README.md`](../deploy/README.md)).
+El servicio `redpanda-init-topics` crea `outbox.CUSTOMER`,
+`outbox.CUSTOMER-dlt`, `outbox.ARTICLE` y `outbox.ARTICLE-dlt` con 12
+particiones (RF=1 en local) en cuanto `redpanda` está sano, y termina
+(`restart: "no"`). Solo actúa sobre topics que **no existan**: uno creado
+antes con 1 partición hay que ampliarlo a mano con `rpk topic add-partitions`
+(ver [`debezium/README.md`](debezium/README.md)). Las apps **no** crean
+topics (`APP_KAFKA_TOPICS_CREATE=false`, ver [`../deploy/README.md`](../deploy/README.md)).
 
 ## CDC end-to-end (Debezium)
 
@@ -48,6 +47,10 @@ Los legacy tienen tablas outbox (`dbo.outbox_customer` en SQL Server,
 publica en `outbox.CUSTOMER` / `outbox.ARTICLE` el **aviso de cambio fino**
 (columna `message`: identidad del cambio, sin datos ni PII —
 [ADR-0013](../docs/architecture/adr/0013-outbox-mensaje-fino-sin-payload.md)).
+
+> Antes (con Kafka+ZooKeeper) Debezium apuntaba a `kafka-broker:29092`.
+> Con Redpanda el worker arranca con `BOOTSTRAP_SERVERS=redpanda:9092`
+> (configurado en el servicio `kafka-connect`).
 
 1. Levantar todo y esperar a que `kafka-connect` esté sano:
 
@@ -72,9 +75,11 @@ publica en `outbox.CUSTOMER` / `outbox.ARTICLE` el **aviso de cambio fino**
    curl -s http://localhost:8083/connectors/outbox-customer-sqlserver/status | jq .connector.state
    curl -s http://localhost:8083/connectors/outbox-article-postgres/status | jq .connector.state
 
-   docker exec -it kafka-broker kafka-topics --bootstrap-server localhost:9092 --list
-   docker exec -it kafka-broker kafka-console-consumer \
-     --bootstrap-server localhost:9092 --topic outbox.CUSTOMER --from-beginning
+   # Sustituye a `kafka-topics --bootstrap-server localhost:9092 --list`
+   docker exec redpanda rpk topic list --brokers localhost:19092
+   # Sustituye a `kafka-console-consumer ... --from-beginning`
+   docker exec redpanda rpk topic consume outbox.CUSTOMER \
+     --brokers localhost:19092 --num 5 --print-headers
    ```
 
 Detalle de los conectores, formato de mensaje y cómo provocar eventos de prueba:

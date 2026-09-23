@@ -76,7 +76,7 @@ activa:
 | OBS-005 | Recolección y consumo de la observabilidad | ✅ Incorporada 2026-09-23 | [quickstart](docs/features/OBS-005/quickstart.md) |
 | UI-001 | Dashboard web: vista por entidad y búsqueda | ✅ Incorporada 2026-09-23 | [quickstart](docs/features/UI-001/quickstart.md) |
 | UI-002 | Vista grafo del flujo de integración | ⏸ Pausada 2026-09-23 | [quickstart](docs/features/UI-002/quickstart.md) |
-| OPS-010 | Broker de mensajería: Kafka → Redpanda | Pendiente | [quickstart](docs/features/OPS-010/quickstart.md) |
+| OPS-010 | Broker de mensajería: Kafka → Redpanda | ✅ Incorporada 2026-09-23 | [quickstart](docs/features/OPS-010/quickstart.md) |
 
 Las resueltas y su trazabilidad viven en [`docs/sdd/README.md`](docs/sdd/README.md) §6;
 las ideas y mejoras aún no abordadas, en
@@ -111,6 +111,12 @@ Cada dominio sigue capas por paquete:
   y lo descarga la primera vez. `maven-enforcer` rechaza Maven < 3.9 y JDK < 25.
 - Docker (para Testcontainers en tests de integración y para la
   infraestructura local de `external-services/`, incluido Debezium/Kafka Connect).
+  - El broker de eventos es **Redpanda v25.3.9 LTS** ([ADR-0014](docs/architecture/adr/0014-redpanda-como-broker-de-mensajeria.md)),
+    single-binary escrito en C++ y *wire* Kafka 3.x. **No requiere JVM ni
+    ZooKeeper**, así que el compose local es ~30 % más ligero y arranca en
+    ~2 s en lugar de ~30 s. Los runbooks usan `rpk` en lugar de `kafka-*`;
+    la app cliente (Spring Kafka) no se ha tocado. Para K8s se opera con
+    el Redpanda Operator + CRD `cluster.redpanda.com/v1alpha2` `kind: Redpanda`.
 
 ## Comandos
 

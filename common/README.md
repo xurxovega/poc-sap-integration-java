@@ -14,6 +14,14 @@ Jar librería, sin aplicación desplegable. Lo importan `customer`,
   `S4NativeAuthProvider` ([spec](../docs/sdd/common/autenticacion-sap.md)).
 - **Seguridad de las APIs REST** con Keycloak JWT + `@PreAuthorize`:
   `common/security/ApiSecurityConfig.java` ([spec](../docs/sdd/common/seguridad-api.md)).
+- **Broker de mensajería**: la app cliente sigue siendo Spring Kafka y
+  habla al broker por la variable `MESSAGING_BOOTSTRAP`. El broker es
+  Redpanda desde OPS-010
+  ([ADR-0014](../docs/architecture/adr/0014-redpanda-como-broker-de-mensajeria.md),
+  [spec](../docs/sdd/common/broker-de-mensajeria.md)). La app no crea
+  topics; los crea la plataforma con `rpk topic create`, RF=3 en
+  test/prod / RF=1 en local, 12 particiones en `outbox.<DOM>` y su
+  `-dlt`.
 - **Observabilidad**: `MetricsPort`, `SyncMetrics`,
   `SapResilienceMetrics`, `RetryBudgetGuard` ([spec](../docs/sdd/common/observabilidad.md)).
 - **Mappers JSON** OData: `common/sap/json/SapJsonMapper.java`.

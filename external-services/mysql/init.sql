@@ -137,3 +137,18 @@ SELECT id, 'MODIFICACION', 'Cierre UI-001: spec consulta-entidad-ui.md (AC-1..10
        '7 commits (d04b860 andamiaje + ArchUnit, 2622178 PiiMasker promoted, 9ec59d9 dominio + use cases, b6fc4e5 adaptadores Mongo/ES + init.js, 3464e86 controllers Thymeleaf + Grafana var entityId, 83b511b job KPIs + gauges, 2df602c docs). 80 tests nuevos (11 en common, 69 en dashboard-customer). 537 tests totales. JaCoCo >= 75% domain. 5 ArchUnit en verde incluido DashboardIsolationTest (3 reglas). mvn verify SUCCESS 3:44 min; mvn -pl it verify -Ddocker.available=true SUCCESS 4:40 min.',
        'docs-writer', NOW()
 FROM feature WHERE subproyecto='customer' AND slug='consulta-entidad-ui';
+
+-- -----------------------------------------------------------------------------
+-- Broker de mensajeria (OPS-010): sustituye a Apache Kafka+ZooKeeper por
+-- Redpanda v25.3.9 LTS. Spec inicial (broker-de-mensajeria.md), ADR-0014
+-- nuevo, ADR-0011 revisado (consumer group por cluster K8s).
+-- 5 commits (H-0..H-5): tests rojos, renombrado de variable, compose,
+-- manifiestos K8s, doc + baseline pre-Redpanda.
+-- -----------------------------------------------------------------------------
+INSERT INTO feature (subproyecto, slug, nombre, descripcion, spec_path, estado, solicitada_por, solicitada_el) VALUES
+ ('common','broker-de-mensajeria','Broker de mensajeria: sustitucion Kafka+ZooKeeper por Redpanda','docs/sdd/common/broker-de-mensajeria.md','implementada','sdd-registry-check', CURDATE())
+ ON DUPLICATE KEY UPDATE estado='implementada';
+
+INSERT INTO feature_evento (feature_id, accion, resumen, detalle, autor, ocurrido_el)
+SELECT id,'ALTA','Spec inicial del broker de mensajeria: Redpanda v25.3.9 LTS','Sustituye Kafka 3.x + ZooKeeper por Redpanda (wire Kafka 3.x, sin JVM, sin ZooKeeper). Operado por Redpanda Operator + CRD cluster.redpanda.com/v1alpha2 (kind: Redpanda). Manifiestos Kustomize puros (no Helm+FluxCD). Un cluster por cluster K8s, RF=3 test/prod / RF=1 local, Tiered Storage desactivado (OPS-011 propuesto). Cero cambios funcionales en Java: solo renombrado cosmetico de KAFKA_BOOTSTRAP a MESSAGING_BOOTSTRAP. 5 commits H-0..H-5 (da09f34 tests rojos, 4f41596 renombrado, c2e425e compose, 50e1273 K8s, 5cdc987 ADR-0014 + revision ADR-0011; commit H-5 doc + baseline). ADR-0014 cierra el supuesto D-16 de ADR-0011 (unico Kafka multi-AZ compartido por clusters).','dev-implementer', NOW()
+FROM feature WHERE subproyecto='common' AND slug='broker-de-mensajeria';

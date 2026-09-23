@@ -34,13 +34,43 @@ Estado a 2026-09-12: ✅ hecho · 🚧 en curso · ⬜ pendiente · 🧭 decisi�
 
 | Criterio | Estado | Evidencia / quién |
 |---|---|---|
-| Runbooks de las incidencias conocidas | ✅ | [`RUNBOOKS.md`](RUNBOOKS.md) |
+| Runbooks de las incidencias conocidas | ✅ | [`RUNBOOKS.md`](RUNBOOKS.md) (incluye los específicos del broker Redpanda desde 2026-09-23: equivalencias `kafka-*` ↔ `rpk`, broker sano o degradado, conectores Debezium) |
+| Operación del broker | ✅ | **Redpanda v25.3.9 LTS** ([ADR-0014](../architecture/adr/0014-redpanda-como-broker-de-mensajeria.md)). Operado por Redpanda Operator + CRD `cluster.redpanda.com/v1alpha2` (`kind: Redpanda`); un cluster por cluster K8s; `rpk` en lugar de `kafka-*`; manifests Kustomize puros en `deploy/k8s/base/`. Capacidad de respuesta ante fallos del broker: 3 réplicas en test/prod, RF=3, Tiered Storage desactivado (OPS-011 propuesto); la recuperación de una réplica caída la hace el controlador; el listener lo trata como **transitorio** (reintenta con backoff y circuit breaker se abre si pasa el umbral). |
 | Métricas de estado, etapa, SAP y circuito | ✅ | [`../sdd/common/observabilidad.md`](../sdd/common/observabilidad.md) |
 | Recolección y paneles (Prometheus/Grafana/Loki) | ✅ plataforma | ya operativos en la empresa; alertas y panel del pipeline pendientes (OBS-3) |
 | Trazas distribuidas | ⬜ | ADR-0009: código listo, falta Tempo/colector y activar `TRACING_ENABLED` |
 | **Quién opera** (equipo, horario, escalado) | 🧭 negocio | sin definir; la auditoría lo señala como la restricción que más recomendaciones tumba |
 | Reproceso desde la DLT | ⬜ | OPS-2; la DLT (`<topic>-dlt`) sigue sin consumidor ni reinyección automática |
 | Servicio de autenticación (IdP) definitivo | 🧭 | Keycloak en uso (ADR-0007); [ADR-0012](../architecture/adr/0012-servicio-externo-de-autenticacion-idp.md) propone mantenerlo frente a Zitadel/authentik, decisión pendiente del propietario del proyecto |
+
+### 3-bis. Baseline del broker — pre y post OPS-010
+
+Antes de cerrar OPS-010 (sustituir Kafka + ZooKeeper por Redpanda) se
+captura el **baseline** de la fase local con el broker antiguo (Kafka 3.x
++ ZooKeeper + Kafka Connect con Debezium 2.7.3). Las cifras se vuelven a
+medir en local con Redpanda y se comparan al cierre definitivo del
+desmantelamiento del broker antiguo (próximo PR, ya fuera de OPS-010):
+
+| Métrica | Pre Redpanda (Kafka + ZK) | Post Redpanda |
+|---|---|---|
+| **JVM heap** del broker (ZK ensemble + Kafka broker) | tbd (medir antes del cierre de OPS-010) | una sola binaria, sin JVM; heap = 0 |
+| **Throughput CDC** (`outbox.CUSTOMER` end-to-end `RECEIVED → SENT_SAP`, msgs/s sostenidos 5 min) | tbd | tbd |
+| **Latencia p99** end-to-end `RECEIVED → SENT_SAP` (ms) | tbd | tbd |
+| **Tiempo de arranque del broker** (cold start compose) | ~30 s (ZK + Kafka) | ~2 s (Redpanda en contenedor único) |
+| **Imagen base del compose** | `confluentinc/cp-kafka:7.7.1`, `confluentinc/cp-zookeeper`, `debezium/connect:2.7.3.Final` | `redpandadata/redpanda:v25.3.9`, `redpandadata/redpanda-init:v25.3.9`, mismo `debezium/connect:2.7.3.Final` (solo cambia `BOOTSTRAP_SERVERS`) |
+
+> **Fecha del baseline**: `tbd` — se mide tras el cierre de OPS-010 en el
+> arranque real del compose con `start-all.sh --with-cdc` y un UPDATE de
+> prueba en SQL Server. La columna "pre" se rellena si se levanta Kafka
+> en local; con Redpanda ya en compose, la línea de referencia histórica
+> sale de `docs/incidencias/` o del registro de la release.
+>
+> **Origen de las cifras**: arranque local (Docker Desktop / `compose up`),
+> mensajes de ejemplo del seed (`CUST-001`, `ART-001`). Para una
+> comparación significativa hay que levantar el mismo escenario con Kafka
+> 3.x (la rama anterior a OPS-010): comandos y procedimiento en
+> [`docs/testing/GUIA-PRUEBAS.md`](../testing/GUIA-PRUEBAS.md) (sección de
+> *performance* / *smoke de carga*).
 
 ## 4. Rendimiento y capacidad
 
