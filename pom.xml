@@ -33,7 +33,7 @@
         <testcontainers.version>1.21.1</testcontainers.version>
         <wiremock.version>3.13.0</wiremock.version>
         <jacoco.version>0.8.13</jacoco.version>
-        <otel.version>1.44.0</otel.version>
+        <otel.version>1.66.0</otel.version>
         <otel-instrumentation.version>2.13.3</otel-instrumentation.version>
         <failsafe.version>3.6.0</failsafe.version>
         <surefire.version>3.6.0</surefire.version>
