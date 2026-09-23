@@ -1,8 +1,9 @@
 package com.poc.sap.customer.bootstrap.kafka;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.poc.sap.common.domain.IngestionOrigin;
 import com.poc.sap.common.domain.OperationType;
+import com.poc.sap.customer.application.general.DeleteCustomerUseCase;
 import com.poc.sap.customer.application.general.SyncCustomerUseCase;
 import com.poc.sap.common.domain.IngestionMessage;
 import com.poc.sap.common.domain.SyncState;
@@ -12,11 +13,14 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.kafka.annotation.KafkaListener;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.verifyNoInteractions;
 
 /**
  * Test unit directo del {@link CustomerKafkaListener} (TECH.md §6).
@@ -29,16 +33,17 @@ class CustomerKafkaListenerTest {
     private static final String TOPIC = "outbox.CUSTOMER";
 
     @Mock SyncCustomerUseCase syncUseCase;
+    @Mock DeleteCustomerUseCase deleteUseCase;
     private CustomerKafkaListener listener;
 
     @BeforeEach
     void setUp() {
-        listener = new CustomerKafkaListener(syncUseCase);
+        listener = new CustomerKafkaListener(syncUseCase, deleteUseCase);
         lenient().when(syncUseCase.execute(any(IngestionMessage.class))).thenReturn(SyncState.SENT_SAP);
     }
 
     @Test
-    void parsesMessageAndInvokesUseCase() {
+    void parsesMessageAndInvokesUseCase() throws JsonProcessingException {
         String payload = """
                 {"entityId":"C-1","operation":"UPDATE","payloadHash":"h-1","payload":{}}
                 """;
@@ -51,10 +56,11 @@ class CustomerKafkaListenerTest {
                         && m.operation() == OperationType.UPDATE
                         && m.origin() == IngestionOrigin.CDC
                         && "h-1".equals(m.payloadHash())));
+        verify(deleteUseCase, never()).execute(any(), any());
     }
 
     @Test
-    void defaultsOperationToUpdateWhenMissing() {
+    void defaultsOperationToUpdateWhenMissing() throws JsonProcessingException {
         String payload = """
                 {"entityId":"C-2","payloadHash":"h-2","payload":{}}
                 """;
@@ -66,17 +72,140 @@ class CustomerKafkaListenerTest {
     }
 
     @Test
-    void malformedJsonDoesNotPropagateException() {
-        ConsumerRecord<String, String> record =
-                new ConsumerRecord<>(TOPIC, 0, 0L, "C-X", "not json");
+    void deleteOperationInvokesDeleteUseCase() throws JsonProcessingException {
+        String payload = """
+                {"entityId":"C-3","operation":"DELETE","payloadHash":"h-3","payload":{}}
+                """;
+        ConsumerRecord<String, String> record = new ConsumerRecord<>(TOPIC, 0, 0L, "C-3", payload);
 
         listener.onMessage(record);
 
+        verify(deleteUseCase).execute("C-3", "h-3");
         verify(syncUseCase, never()).execute(any());
     }
 
+    /**
+     * AC-7 (sdd/common/contrato-mensaje-de-cambio.md, ADR-0013): el mensaje fino
+     * -identidad del cambio y nada mas- se acepta: ni hash ni payload.
+     */
     @Test
-    void objectMapperIsAvailable() {
-        assertThat(new ObjectMapper()).isNotNull();
+    void parsesThinMessageWithoutHashAndWithoutPayload() throws JsonProcessingException {
+        String value = """
+                {"entityId":"C-9","operation":"UPDATE","occurredAt":"2026-09-19T08:00:00Z","version":42}
+                """;
+        ConsumerRecord<String, String> record = new ConsumerRecord<>(TOPIC, 0, 0L, "C-9", value);
+
+        listener.onMessage(record);
+
+        verify(syncUseCase).execute(argThat(m ->
+                "C-9".equals(m.entityId())
+                        && m.operation() == OperationType.UPDATE
+                        && m.origin() == IngestionOrigin.CDC
+                        && m.payloadHash() == null
+                        && m.payload() == null));
+    }
+
+    /** AC-7: compatibilidad — el mensaje antiguo con payload se sigue aceptando. */
+    @Test
+    void stillParsesTheLegacyMessageCarryingThePayload() throws JsonProcessingException {
+        String value = """
+                {"entityId":"C-8","operation":"UPDATE","payloadHash":"h-8","payload":{"id":"C-8","name":"Acme"}}
+                """;
+        ConsumerRecord<String, String> record = new ConsumerRecord<>(TOPIC, 0, 0L, "C-8", value);
+
+        listener.onMessage(record);
+
+        verify(syncUseCase).execute(argThat(m ->
+                "C-8".equals(m.entityId())
+                        && "h-8".equals(m.payloadHash())
+                        && m.payload() != null
+                        && m.payload().contains("Acme")));
+    }
+
+    /**
+     * AC-8: la baja fina no tiene snapshot que releer (la fila ya no esta en el
+     * legacy). La identidad basta: se usa un hash derivado de ella.
+     */
+    @Test
+    void thinDeleteUsesAnIdentityHash() throws JsonProcessingException {
+        String value = """
+                {"entityId":"C-7","operation":"DELETE"}
+                """;
+        ConsumerRecord<String, String> record = new ConsumerRecord<>(TOPIC, 0, 0L, "C-7", value);
+
+        listener.onMessage(record);
+
+        verify(deleteUseCase).execute("C-7",
+                com.poc.sap.common.domain.PayloadHasher.ofIdentity("customer", "C-7", "DELETE"));
+    }
+
+    @Test
+    void malformedJsonPropagatesException() {
+        ConsumerRecord<String, String> record =
+                new ConsumerRecord<>(TOPIC, 0, 0L, "C-X", "not json");
+
+        assertThatThrownBy(() -> listener.onMessage(record))
+                .isInstanceOf(JsonProcessingException.class);
+
+        verify(syncUseCase, never()).execute(any());
+        verify(deleteUseCase, never()).execute(any(), any());
+    }
+
+    @Test
+    void useCaseFailurePropagatesException() {
+        when(syncUseCase.execute(any(IngestionMessage.class)))
+                .thenThrow(new IllegalStateException("boom"));
+        String payload = """
+                {"entityId":"C-4","operation":"UPDATE","payloadHash":"h-4","payload":{}}
+                """;
+        ConsumerRecord<String, String> record = new ConsumerRecord<>(TOPIC, 0, 0L, "C-4", payload);
+
+        assertThatThrownBy(() -> listener.onMessage(record))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage("boom");
+    }
+
+    private static ConsumerRecord<String, String> rec(String json) {
+        return new ConsumerRecord<>(TOPIC, 0, 0L, "C-1", json);
+    }
+
+    /**
+     * C5 (auditoria): un tombstone (value null) no es un mensaje de negocio.
+     * Antes producia IllegalArgumentException y tres reintentos inutiles.
+     */
+    @Test
+    void tombstoneIsIgnored() throws JsonProcessingException {
+        listener.onMessage(rec(null));
+        verifyNoInteractions(syncUseCase, deleteUseCase);
+    }
+
+    /** C5: la operacion se acepta en minusculas; Debezium no garantiza el caso. */
+    @Test
+    void lowercaseOperationIsAccepted() throws JsonProcessingException {
+        listener.onMessage(rec("{\"entityId\":\"C-1\",\"operation\":\"update\",\"payloadHash\":\"h\",\"payload\":{}}"));
+        verify(syncUseCase).execute(any(IngestionMessage.class));
+    }
+
+    /** C5: una operacion desconocida es un error del mensaje, no transitorio. */
+    @Test
+    void unknownOperationIsAnIllegalArgument() {
+        assertThatThrownBy(() -> listener.onMessage(
+                rec("{\"entityId\":\"C-1\",\"operation\":\"FROB\",\"payloadHash\":\"h\",\"payload\":{}}")))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    /**
+     * ADR-0011 / OVERVIEW.md §5: la concurrencia del listener va declarada y
+     * configurable. Sin ella Spring arranca 1 solo hilo por instancia y las 12
+     * particiones del topic no se consumen a pleno (anexo 05 §1).
+     */
+    @Test
+    void concurrencyIsDeclaredOnTheListener() throws NoSuchMethodException {
+        KafkaListener annotation = CustomerKafkaListener.class
+                .getMethod("onMessage", ConsumerRecord.class)
+                .getAnnotation(KafkaListener.class);
+
+        assertThat(annotation).isNotNull();
+        assertThat(annotation.concurrency()).isEqualTo("${customer.kafka.concurrency:3}");
     }
 }

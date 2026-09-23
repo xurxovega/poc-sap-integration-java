@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{layout :: header}"></head>
+<body>
+<header th:replace="~{layout :: header}"></header>
+<main>
+    <h2>Alertas operativas abiertas</h2>
+    <p class="muted">Estas alertas las ha emitido el customer-app tras un fallo o nota (sync.alerts). Para reconocerlas necesitas rol
+        <code>sap-write</code>.</p>
+
+    <div th:if="${alerts != null and !#lists.isEmpty(alerts)}" class="card">
+        <table>
+            <thead><tr><th>Cliente</th><th>Severidad</th><th>Detalle (sin PII)</th><th>Abierta desde</th><th></th></tr></thead>
+            <tbody>
+            <tr th:each="a : ${alerts}">
+                <td><a th:href="@{|/customers/${a.entityId()}|}" th:text="${a.entityId()}">e</a></td>
+                <td>
+                    <span class="pill"
+                          th:classappend="${a.severity() != null and a.severity() == 'FAILURE'} ? 'error' : 'warn'"
+                          th:text="${a.severity()}">s</span>
+                </td>
+                <td><code th:text="${a.detail()}">d</code></td>
+                <td class="muted" th:text="${a.openedAt()}">at</td>
+                <td>
+                    <form class="inline" th:action="@{|/customers/alerts/${a.alertId()}/ack|}" method="post">
+                        <button type="submit">Reconocer</button>
+                    </form>
+                </td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+    <p th:if="${alerts == null or #lists.isEmpty(alerts)}" class="muted">No hay alertas pendientes.</p>
+</main>
+</body>
+</html>

@@ -1,40 +1,27 @@
 package com.poc.sap.customer.application.fiscal;
 
+import com.poc.sap.common.application.FeatureSyncPipeline;
 import com.poc.sap.common.domain.SyncState;
+import com.poc.sap.common.domain.port.MetricsPort;
 import com.poc.sap.common.domain.port.SyncStateRepositoryPort;
-import com.poc.sap.common.domain.SyncStateTransition;
-import com.poc.sap.common.observability.SyncMetrics;
 import com.poc.sap.customer.domain.Customer;
+import com.poc.sap.customer.domain.CustomerFeature;
+import com.poc.sap.customer.domain.feature.fiscal.FiscalData;
 import com.poc.sap.customer.domain.feature.fiscal.FiscalValidator;
-import org.springframework.stereotype.Service;
 
-import java.time.Instant;
+import java.time.Clock;
 
-/** Use case de validacion aislada de la feature FISCAL. */
-@Service
+/** Validacion aislada de la feature FISCAL sobre su linea de estado (sin envio a SAP). */
 public class ValidateFiscalUseCase {
 
-    private final SyncStateRepositoryPort stateRepo;
-    private final SyncMetrics metrics;
+    private final FeatureSyncPipeline<FiscalData> pipeline;
 
-    public ValidateFiscalUseCase(SyncStateRepositoryPort stateRepo, SyncMetrics metrics) {
-        this.stateRepo = stateRepo;
-        this.metrics = metrics;
+    public ValidateFiscalUseCase(SyncStateRepositoryPort stateRepo, MetricsPort metrics, Clock clock) {
+        this.pipeline = new FeatureSyncPipeline<>("customer", CustomerFeature.FISCAL.name(),
+                FiscalValidator::validate, null, stateRepo, metrics, clock);
     }
 
     public SyncState execute(Customer c, String payloadHash) {
-        String entityId = SyncFiscalUseCase.featureEntityId(c.id());
-        transition(entityId, payloadHash, null, SyncState.VALIDATING);
-        var r = FiscalValidator.validate(c.fiscal());
-        SyncState target = r.valid() ? SyncState.VALID : SyncState.INVALID;
-        transition(entityId, payloadHash, SyncState.VALIDATING, target);
-        return target;
-    }
-
-    private void transition(String entityId, String payloadHash,
-                            SyncState from, SyncState to) {
-        stateRepo.transition("customer", entityId, new SyncStateTransition(
-                entityId, "customer", from, to, "fiscal", payloadHash, Instant.now()));
-        metrics.incrementState("customer", to.name());
+        return pipeline.validate(c.id(), payloadHash, c.fiscal());
     }
 }

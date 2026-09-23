@@ -1,57 +1,451 @@
-# Agent Guidelines — SAP Integration (Java)
+# AGENTS.md — SAP Integration (Java)
 
-Migración del POC Python (`poc-sap-integration`) a Java 25 + Spring Boot 4.0 + Maven.
+> **Léeme primero, en cualquier iteración.** Este fichero es el contrato de
+> trabajo del repositorio: cómo está montada la aplicación, cómo se opera sobre
+> ella y qué reglas son innegociables. Todo lo demás son documentos de detalle
+> enlazados desde aquí.
 
-## Stack
-- **Lenguaje**: Java 23 LTS mínimo (objetivo Java 25 LTS). Records, sealed, virtual threads.
-- **Framework**: Spring Boot 4.0.
-- **Build**: Maven 3.9+ multi-módulo reactor. Profile `jdk25` auto-activado con JDK 25.
-- **Observabilidad**: Micrometer + Prometheus + OpenTelemetry.
-- **Testing**: JUnit 5, Mockito, Testcontainers, WireMock, Spring Cloud Contract.
+Sincronización de datos maestros (`customer`, `article`, `supplier`) desde
+sistemas legacy hacia **SAP S/4 Public Cloud**. Nació como prueba de concepto y
+**es la aplicación final**: seguridad, retención de datos, alta disponibilidad
+y despliegue se deciden con ese criterio. Migración del POC Python
+(`../poc-sap-integration`) a **Java 25 + Spring Boot 4.1 + Maven**.
 
-## Arquitectura
-- **Hexagonal / puertos y adaptadores** por dominio.
-- **Capas por paquete**: `domain` (puro, sin Spring) → `application` (use cases)
-  → `adapters` (infra) → `bootstrap` (Spring wiring).
-- **Dominios**: `customer`, `article`, `supplier`. Cada uno = app Spring Boot
-  desplegable de forma independiente.
-- **Shared kernel** `common/`: StateMachine, clientes SAP (BTP + S/4),
-  observabilidad, soporte test. Versionado semántico.
-- Regla dependencias: `bootstrap → adapters → application → domain`.
-  `domain` no depende de nada. `application` solo de `domain`.
+---
 
-## Puertos clave
-- `IngestionPort`: CDC (Debezium Kafka) / eventos Kafka directos / REST.
-- `SapOutboundPort`: APIs BTP (xsuaa + Destination Service) / APIs nativas S/4.
-- `LegacyRepositoryPort`, `ImageStorePort` (Mongo), `HistoryIndexerPort` (ES),
-  `SyncStateRepositoryPort`.
+# Parte 1 — Operativa (cómo se trabaja aquí)
 
-## Comandos críticos
-- `mvn validate` — validar reactor.
-- `mvn -pl common install -DskipTests` — publicar shared kernel local.
-- `mvn -pl customer package` — empaquetar solo customer.
-- `mvn verify` — unit + slice + integración.
-- `mvn -pl it verify` — pruebas cross-dominio + contrato SAP.
+Dos técnicas gobiernan todo el desarrollo. **No son negociables** y no se saltan
+"por ser un cambio pequeño". Detalle completo en
+[`docs/architecture/DESARROLLO.md`](docs/architecture/DESARROLLO.md).
 
-## Documentación
+## 1.1 SDD anchor — el spec y el código no divergen
 
-Fuentes de verdad del proyecto (consultar antes de cambiar arquitectura o stack):
+Cada feature tiene su spec en `docs/sdd/<subproyecto>/<nombre-de-la-feature>.md`
+(una carpeta por módulo Maven, un fichero por feature: p. ej.
+`docs/sdd/customer/sincronizacion-direccion.md`). Spec y código son el
+mismo hecho contado dos veces, y el ancla es **bidireccional**:
 
-- `docs/specs/SPEC.md` — especificación funcional (agnóstica a tecnología): objetivo, dominios, ingestas, destinos SAP, máquina de estados, criterios de aceptación.
-- `docs/specs/TECH.md` — stack tecnológico: Java 25 + Spring Boot 4.0 + Maven, capas hexagonales, puertos/adaptadores, persistencia, observabilidad, testing.
-- `docs/architecture/OVERVIEW.md` — mapas y esquemas: módulos, aggregate Customer, flujos CDC/REST/feature, deployment, convención de paquetes.
-- `docs/testing/TESTING.md` — estrategia y catálogo de tests (191 tests, tipos, contratos SAP, issues conocidos).
-- `docs/integrations/SAP_CLOUD_SDK.md` — guía de integración con SAP Cloud SDK: OData VDM, OpenAPI, BTP destinations, arquitectura hexagonal, módulos Maven.
-- `docs/GLOSSARY.md` — términos del proyecto con definiciones y enlaces internos/externos.
-- `external-services/README.md` — cómo levantar la infraestructura local (Kafka, PostgreSQL, SQL Server, MongoDB, Elasticsearch/Kibana, MinIO).
-- Proyecto Python de referencia: `../poc-sap-integration`.
+| Si cambia… | …entonces, en el **mismo PR** |
+|---|---|
+| **el spec** | cambian los tests y el código; el `AC-n` nuevo empieza en rojo |
+| **el código** (comportamiento observable) | se actualiza el spec de la feature + su tabla de cambios |
+| **un contrato SAP** ([`docs/sdd/sap-api-catalog.md`](docs/sdd/sap-api-catalog.md)) | se revisan los specs de las features que lo consumen **antes** de tocar adaptadores |
 
-## Al modificar código
-- **Nuevo dominio**: añadir módulo al reactor + entrada en `<modules>` del parent.
-- **Nueva feature**: use case en `<dominio>/application/`.
-- **Nuevo puerto**: interfaz en `<dominio>/domain/port/`; adaptador en
+Un cambio de comportamiento sin spec actualizado está **incompleto**, y un spec
+cambiado sin tests que lo respalden también.
+
+Los specs se van escribiendo **a medida que se toca cada feature**: el índice
+vivo con su estado está en [`docs/sdd/README.md`](docs/sdd/README.md) §5. No
+escribas specs en masa de features que nadie va a tocar.
+
+**Toda alta, modificación o baja de una feature se registra en tres sitios**, en
+el mismo PR: el §10 del spec, el `CHANGELOG.md` de la carpeta del subproyecto y
+un evento en la tabla `feature_evento` del registro MySQL `sdd_registry`
+([`docs/sdd/README.md`](docs/sdd/README.md) §8). Las bajas son lógicas: una
+feature descartada no se borra del registro.
+
+## 1.1 bis Glosario: automático, no opcional
+
+**Cuando aparezca un concepto nuevo, se añade a
+[`docs/GLOSSARY.md`](docs/GLOSSARY.md) en el momento**, sin que nadie lo pida.
+Cuenta como concepto nuevo cualquier término que un compañero que entre mañana
+no podría deducir del código: un estado, un patrón, una pieza de infraestructura,
+una sigla, una decisión con nombre propio. Va con una definición de una o dos
+frases y un enlace al documento donde se detalla. Si el término ya está pero la
+definición se ha quedado vieja, se actualiza.
+
+## 1.2 TDD — ningún código de producción sin test rojo previo
+
+Ciclo **red → green → refactor**:
+
+- 🔴 **Red**: escribe el test, ejecútalo y **lee el fallo**. Debe fallar por la
+  razón correcta (no por un `NullPointerException` accidental).
+- 🟢 **Green**: el mínimo código que lo pone en verde. Nada de generalidad que
+  ningún test pida.
+- 🔧 **Refactor**: con la suite en verde, re-ejecutando tras cada paso.
+
+Y siempre **de dentro afuera**, que es también la regla de dependencias:
+`domain` → `application` → `adapters` → `bootstrap`.
+
+## 1.3 Secuencia de una iteración
+
+```
+1. Leer AGENTS.md (esto) y el spec en docs/sdd/<subproyecto>/<feature>.md
+   └─ ¿no existe? se escribe ahora desde docs/sdd/_template/feature.md
+2. Traducir los criterios de aceptación (AC-n) del spec a tests → ROJO
+3. Implementar de dentro afuera hasta VERDE, refactorizar
+4. mvn verify
+5. Cerrar el ancla:
+   ├─ spec §9 (trazabilidad spec↔código↔test) y §10 (cambios)
+   ├─ CHANGELOG.md de la carpeta del subproyecto (una línea)
+   ├─ CHANGELOG.md raíz si el cambio se nota en negocio (sin detalle técnico)
+   ├─ registro MySQL: evento ALTA / MODIFICACION / BAJA en feature_evento
+   ├─ docs/GLOSSARY.md: todo concepto nuevo que haya aparecido
+   └─ docs/sdd/README.md §5 (estado) y §6 (changelog, si abre/cierra brecha)
+```
+
+Si el trabajo arranca desde el código (bug, refactor, hallazgo), la secuencia es
+la misma al revés: reproducir con un test en rojo, arreglar y **actualizar el
+spec** en el mismo PR.
+
+## 1.3 bis Versionado y tags
+
+**Los tags se crean al publicar una versión, no en cada commit ni en cada PR.**
+Trabajar en la rama no genera tag: los cambios se van acumulando en la sección
+`[Sin publicar]` del [`CHANGELOG.md`](CHANGELOG.md) raíz.
+
+Formato `vX.Y.Z`, semver, coincidiendo con la versión del `pom.xml` sin
+`-SNAPSHOT`. Qué incrementar:
+
+| Cambio | Incremento |
+|---|---|
+| Rompe compatibilidad para quien consume las APIs o `common` | **MAJOR** |
+| Feature nueva compatible hacia atrás | **MINOR** |
+| Corrección sin cambio de contrato | **PATCH** |
+
+Al publicar una versión, en este orden:
+
+1. En `CHANGELOG.md`, `[Sin publicar]` pasa a `[X.Y.Z] - AAAA-MM-DD` y se abre
+   una sección `[Sin publicar]` vacía encima.
+2. Se quita `-SNAPSHOT` de la versión del `pom.xml` y se commitea.
+3. Se crea el tag `vX.Y.Z` sobre ese commit.
+4. Se publica la *release* en GitHub con las notas de esa sección del changelog.
+5. Se vuelve a poner `-SNAPSHOT` con la siguiente versión de trabajo.
+
+`common` se versiona con la misma regla, y su incremento decide si hay que
+re-desplegar los dominios: ver el criterio en
+[`docs/architecture/OVERVIEW.md`](docs/architecture/OVERVIEW.md) §6.
+
+## 1.4 Definición de hecho
+
+- [ ] El spec existe y refleja el comportamiento final.
+- [ ] Cada `AC-n` tiene al menos un test que lo cita en su Javadoc.
+- [ ] Los tests nuevos se escribieron **antes** que su código.
+- [ ] `mvn verify` en verde: incluye JaCoCo `check` (≥ 75 % líneas en `domain`), ArchUnit y los contract tests reales.
+- [ ] Si has añadido o quitado un `@Test`, la cifra de `docs/testing/TESTING.md` §1 (y QUICK_START/GUIA-PRUEBAS) está al día: `TestCountMatchesDocsTest` rompe el build si no.
+- [ ] Estado e índice de `docs/sdd/README.md` al día.
+- [ ] `CHANGELOG.md` del subproyecto y evento en `feature_evento` registrados; `python scripts/sdd-registry-check.py` sin diferencias.
+- [ ] `CHANGELOG.md` raíz actualizado si el cambio se percibe en negocio.
+- [ ] Conceptos nuevos añadidos a `docs/GLOSSARY.md`.
+- [ ] Ningún documento nuevo duplica algo que ya esté en `docs/architecture/` o `docs/sdd/`.
+
+## 1.5 Convenciones de código y test
+
+- **Tests**: clase `<Clase>Test` (unit/slice) o `<Escenario>IT` (integración);
+  método en **camelCase que describe la regla** (`missingCityFails`,
+  `retriesOn5xxUntilSuccess`), nunca `testX`.
+- **El Javadoc del test cita el `AC-n`** del spec; el Javadoc de la clase de
+  producción cita la sección de arquitectura (`(OVERVIEW.md §5)`, `(TECH.md §8)`).
+  Esa doble cita es el ancla vista desde el código.
+- **Sin Spring en `domain` ni `application`**: dominio puro, sin beans ni contexto.
+  Los use cases no llevan `@Service`: se declaran como `@Bean` en
+  `bootstrap/<Dominio>UseCaseConfig`; las métricas se piden por `MetricsPort`.
+  Lo vigilan `DomainPurityTest` y `ApplicationPurityTest` (ArchUnit).
+- **Mocks sobre puertos** (interfaces de `domain/port/`), nunca sobre
+  implementaciones concretas.
+- Resto de convenciones vigentes (fixtures, strict stubs, AssertJ, slice web) en
+  [`docs/testing/TESTING.md`](docs/testing/TESTING.md) §4.
+
+---
+
+# Parte 2 — Cómo está montada la aplicación
+
+## 2.1 Reactor Maven
+
+Un artefacto desplegable **por dominio**, más un shared kernel:
+
+| Módulo | Qué es | Artefacto |
+|---|---|---|
+| `sap-api-models` | specs OpenAPI oficiales de SAP + modelos Java generados | jar de modelos |
+| `common` | **shared kernel**: máquina de estados, `SapClient`, auth, observabilidad, soporte de test | jar librería (semver) |
+| `customer` | app Spring Boot — puerto **8081** | jar ejecutable |
+| `article` | app Spring Boot — puerto **8082** | jar ejecutable |
+| `supplier` | placeholder (futuro) | — |
+| `it` | integración cross-dominio + contratos SAP (WireMock) | tests |
+
+`sap-sdk-client/` **no es del reactor**: es un repositorio anidado
+independiente, spike OpenAPI desechable (Boot 3.5 / Java 17). No tocarlo como si
+fuera parte de la app.
+
+## 2.2 Arquitectura hexagonal por dominio
+
+Capas por paquete y regla de dependencias:
+
+```
+bootstrap  →  adapters  →  application  →  domain
+(Spring)      (infra)      (use cases)     (puro, sin Spring)
+```
+
+`domain` no depende de nada. `application` solo de `domain`. `adapters` de
+`application` (puertos) y de `common`. **Nada de lógica de negocio en
+`bootstrap` ni en `adapters`.**
+
+## 2.3 El pipeline, de punta a punta
+
+```
+Kafka outbox.CUSTOMER / outbox.ARTICLE   (CDC: triggers legacy → outbox → Debezium)
+  │            REST POST /customers/sync · /articles/sync   (entrada alternativa)
+  ▼
+<Dominio>KafkaListener / Sync<Dominio>Controller     →  IngestionMessage (aviso FINO: identidad del cambio, sin datos ni PII — ADR-0013)
+  ▼
+Sync<Dominio>UseCase        relee el legacy y calcula el hash del snapshot (PayloadHasher);
+                            dedupe por ese hash (idempotencia)
+  ├─ LegacyRepositoryPort   → SQL Server (customer) / PostgreSQL (article)
+  ├─ <Dominio>Validations   → reglas de negocio (domain puro)
+  ├─ ImageStorePort         → MongoDB (imagen actual)
+  ├─ HistoryIndexerPort     → Elasticsearch (histórico)
+  └─ SapOutboundPort        → SapClient → SAP BTP / S/4 nativo
+  ▼
+SyncStateMachine (common) — cada transición persistida en Mongo con timestamp, origen, hash, `cycleId` y `detail` (motivo del error, enmascarado si aplica)
+```
+
+Estados: `RECEIVED → FETCHING → VALIDATING → {VALID|INVALID} → INDEXING →
+INDEXED → SENDING_SAP → {SENT_SAP|SAP_ERROR}`, más `ERROR` y
+`COMMUNICATION_ERROR` recuperables. **Un evento nuevo siempre abre ciclo**
+(`beginCycle`), venga la entidad de `SENT_SAP`, `INVALID`, `SAP_ERROR`, `ERROR` o
+de un ciclo que quedó a medias porque el proceso murió. Cada pipeline entra por
+su estado: agregado `RECEIVED`, feature `VALIDATING`, baja `SENDING_SAP`,
+indexación `INDEXING`. Avanzar dentro del ciclo (`advance`) sigue la tabla. El
+estado actual se resuelve por secuencia (`seq`) y el índice único sobre ella es
+la versión optimista entre instancias (`ConcurrentTransitionException`).
+
+Fuente única de la máquina: [`docs/sdd/common/maquina-de-estados.md`](docs/sdd/common/maquina-de-estados.md)
+§4 y §6. Detalle con nombres de clase en [`docs/architecture/FLOWS.md`](docs/architecture/FLOWS.md);
+esquema completo en [`docs/architecture/OVERVIEW.md`](docs/architecture/OVERVIEW.md) §5.
+
+## 2.4 Puertos clave
+
+| Puerto | Implementaciones |
+|---|---|
+| ~~`IngestionPort`~~ | **borrado** (auditoría A18, 2026-09-12): no tenía implementaciones. `CustomerKafkaListener`/`ArticleKafkaListener` (CDC) y `Sync*Controller` (REST) llaman al use case directamente con el mismo DTO, `IngestionMessage`, que sigue vivo |
+| `LegacyRepositoryPort<T>` | `SqlServerCustomerRepository`, `PostgresArticleRepository` |
+| `ImageStorePort<T>` | `MongoCustomerImageStore`, `MongoArticleImageStore` |
+| `HistoryIndexerPort<T>` | `ElasticsearchCustomerIndexer`, `ElasticsearchArticleIndexer` |
+| `SyncStateRepositoryPort` | `MongoSyncStateRepository` (en `common`, compartido — no duplicar) |
+| `SapOutboundPort<P>` | por feature: `AddressSapPort`, `FiscalSapPort`, `ContactSapPort`, `BankingSapPort`, `CustomerSapOutboundPort`, `MandateSapOutboundPort`. Incluye `lookup`/`update` (`default`, upsert idempotente: [`docs/sdd/common/upsert-idempotente-sap.md`](docs/sdd/common/upsert-idempotente-sap.md)) |
+| `SapKeyStorePort` | `MongoSapKeyStore` (colección `sap_keys`: guarda la clave SAP de cada subentidad para el `lookup`) |
+| `BusinessPartnerReadPort` | `BusinessPartnerReadAdapter` (GET/search OData; activo por `BusinessPartnerReadEnabled` si `sap.odata.read.enabled=true` **o** `sap.odata.customer.enabled=true`, porque el lookup previo a escribir por OData necesita el lector) |
+
+## 2.5 Endpoints REST
+
+| Método | Ruta | Qué hace |
+|---|---|---|
+| `POST` | `/customers/sync` · `/articles/sync` | ingesta síncrona (mismo pipeline que CDC) |
+| `POST` | `/customers/validate` | valida sin enviar |
+| `GET` | `/customers/{id}/history` · `/articles/{id}/history` | histórico indexado |
+| `GET` | `/customers/{id}/history/diff` · `/articles/{id}/history/diff` | diff entre versiones |
+| `GET` | `/customers/{id}/state` | estado del agregado y de cada feature (ADDRESS, FISCAL, CONTACT, BANKING) con su último hash, instante y `lastCycle`; es la respuesta a "dónde ha dado el error" tras una alerta de sincronización parcial (ADR-0010) |
+
+> **Con autenticación**: Keycloak como resource server OAuth2 + `@PreAuthorize`
+> por endpoint (jerarquía de roles `sap-superadmin ⊃ sap-admin ⊃ sap-write ⊃
+> sap-read`, más `sap-external-read` con PII enmascarada), vigilado por
+> `EndpointsDeclareAccessTest` (ArchUnit): sin `@PreAuthorize` el build falla.
+> Huecos abiertos de la auditoría del 2026-09-18: sin validación de `aud`
+> (2A-1) y `AccessScope` falla en abierto sin autenticación (2A-2). Detalle en
+> [`docs/sdd/common/seguridad-api.md`](docs/sdd/common/seguridad-api.md),
+> [ADR-0007](docs/architecture/adr/0007-keycloak-como-proveedor-de-identidad-de-las-apis.md)
+> y [`docs/tools-integrations/SERVICIO-AUTENTICACION.md`](docs/tools-integrations/SERVICIO-AUTENTICACION.md).
+
+**El contrato completo de estos endpoints** —parámetros, cuerpos, códigos, rol
+mínimo de cada uno y ejemplos— está publicado por módulo en
+[`customer/src/main/resources/openapi.yml`](customer/src/main/resources/openapi.yml)
+y [`article/src/main/resources/openapi.yml`](article/src/main/resources/openapi.yml):
+se importan en Postman/Bruno/Swagger UI y un test por módulo impide que se
+queden viejos ([`docs/sdd/common/contrato-openapi-rest.md`](docs/sdd/common/contrato-openapi-rest.md)).
+
+## 2.6 Integración con SAP
+
+**Cliente HTTP low-level.** `SapClient` (`common/sap/`) abstrae transporte,
+auth, retry y circuit breaker; soporta GET, `send` (POST), PATCH y DELETE.
+Implementado por `RestClientSapClient` (`RestClient` de Spring sobre el `HttpClient`
+del JDK + Resilience4j; decisión [ADR-0001](docs/architecture/adr/0001-transporte-http-sap-restclient.md);
+spec [`docs/sdd/common/resiliencia-cliente-sap.md`](docs/sdd/common/resiliencia-cliente-sap.md)):
+
+- Lecturas (GET/DELETE, idempotentes): 5xx y errores de transporte → retry con
+  backoff y cuentan para el circuit breaker; **4xx no se reintenta**.
+- Escrituras (POST/PATCH, `sap-write`): **solo se reintenta el fallo de
+  transporte anterior al envío** (`TransportFailures.isBeforeSend`); un 5xx ya
+  enviado a SAP no se reintenta a ciegas (podría duplicar el alta) — spec
+  [`docs/sdd/common/resiliencia-cliente-sap.md`](docs/sdd/common/resiliencia-cliente-sap.md).
+- Antes de escribir por OData, upsert con lookup previo (`SapOutboundPort#lookup`);
+  `PATCH`/`DELETE` llevan `If-Match` con el ETag del lookup.
+- Timeouts vía `sap.client.connect-timeout-ms` / `sap.client.response-timeout-ms`.
+- `Idempotency-Key` = `payloadHash` en cada envío.
+- **CSRF OData V2 cableado**: `CsrfTokenProvider`/`S4CsrfTokenProvider` hacen el
+  fetch de `x-csrf-token` en escrituras a S/4, con refresh y reintento único
+  ante 403 (`sap.s4.csrf.enabled`).
+- **OAuth2 client-credentials real** con caché por expiración (`OAuth2TokenClient`;
+  xsuaa para BTP, token endpoint o basic para S/4). Cae a token **stub** solo si
+  falta configuración — dev local contra mocks.
+
+**Dos familias de adaptadores de salida, sobre los mismos puertos:**
+
+| Familia | Dónde | Activación |
+|---|---|---|
+| **BTP** | `customer/adapters/sap/Btp*Adapter.java` | activos **salvo** que `sap.odata.<feature>.enabled=true` (`@ConditionalOnProperty(havingValue="false", matchIfMissing=true)`). Excluyentes con los OData por la **misma** propiedad: nunca conviven dos beans para el mismo puerto |
+| **OData S/4 nativo** | `customer/adapters/sap/odata/BusinessPartner*ODataAdapter.java` | por feature: `sap.odata.<feature>.enabled=true` |
+
+Ambas coexisten; qué adaptador atiende un mensaje depende de la configuración.
+
+**Serialización.** Siempre `SapJsonMapper.write(dto)` (`common/sap/json/`), nunca
+`String.format`. El payload va **sin envolver**: el wrapper `{"d":...}` de OData
+V2 aparece solo en las *respuestas*, jamás en el body de la petición. DTOs con
+`@JsonProperty` en `<dominio>/adapters/sap/dto/`; los adaptadores OData usan los
+modelos generados de `sap-api-models`
+(`com.poc.sap.integration.api.customer.model`), no DTOs manuales.
+
+**Modelos generados (`sap-api-models`).** Las specs OpenAPI oficiales viven en
+`sap-api-models/specs/<dominio>/` (fuera de `src/main/resources`) y el
+`openapi-generator-maven-plugin` produce las clases en
+`target/generated-sources/` (no commiteadas). Es un **Published Language** (DDD):
+lenguaje definido por SAP y consumido por todos los bounded contexts — no
+confundir con el Shared Kernel, que es `common`. Catálogo en
+[`docs/sdd/sap-api-catalog.md`](docs/sdd/sap-api-catalog.md).
+
+> ⚠️ **Push es lo implementado.** El modo *pull* (SAP BTP orquestando el ciclo,
+> estado `PENDING_SAP`, endpoints `/btp/pending` y `/btp/result`) es una
+> **propuesta no implementada**: ese estado no está en el enum `SyncState` y esos
+> endpoints no existen. La propiedad `sap.integration.mode` **se retiró** en la
+> Fase 7 de la auditoría (nadie la leía; A18): el modo pull se configurará cuando
+> exista. Lo mismo aplica al batch D+1 y a los eventos de
+> stock desde S/4. Ver
+> [`docs/architecture/INTEGRATION-PATTERNS.md`](docs/architecture/INTEGRATION-PATTERNS.md),
+> que distingue implementado de propuesto.
+
+## 2.7 Stack
+
+- **Java 25 LTS, mínimo real** (`release 25` en el parent, sin perfil; records,
+  sealed, pattern matching, virtual threads sin *pinning* sobre `synchronized`
+  por JEP 491).
+- **Spring Boot 4.1** (sin BOM de Spring Cloud: nada lo usa). Cuidado con sus
+  rupturas ya resueltas: usar
+  `spring-boot-starter-kafka` (el `spring-kafka` suelto no autoconfigura),
+  Jackson 3 por defecto, **con** el starter oficial de OTel
+  (`spring-boot-starter-opentelemetry`, `common/pom.xml`; [ADR-0009](docs/architecture/adr/0009-trazas-con-el-starter-oficial-de-opentelemetry.md)),
+  no el javaagent, y `@WebMvcTest` eliminado (slice web con
+  `MockMvcBuilders.standaloneSetup`).
+- **Spring `RestClient`** hacia SAP (sin webflux ni Cloud SDK en runtime; el BOM
+  del Cloud SDK solo genera los modelos de `sap-api-models`) · **Resilience4j** ·
+  **Micrometer + Prometheus** ·
+  trazas por el **starter oficial de OTel**, apagadas hasta tener destino
+  (Tempo), ver [ADR-0009](docs/architecture/adr/0009-trazas-con-el-starter-oficial-de-opentelemetry.md).
+- **Testing**: JUnit 5, Mockito, AssertJ, WireMock, Testcontainers.
+
+## 2.8 Comandos
+
+```bash
+./scripts/start-all.sh                # levantar todo (infra + mock SAP + apps)
+./scripts/stop-all.sh                 # parar todo
+mvn validate                          # validar reactor (o ./mvnw: wrapper con Maven 3.9.9 fijado)
+mvn test                              # unit + slice (sin Docker)
+mvn verify                            # + contract reales (failsafe) + JaCoCo check + ArchUnit; sin Docker
+mvn -pl common install -DskipTests    # publicar shared kernel local
+mvn -pl customer test                 # un dominio
+mvn -pl customer test -Dtest=AddressValidatorTest#missingCityFails
+mvn -pl it verify                     # contratos SAP contra adaptadores reales + recuento de tests
+mvn -pl it verify -Ddocker.available=true   # + IT con Testcontainers (Mongo real). Es lo que corre la CI (.github/workflows/ci.yml)
+mvn generate-sources -pl sap-api-models   # regenerar modelos SAP
+```
+
+Infraestructura local (Kafka, SQL Server, PostgreSQL, Mongo, Elasticsearch,
+MinIO): `cd external-services && docker compose up -d`.
+
+---
+
+# Parte 3 — Reglas al modificar código
+
+- **Antes de tocar nada**: localizar (o escribir) el spec de la feature y el test
+  que falla. Sin eso no se empieza.
+- **Nueva feature**: spec → tests en rojo → value object + validador en
+  `domain/feature/<feature>/` → alta en el enum `CustomerFeature` →
+  `<Feat>SapPort` + adaptador → `Sync<Feat>UseCase` → dispatch en
+  `SyncCustomerUseCase`.
+- **Nuevo dominio**: spec → módulo en `<modules>` del parent → dependencia a
+  `common` → tests de validación en rojo → aggregate, puertos, use case,
+  adaptadores → `@SpringBootApplication` + `@KafkaListener(outbox.<DOM>)` + REST
+  → `application.yml` con `spring.config.import=application-common.yml`
+  → **`banner.txt` con el nombre del dominio** (ver abajo).
+  **Reutilizar** `SyncStateMachine` y `MongoSyncStateRepository`, no duplicarlos.
+- **Nuevo puerto**: interfaz en `<dominio>/domain/port/`, adaptador en
   `<dominio>/adapters/`.
-- **Cambio en `common`**: bump de versión según semver; ejecutar `it/` antes.
-- **Nada de lógica de negocio en `bootstrap` ni `adapters`**.
-- **Secretos fuera del código**: vía variables de entorno / Vault, nunca en YAML
+- **Nuevo DTO SAP**: record/POJO con `@JsonProperty` en
+  `<dominio>/adapters/sap/dto/`, serializado con `SapJsonMapper.write(dto)`.
+- **Nuevo adaptador OData**: en `<dominio>/adapters/sap/odata/`, implementa el
+  puerto existente (incluye `lookup`/`update` para el upsert idempotente:
+  guarda la clave SAP en `sap_keys` vía `SapKeyStorePort`), serializa **sin
+  envolver**, activación condicional con
+  `@ConditionalOnProperty("sap.odata.<feature>.enabled")`, modelos generados de
+  `sap-api-models`.
+- **Nueva spec SAP**: YAML en `sap-api-models/specs/<dominio>/` + `<execution>` en
+  el `openapi-generator-maven-plugin`, y alta en
+  [`docs/sdd/sap-api-catalog.md`](docs/sdd/sap-api-catalog.md).
+- **Cambio en `SapClient`**: nuevo método HTTP → implementar en
+  `RestClientSapClient` vía su `exchange()` interno y añadir el AC al spec
+  `docs/sdd/common/resiliencia-cliente-sap.md`. Recuerda que lecturas y
+  escrituras tienen políticas de retry distintas (`RetryBudgetGuard`): no
+  asumas que todo 5xx se reintenta igual.
+- **Endpoint nuevo**: declara quién puede llamarlo en el propio método con
+  `@PreAuthorize("hasRole('" + ApiRoles.X + "')")`; sin ello el build falla
+  (`EndpointsDeclareAccessTest`). Si devuelve PII y lo puede llamar
+  `sap-external-read`, enmascara antes de responder (`AccessScope`, `PiiMasker`).
+  Spec: [`docs/sdd/common/seguridad-api.md`](docs/sdd/common/seguridad-api.md).
+  **Y dalo de alta en el `openapi.yml` del módulo** (`<modulo>/src/main/resources/openapi.yml`):
+  ruta, método, parámetros, cuerpos, códigos y `x-required-role` con el rol del
+  `@PreAuthorize`. Sin eso el build falla (`OpenApiMatchesControllersTest`).
+  Spec: [`docs/sdd/common/contrato-openapi-rest.md`](docs/sdd/common/contrato-openapi-rest.md).
+- **Nueva feature de un dominio**: no copies un `Sync<Feature>UseCase`. Declara
+  el puerto SAP y el validador y construye un `FeatureSyncPipeline<D>`
+  (`common/application`); el orquestador la recibe como `CustomerFeatureSync`.
+  Abrir/avanzar ciclo siempre a través de `SyncCycleRecorder`, nunca con
+  `new SyncStateTransition(...)` a mano en `application`.
+- **Cambio en `common`**: bump semver y ejecutar `it/` **antes**; un
+  `minor`/`major` obliga a re-desplegar todos los dominios.
+- **Banner por dominio**: cada app lleva `src/main/resources/banner.txt` con el
+  nombre de su dominio en grande, para saber de un vistazo cuál se ha arrancado.
+  **Solo caracteres ASCII**: la consola de Windows no renderiza bloques Unicode y
+  el banner sale lleno de interrogantes.
+- **Secretos fuera del código**: variables de entorno / Vault, nunca en YAML
   commiteados.
+- **Al cerrar**: spec §9 y §10, e índice/changelog de `docs/sdd/README.md`.
+
+---
+
+# Parte 4 — Mapa de documentación
+
+Qué leer según lo que necesites. **No dupliques contenido entre estos ficheros**:
+si algo ya está escrito, enlázalo.
+
+| Necesitas… | Documento |
+|---|---|
+| **qué debe hacer** el sistema, estado por feature, brechas | [`docs/sdd/README.md`](docs/sdd/README.md) |
+| el spec de una feature concreta | `docs/sdd/<subproyecto>/<feature>.md` — p. ej. [`docs/sdd/customer/sincronizacion-direccion.md`](docs/sdd/customer/sincronizacion-direccion.md) (plantilla: [`docs/sdd/_template/feature.md`](docs/sdd/_template/feature.md)) |
+| contratos SAP (APIs OpenAPI oficiales) | [`docs/sdd/sap-api-catalog.md`](docs/sdd/sap-api-catalog.md) |
+| **cómo se desarrolla**: ciclo SDD+TDD, capas, DoD | [`docs/architecture/DESARROLLO.md`](docs/architecture/DESARROLLO.md) |
+| **cómo está construido**: módulos, dominios, estados, deployment, NFR | [`docs/architecture/OVERVIEW.md`](docs/architecture/OVERVIEW.md) |
+| **por qué se decidió así** y cuándo se reevalúa cada decisión | [`docs/architecture/adr/`](docs/architecture/adr/README.md) |
+| qué se rompió, por qué y qué patrón se repite (fingerprints) | [`docs/incidencias/`](docs/incidencias/README.md) |
+| operar el sistema: runbooks y aptitud para producción | [`docs/operacion/`](docs/operacion/RUNBOOKS.md) |
+| primera sesión contra el tenant SAP de test | [`docs/testing/CHECKLIST-TENANT-SAP.md`](docs/testing/CHECKLIST-TENANT-SAP.md) |
+| qué crear en Keycloak y cómo probar la API con token | [`docs/tools-integrations/KEYCLOAK.md`](docs/tools-integrations/KEYCLOAK.md) |
+| desplegar en Kubernetes (test y prod) | [`deploy/README.md`](deploy/README.md) |
+| stack y decisiones técnicas | [`docs/architecture/TECH.md`](docs/architecture/TECH.md) |
+| flujos con nombres de clase para navegar el código | [`docs/architecture/FLOWS.md`](docs/architecture/FLOWS.md) |
+| patrones de integración SAP (implementado vs propuesto) | [`docs/architecture/INTEGRATION-PATTERNS.md`](docs/architecture/INTEGRATION-PATTERNS.md) |
+| mapa funcional navegable (HTML, doble clic) | [`docs/architecture/MAPA-FUNCIONAL.html`](docs/architecture/MAPA-FUNCIONAL.html) |
+| arrancar en local en ~15 min, o contra servidores de test | [`docs/QUICK_START.md`](docs/QUICK_START.md) |
+| levantar/parar todo con un comando | [`scripts/start-all.sh`](scripts/start-all.sh) · [`scripts/stop-all.sh`](scripts/stop-all.sh) |
+| **contrato REST de cada módulo (OpenAPI)** | `<modulo>/src/main/resources/openapi.yml` — [customer](customer/src/main/resources/openapi.yml) · [article](article/src/main/resources/openapi.yml); regla en [`docs/sdd/common/contrato-openapi-rest.md`](docs/sdd/common/contrato-openapi-rest.md) |
+| probar la API a mano (colección Postman) | [`scripts/postman/`](scripts/postman/) |
+| catálogo de la suite de tests y convenciones | [`docs/testing/TESTING.md`](docs/testing/TESTING.md) |
+| probar a fondo (CDC, resiliencia, tenant real) | [`docs/testing/GUIA-PRUEBAS.md`](docs/testing/GUIA-PRUEBAS.md) |
+| SAP Cloud SDK (VDM): opción aparcada por ADR-0001, guía para cuando se reevalúe | [`docs/tools-integrations/SAP_CLOUD_SDK.md`](docs/tools-integrations/SAP_CLOUD_SDK.md) |
+| propuesta de servidor MCP para agentes IA | [`docs/tools-integrations/MCP.md`](docs/tools-integrations/MCP.md) |
+| **lo pendiente accionable y quién lo desbloquea** | [`TODO.md`](TODO.md) |
+| mejoras e ideas pendientes (backlog, no defectos) | [`docs/MEJORAS-Y-PROPUESTAS.md`](docs/MEJORAS-Y-PROPUESTAS.md) |
+| **qué cambia para negocio** en cada revisión | [`CHANGELOG.md`](CHANGELOG.md) (raíz) |
+| cambios de las features de un subproyecto | `docs/sdd/<subproyecto>/CHANGELOG.md` |
+| quién pidió una feature, cuándo y en qué estado está | registro MySQL `sdd_registry` — [`docs/sdd/README.md`](docs/sdd/README.md) §8 |
+| terminología del proyecto (**se actualiza siempre**) | [`docs/GLOSSARY.md`](docs/GLOSSARY.md) |
+| levantar la infraestructura local | [`external-services/README.md`](external-services/README.md) |
+| proyecto Python de referencia | `../poc-sap-integration` |

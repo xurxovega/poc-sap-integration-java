@@ -1,0 +1,119 @@
+{
+  "title": "Customer pipeline",
+  "uid": "customer-pipeline-v1",
+  "tags": ["sap-integration", "customer", "pipeline"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "refresh": "30s",
+  "time": { "from": "now-1h", "to": "now" },
+  "timepicker": {
+    "time_options": ["5m", "15m", "1h", "6h", "24h"]
+  },
+  "templating": {
+    "list": [
+      {
+        "name": "DS_PROMETHEUS",
+        "type": "datasource",
+        "query": "prometheus",
+        "label": "Prometheus",
+        "current": { "text": "Prometheus", "value": "prometheus" }
+      },
+      {
+        "name": "env",
+        "type": "query",
+        "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+        "query": "label_values(sap_sync_state_total{application=\"customer-app\"}, env)",
+        "label": "Environment",
+        "refresh": 2
+      },
+      {
+        "name": "entityId",
+        "type": "textbox",
+        "label": "Entity ID",
+        "query": "",
+        "current": { "text": "", "value": "" }
+      },
+      {
+        "name": "cluster",
+        "type": "query",
+        "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+        "query": "label_values(sap_sync_state_total{application=\"customer-app\", env=~\"$env\"}, cluster)",
+        "label": "Cluster",
+        "refresh": 2
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "type": "timeseries",
+      "title": "Throughput por estado",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "targets": [
+        {
+          "expr": "sum by (state) (rate(sap_sync_state_total{application=\"customer-app\", env=~\"$env\", cluster=~\"$cluster\"}[5m]))",
+          "legendFormat": "{{state}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "ops" } }
+    },
+    {
+      "id": 2,
+      "type": "timeseries",
+      "title": "p95 por etapa (send)",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum by (le, stage) (rate(sap_sync_stage_duration_seconds_bucket{application=\"customer-app\", env=~\"$env\", cluster=~\"$cluster\", stage=\"send\"}[5m])))",
+          "legendFormat": "{{stage}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "s" } }
+    },
+    {
+      "id": 3,
+      "type": "timeseries",
+      "title": "Resultados por feature",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "targets": [
+        {
+          "expr": "sum by (feature, result) (rate(sap_sync_feature_result_total{application=\"customer-app\", env=~\"$env\", cluster=~\"$cluster\"}[5m]))",
+          "legendFormat": "{{feature}}/{{result}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "ops" } }
+    },
+    {
+      "id": 4,
+      "type": "stat",
+      "title": "Ratio SAP_ERROR",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "targets": [
+        {
+          "expr": "sum(rate(sap_sync_feature_result_total{application=\"customer-app\", result=\"SAP_ERROR\"}[5m])) / clamp_min(sum(rate(sap_sync_feature_result_total{application=\"customer-app\"}[5m])), 1)",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "orange", "value": 0.05 },
+              { "color": "red", "value": 0.10 }
+            ]
+          }
+        }
+      }
+    }
+  ]
+}

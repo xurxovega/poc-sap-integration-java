@@ -1,0 +1,4476 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Characteristic Data for Classification",
+    "version": "1.0.0",
+    "description": "Characteristics describe attributes of the objects to be classified. Using the API you can maintain characteristic header data, descriptions, references, restrictions and values."
+  },
+  "externalDocs": {
+    "description": "Business Documentation",
+    "url": "https://help.sap.com/http.svc/ahp2/SAP_S4HANA_CLOUD/2608.latest/EN/5c/3fb6b558b1482491fd786ec7fa0c26/frameset.htm"
+  },
+  "x-sap-api-type": "ODATA",
+  "x-sap-shortText": "Create, read, update, and delete characteristic data with this synchronous inbound service",
+  "x-sap-software-min-version": "2608",
+  "x-sap-ext-overview": [
+    {
+      "name": "Communication Scenario",
+      "values": [
+        {
+          "text": "Classification Systems OData/SOAP Integration (SAP_COM_0163)",
+          "format": "plain"
+        },
+        {
+          "text": "Excise Tax Integration (SAP_COM_0568)",
+          "format": "plain"
+        }
+      ]
+    },
+    {
+      "name": "Custom Communication Scenario",
+      "values": [
+        {
+          "text": "You can use this API in custom communication scenarios. For more information, see Custom Communication Scenario app.",
+          "format": "plain"
+        }
+      ]
+    },
+    {
+      "name": "Scope Items",
+      "values": [
+        {
+          "text": "[Enablement of SAP Excise Tax Management (4LO)](https://me.sap.com/processnavigator/SolP/4LO \" Link To BP \")",
+          "format": "markdown"
+        }
+      ]
+    },
+    {
+      "name": "Authentication Methods",
+      "values": [
+        {
+          "text": "x509",
+          "format": "plain"
+        }
+      ]
+    },
+    {
+      "name": "Business Object",
+      "values": [
+        {
+          "text": "Classification Characteristic",
+          "format": "plain"
+        }
+      ]
+    }
+  ],
+  "servers": [
+    {
+      "url": "https://{host}:{port}/sap/opu/odata/sap/API_CLFN_CHARACTERISTIC_SRV",
+      "variables": {
+        "host": {
+          "default": ""
+        },
+        "port": {
+          "default": ""
+        }
+      }
+    },
+    {
+      "url": "https://sandbox.api.sap.com/s4hanacloud/sap/opu/odata/sap/API_CLFN_CHARACTERISTIC_SRV"
+    }
+  ],
+  "x-sap-extensible": {
+    "supported": "no"
+  },
+  "tags": [
+    {
+      "name": "Characteristic Header Data"
+    },
+    {
+      "name": "Characteristic Descriptions"
+    },
+    {
+      "name": "Characteristic References"
+    },
+    {
+      "name": "Characteristic Restrictions"
+    },
+    {
+      "name": "Characteristic Value Descriptions"
+    },
+    {
+      "name": "Characteristic Values"
+    }
+  ],
+  "paths": {
+    "/A_ClfnCharacteristicForKeyDate": {
+      "get": {
+        "summary": "List of characteristic header data.",
+        "description": "Reads all characteristic header data.",
+        "tags": [
+          "Characteristic Header Data"
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/top"
+          },
+          {
+            "$ref": "#/components/parameters/skip"
+          },
+          {
+            "name": "$filter",
+            "in": "query",
+            "description": "Filter items by property values, see [Filtering](https://help.sap.com/doc/5890d27be418427993fafa6722cdc03b/Cloud/en-US/OdataV2.pdf#page=64)",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/count"
+          },
+          {
+            "name": "$orderby",
+            "in": "query",
+            "description": "Order items by property values, see [Sorting](https://help.sap.com/doc/5890d27be418427993fafa6722cdc03b/Cloud/en-US/OdataV2.pdf#page=65)",
+            "explode": false,
+            "schema": {
+              "type": "array",
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "enum": [
+                  "CharcInternalID",
+                  "CharcInternalID desc",
+                  "Characteristic",
+                  "Characteristic desc",
+                  "CharcStatus",
+                  "CharcStatus desc",
+                  "CharcStatusName",
+                  "CharcStatusName desc",
+                  "CharcDataType",
+                  "CharcDataType desc",
+                  "CharcLength",
+                  "CharcLength desc",
+                  "CharcDecimals",
+                  "CharcDecimals desc",
+                  "CharcTemplate",
+                  "CharcTemplate desc",
+                  "ValueIsCaseSensitive",
+                  "ValueIsCaseSensitive desc",
+                  "CharcGroup",
+                  "CharcGroup desc",
+                  "CharcGroupName",
+                  "CharcGroupName desc",
+                  "EntryIsRequired",
+                  "EntryIsRequired desc",
+                  "MultipleValuesAreAllowed",
+                  "MultipleValuesAreAllowed desc",
+                  "CharcValueUnit",
+                  "CharcValueUnit desc",
+                  "UnitOfMeasureISOCode",
+                  "UnitOfMeasureISOCode desc",
+                  "Currency",
+                  "Currency desc",
+                  "CurrencyISOCode",
+                  "CurrencyISOCode desc",
+                  "CharcExponentValue",
+                  "CharcExponentValue desc",
+                  "ValueIntervalIsAllowed",
+                  "ValueIntervalIsAllowed desc",
+                  "AdditionalValueIsAllowed",
+                  "AdditionalValueIsAllowed desc",
+                  "NegativeValueIsAllowed",
+                  "NegativeValueIsAllowed desc",
+                  "ValidityStartDate",
+                  "ValidityStartDate desc",
+                  "ValidityEndDate",
+                  "ValidityEndDate desc",
+                  "ChangeNumber",
+                  "ChangeNumber desc",
+                  "DocumentType",
+                  "DocumentType desc",
+                  "DocNumber",
+                  "DocNumber desc",
+                  "DocumentVersion",
+                  "DocumentVersion desc",
+                  "DocumentPart",
+                  "DocumentPart desc",
+                  "CharcMaintAuthGrp",
+                  "CharcMaintAuthGrp desc",
+                  "CharcIsReadOnly",
+                  "CharcIsReadOnly desc",
+                  "CharcIsHidden",
+                  "CharcIsHidden desc",
+                  "CharcIsRestrictable",
+                  "CharcIsRestrictable desc",
+                  "CharcExponentFormat",
+                  "CharcExponentFormat desc",
+                  "CharcEntryIsNotFormatCtrld",
+                  "CharcEntryIsNotFormatCtrld desc",
+                  "CharcTemplateIsDisplayed",
+                  "CharcTemplateIsDisplayed desc",
+                  "CreationDate",
+                  "CreationDate desc",
+                  "LastChangeDate",
+                  "LastChangeDate desc",
+                  "CharcLastChangedDateTime",
+                  "CharcLastChangedDateTime desc",
+                  "KeyDate",
+                  "KeyDate desc"
+                ]
+              }
+            }
+          },
+          {
+            "name": "$select",
+            "in": "query",
+            "description": "Select properties to be returned, see [Select](https://help.sap.com/doc/5890d27be418427993fafa6722cdc03b/Cloud/en-US/OdataV2.pdf#page=68)",
+            "explode": false,
+            "schema": {
+              "type": "array",
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "enum": [
+                  "Delete_mc",
+                  "Update_mc",
+                  "to_CharacteristicDesc_oc",
+                  "to_CharacteristicReference_oc",
+                  "to_CharacteristicRestriction_oc",
+                  "to_CharacteristicValue_oc",
+                  "CharcInternalID",
+                  "Characteristic",
+                  "CharcStatus",
+                  "CharcStatusName",
+                  "CharcDataType",
+                  "CharcLength",
+                  "CharcDecimals",
+                  "CharcTemplate",
+                  "ValueIsCaseSensitive",
+                  "CharcGroup",
+                  "CharcGroupName",
+                  "EntryIsRequired",
+                  "MultipleValuesAreAllowed",
+                  "CharcValueUnit",
+                  "UnitOfMeasureISOCode",
+                  "Currency",
+                  "CurrencyISOCode",
+                  "CharcExponentValue",
+                  "ValueIntervalIsAllowed",
+                  "AdditionalValueIsAllowed",
+                  "NegativeValueIsAllowed",
+                  "ValidityStartDate",
+                  "ValidityEndDate",
+                  "ChangeNumber",
+                  "DocumentType",
+                  "DocNumber",
+                  "DocumentVersion",
+                  "DocumentPart",
+                  "CharcMaintAuthGrp",
+                  "CharcIsReadOnly",
+                  "CharcIsHidden",
+                  "CharcIsRestrictable",
+                  "CharcExponentFormat",
+                  "CharcEntryIsNotFormatCtrld",
+                  "CharcTemplateIsDisplayed",
+                  "CreationDate",
+                  "LastChangeDate",
+                  "CharcLastChangedDateTime",
+                  "KeyDate",
+                  "to_CharacteristicDesc",
+                  "to_CharacteristicReference",
+                  "to_CharacteristicRestriction",
+                  "to_CharacteristicValue"
+                ]
+              }
+            }
+          },
+          {
+            "name": "$expand",
+            "in": "query",
+            "description": "Expand related entities, see [Expand](https://help.sap.com/doc/5890d27be418427993fafa6722cdc03b/Cloud/en-US/OdataV2.pdf#page=63)",
+            "explode": false,
+            "schema": {
+              "type": "array",
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "enum": [
+                  "to_CharacteristicDesc",
+                  "to_CharacteristicReference",
+                  "to_CharacteristicRestriction",
+                  "to_CharacteristicValue"
+                ]
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Retrieved entities",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Wrapper",
+                  "type": "object",
+                  "properties": {
+                    "d": {
+                      "title": "Collection of A_ClfnCharacteristicForKeyDateType",
+                      "type": "object",
+                      "properties": {
+                        "__count": {
+                          "$ref": "#/components/schemas/count"
+                        },
+                        "results": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/API_CLFN_CHARACTERISTIC_SRV.A_ClfnCharacteristicForKeyDateType"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/error"
+          }
+        }
+      },
+      "post": {
+        "summary": "Creates a characteristic header data.",
+        "description": "Creates a characteristic header data using characteristic name. Providing data type, status and a description in the same request is mandatory. Other fields might also be required depending on the selected data type.",
+        "tags": [
+          "Characteristic Header Data"
+        ],
+        "requestBody": {
+          "required": true,
+          "description": "New entity",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/API_CLFN_CHARACTERISTIC_SRV.A_ClfnCharacteristicForKeyDateType-create"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created entity",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "A_ClfnCharacteristicForKeyDateType",
+                  "type": "object",
+                  "properties": {
+                    "d": {
+                      "$ref": "#/components/schemas/API_CLFN_CHARACTERISTIC_SRV.A_ClfnCharacteristicForKeyDateType"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/error"
+          }
+        }
+      }
+    },
+    "/A_ClfnCharacteristicForKeyDate('{CharcInternalID}')": {
+      "parameters": [
+        {
+          "name": "CharcInternalID",
+          "in": "path",
+          "required": true,
+          "description": "Characteristic Internal ID",
+          "schema": {
+            "type": "string",
+            "maxLength": 10
+          }
+        }
+      ],
+      "get": {
+        "summary": "Characteristic header data for a given key.",
+        "description": "Reads a characteristic header data by the internal ID.",
+        "tags": [
+          "Characteristic Header Data"
+        ],
+        "parameters": [
+          {
+            "name": "$select",
+            "in": "query",
+            "description": "Select properties to be returned, see [Select](https://help.sap.com/doc/5890d27be418427993fafa6722cdc03b/Cloud/en-US/OdataV2.pdf#page=68)",
+            "explode": false,
+            "schema": {
+              "type": "array",
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "enum": [
+                  "Delete_mc",
+                  "Update_mc",
+                  "to_CharacteristicDesc_oc",
+                  "to_CharacteristicReference_oc",
+                  "to_CharacteristicRestriction_oc",
+                  "to_CharacteristicValue_oc",
+                  "CharcInternalID",
+                  "Characteristic",
+                  "CharcStatus",
+                  "CharcStatusName",
+                  "CharcDataType",
+                  "CharcLength",
+                  "CharcDecimals",
+                  "CharcTemplate",
+                  "ValueIsCaseSensitive",
+                  "CharcGroup",
+                  "CharcGroupName",
+                  "EntryIsRequired",
+                  "MultipleValuesAreAllowed",
+                  "CharcValueUnit",
+                  "UnitOfMeasureISOCode",
+                  "Currency",
+                  "CurrencyISOCode",
+                  "CharcExponentValue",
+                  "ValueIntervalIsAllowed",
+                  "AdditionalValueIsAllowed",
+                  "NegativeValueIsAllowed",
+                  "ValidityStartDate",
+                  "ValidityEndDate",
+                  "ChangeNumber",
+                  "DocumentType",
+                  "DocNumber",
+                  "DocumentVersion",
+                  "DocumentPart",
+                  "CharcMaintAuthGrp",
+                  "CharcIsReadOnly",
+                  "CharcIsHidden",
+                  "CharcIsRestrictable",
+                  "CharcExponentFormat",
+                  "CharcEntryIsNotFormatCtrld",
+                  "CharcTemplateIsDisplayed",
+                  "CreationDate",
+                  "LastChangeDate",
+                  "CharcLastChangedDateTime",
+                  "KeyDate",
+                  "to_CharacteristicDesc",
+                  "to_CharacteristicReference",
+                  "to_CharacteristicRestriction",
+                  "to_CharacteristicValue"
+                ]
+              }
+            }
+          },
+          {
+            "name": "$expand",
+            "in": "query",
+            "description": "Expand related entities, see [Expand](https://help.sap.com/doc/5890d27be418427993fafa6722cdc03b/Cloud/en-US/OdataV2.pdf#page=63)",
+            "explode": false,
+            "schema": {
+              "type": "array",
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "enum": [
+                  "to_CharacteristicDesc",
+                  "to_CharacteristicReference",
+                  "to_CharacteristicRestriction",
+                  "to_CharacteristicValue"
+                ]
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Retrieved entity",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "A_ClfnCharacteristicForKeyDateType",
+                  "type": "object",
+                  "properties": {
+                    "d": {
+                      "$ref": "#/components/schemas/API_CLFN_CHARACTERISTIC_SRV.A_ClfnCharacteristicForKeyDateType"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/error"
+          }
+        }
+      },
+      "patch": {
+        "summary": "Updates a characteristic header data.",
+        "description": "Updates the header data of a characteristic selected by the internal ID.",
+        "tags": [
+          "Characteristic Header Data"
+        ],
+        "requestBody": {
+          "required": true,
+          "description": "New property values",
+          "content": {
+            "application/json": {
+              "schema": {
+                "title": "Modified A_ClfnCharacteristicForKeyDateType",
+                "type": "object",
+                "properties": {
+                  "d": {
+                    "$ref": "#/components/schemas/API_CLFN_CHARACTERISTIC_SRV.A_ClfnCharacteristicForKeyDateType-update"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Success"
+          },
+          "4XX": {
+            "$ref": "#/components/responses/error"
+          }
+        }
+      },
+      "delete": {
+        "summary": "Deletes a characteristic.",
+        "description": "Deletes a characteristic by the internal ID.",
+        "tags": [
+          "Characteristic Header Data"
+        ],
+        "responses": {
+          "204": {
+            "description": "Success"
+          },
+          "4XX": {
+            "$ref": "#/components/responses/error"
+          }
+        }
+      }
+    },
+    "/A_ClfnCharacteristicForKeyDate('{CharcInternalID}')/to_CharacteristicDesc": {
+      "parameters": [
+        {
+          "name": "CharcInternalID",
+          "in": "path",
+          "required": true,
+          "description": "Characteristic Internal ID",
+          "schema": {
+            "type": "string",
+            "maxLength": 10
+          }
+        }
+      ],
+      "get": {
+        "summary": "Reads the descriptions of a characteristic.",
+        "description": "Reads the description of the selected characteristic in each language.",
+        "tags": [
+          "Characteristic Header Data",
+          "Characteristic Descriptions"
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/top"
+          },
+          {
+            "$ref": "#/components/parameters/skip"
+          },
+          {
+            "name": "$filter",
+            "in": "query",
+            "description": "Filter items by property values, see [Filtering](https://help.sap.com/doc/5890d27be418427993fafa6722cdc03b/Cloud/en-US/OdataV2.pdf#page=64)",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/count"
+          },
+          {
+            "name": "$orderby",
+            "in": "query",
+            "description": "Order items by property values, see [Sorting](https://help.sap.com/doc/5890d27be418427993fafa6722cdc03b/Cloud/en-US/OdataV2.pdf#page=65)",
+            "explode": false,
+            "schema": {
+              "type": "array",
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "enum": [
+                  "CharcInternalID",
+                  "CharcInternalID desc",
+                  "Language",
+                  "Language desc",
+                  "CharcDescription",
+                  "CharcDescription desc",
+                  "ChangeNumber",
+                  "ChangeNumber desc",
+                  "ValidityStartDate",
+                  "ValidityStartDate desc",
+                  "ValidityEndDate",
+                  "ValidityEndDate desc",
+                  "KeyDate",
+                  "KeyDate desc",
+                  "CharcLastChangedDateTime",
+                  "CharcLastChangedDateTime desc"
+                ]
+              }
+            }
+          },
+          {
+            "name": "$select",
+            "in": "query",
+            "description": "Select properties to be returned, see [Select](https://help.sap.com/doc/5890d27be418427993fafa6722cdc03b/Cloud/en-US/OdataV2.pdf#page=68)",
+            "explode": false,
+            "schema": {
+              "type": "array",
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "enum": [
+                  "Delete_mc",
+                  "Update_mc",
+                  "CharcInternalID",
+                  "Language",
+                  "CharcDescription",
+                  "ChangeNumber",
+                  "ValidityStartDate",
+                  "ValidityEndDate",
+                  "KeyDate",
+                  "CharcLastChangedDateTime"
+                ]
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Retrieved entities",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Wrapper",
+                  "type": "object",
+                  "properties": {
+                    "d": {
+                      "title": "Collection of A_ClfnCharcDescForKeyDateType",
+                      "type": "object",
+                      "properties": {
+                        "__count": {
+                          "$ref": "#/components/schemas/count"
+                        },
+                        "results": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/API_CLFN_CHARACTERISTIC_SRV.A_ClfnCharcDescForKeyDateType"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/error"
+          }
+        }
+      },
+      "post": {
+        "summary": "Creates a description for a characteristic.",
+        "description": "Creates a new description for the selected characteristic.",
+        "tags": [
+          "Characteristic Header Data",
+          "Characteristic Descriptions"
+        ],
+        "requestBody": {
+          "required": true,
+          "description": "New entity",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/API_CLFN_CHARACTERISTIC_SRV.A_ClfnCharcDescForKeyDateType-create"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created entity",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "A_ClfnCharcDescForKeyDateType",
+                  "type": "object",
+                  "properties": {
+                    "d": {
+                      "$ref": "#/components/schemas/API_CLFN_CHARACTERISTIC_SRV.A_ClfnCharcDescForKeyDateType"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/error"
+          }
+        }
+      }
+    },
+    "/A_ClfnCharacteristicForKeyDate('{CharcInternalID}')/to_CharacteristicReference": {
+      "parameters": [
+        {
+          "name": "CharcInternalID",
+          "in": "path",
+          "required": true,
+          "description": "Characteristic Internal ID",
+          "schema": {
+            "type": "string",
+            "maxLength": 10
+          }
+        }
+      ],
+      "get": {
+        "summary": "Reads the references defined for a characteristic.",
+        "description": "Reads all references of the selected characteristic.",
+        "tags": [
+          "Characteristic Header Data",
+          "Characteristic References"
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/top"
+          },
+          {
+            "$ref": "#/components/parameters/skip"
+          },
+          {
+            "name": "$filter",
+            "in": "query",
+            "description": "Filter items by property values, see [Filtering](https://help.sap.com/doc/5890d27be418427993fafa6722cdc03b/Cloud/en-US/OdataV2.pdf#page=64)",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/count"
+          },
+          {
+            "name": "$orderby",
+            "in": "query",
+            "description": "Order items by property values, see [Sorting](https://help.sap.com/doc/5890d27be418427993fafa6722cdc03b/Cloud/en-US/OdataV2.pdf#page=65)",
+            "explode": false,
+            "schema": {
+              "type": "array",
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "enum": [
+                  "CharcInternalID",
+                  "CharcInternalID desc",
+                  "CharcReferenceTable",
+                  "CharcReferenceTable desc",
+                  "CharcReferenceTableField",
+                  "CharcReferenceTableField desc",
+                  "KeyDate",
+                  "KeyDate desc",
+                  "CharcLastChangedDateTime",
+                  "CharcLastChangedDateTime desc"
+                ]
+              }
+            }
+          },
+          {
+            "name": "$select",
+            "in": "query",
+            "description": "Select properties to be returned, see [Select](https://help.sap.com/doc/5890d27be418427993fafa6722cdc03b/Cloud/en-US/OdataV2.pdf#page=68)",
+            "explode": false,
+            "schema": {
+              "type": "array",
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "enum": [
+                  "Delete_mc",
+                  "CharcInternalID",
+                  "CharcReferenceTable",
+                  "CharcReferenceTableField",
+                  "KeyDate",
+                  "CharcLastChangedDateTime"
+                ]
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Retrieved entities",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Wrapper",
+                  "type": "object",
+                  "properties": {
+                    "d": {
+                      "title": "Collection of A_ClfnCharcRefForKeyDateType",
+                      "type": "object",
+                      "properties": {
+                        "__count": {
+                          "$ref": "#/components/schemas/count"
+                        },
+                        "results": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/API_CLFN_CHARACTERISTIC_SRV.A_ClfnCharcRefForKeyDateType"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/error"
+          }
+        }
+      },
+      "post": {
+        "summary": "Creates a reference for a characteristic.",
+        "description": "Creates a new reference for the selected characteristic.",
+        "tags": [
+          "Characteristic Header Data",
+          "Characteristic References"
+        ],
+        "requestBody": {
+          "required": true,
+          "description": "New entity",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/API_CLFN_CHARACTERISTIC_SRV.A_ClfnCharcRefForKeyDateType-create"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created entity",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "A_ClfnCharcRefForKeyDateType",
+                  "type": "object",
+                  "properties": {
+                    "d": {
+                      "$ref": "#/components/schemas/API_CLFN_CHARACTERISTIC_SRV.A_ClfnCharcRefForKeyDateType"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/error"
+          }
+        }
+      }
+    },
+    "/A_ClfnCharacteristicForKeyDate('{CharcInternalID}')/to_CharacteristicRestriction": {
+      "parameters": [
+        {
+          "name": "CharcInternalID",
+          "in": "path",
+          "required": true,
+          "description": "Characteristic Internal ID",
+          "schema": {
+            "type": "string",
+            "maxLength": 10
+          }
+        }
+      ],
+      "get": {
+        "summary": "Reads the restrictions defined for a characteristic.",
+        "description": "Reads all restrictions of the selected characteristic.",
+        "tags": [
+          "Characteristic Header Data",
+          "Characteristic Restrictions"
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/top"
+          },
+          {
+            "$ref": "#/components/parameters/skip"
+          },
+          {
+            "name": "$filter",
+            "in": "query",
+            "description": "Filter items by property values, see [Filtering](https://help.sap.com/doc/5890d27be418427993fafa6722cdc03b/Cloud/en-US/OdataV2.pdf#page=64)",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/count"
+          },
+          {
+            "name": "$orderby",
+            "in": "query",
+            "description": "Order items by property values, see [Sorting](https://help.sap.com/doc/5890d27be418427993fafa6722cdc03b/Cloud/en-US/OdataV2.pdf#page=65)",
+            "explode": false,
+            "schema": {
+              "type": "array",
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "enum": [
+                  "CharcInternalID",
+                  "CharcInternalID desc",
+                  "ClassType",
+                  "ClassType desc",
+                  "KeyDate",
+                  "KeyDate desc",
+                  "CharcLastChangedDateTime",
+                  "CharcLastChangedDateTime desc"
+                ]
+              }
+            }
+          },
+          {
+            "name": "$select",
+            "in": "query",
+            "description": "Select properties to be returned, see [Select](https://help.sap.com/doc/5890d27be418427993fafa6722cdc03b/Cloud/en-US/OdataV2.pdf#page=68)",
+            "explode": false,
+            "schema": {
+              "type": "array",
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "enum": [
+                  "Delete_mc",
+                  "CharcInternalID",
+                  "ClassType",
+                  "KeyDate",
+                  "CharcLastChangedDateTime"
+                ]
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Retrieved entities",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Wrapper",
+                  "type": "object",
+                  "properties": {
+                    "d": {
+                      "title": "Collection of A_ClfnCharcRstrcnForKeyDateType",
+                      "type": "object",
+                      "properties": {
+                        "__count": {
+                          "$ref": "#/components/schemas/count"
+                        },
+                        "results": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/API_CLFN_CHARACTERISTIC_SRV.A_ClfnCharcRstrcnForKeyDateType"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/error"
+          }
+        }
+      },
+      "post": {
+        "summary": "Creates a restriction for a characteristic.",
+        "description": "Creates a new restriction for the selected characteristic.",
+        "tags": [
+          "Characteristic Header Data",
+          "Characteristic Restrictions"
+        ],
+        "requestBody": {
+          "required": true,
+          "description": "New entity",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/API_CLFN_CHARACTERISTIC_SRV.A_ClfnCharcRstrcnForKeyDateType-create"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created entity",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "A_ClfnCharcRstrcnForKeyDateType",
+                  "type": "object",
+                  "properties": {
+                    "d": {
+                      "$ref": "#/components/schemas/API_CLFN_CHARACTERISTIC_SRV.A_ClfnCharcRstrcnForKeyDateType"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/error"
+          }
+        }
+      }
+    },
+    "/A_ClfnCharacteristicForKeyDate('{CharcInternalID}')/to_CharacteristicValue": {
+      "parameters": [
+        {
+          "name": "CharcInternalID",
+          "in": "path",
+          "required": true,
+          "description": "Characteristic Internal ID",
+          "schema": {
+            "type": "string",
+            "maxLength": 10
+          }
+        }
+      ],
+      "get": {
+        "summary": "Reads the values defined for a characteristic.",
+        "description": "Reads all values of the selected characteristic.",
+        "tags": [
+          "Characteristic Header Data",
+          "Characteristic Values"
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/top"
+          },
+          {
+            "$ref": "#/components/parameters/skip"
+          },
+          {
+            "name": "$filter",
+            "in": "query",
+            "description": "Filter items by property values, see [Filtering](https://help.sap.com/doc/5890d27be418427993fafa6722cdc03b/Cloud/en-US/OdataV2.pdf#page=64)",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/count"
+          },
+          {
+            "name": "$orderby",
+            "in": "query",
+            "description": "Order items by property values, see [Sorting](https://help.sap.com/doc/5890d27be418427993fafa6722cdc03b/Cloud/en-US/OdataV2.pdf#page=65)",
+            "explode": false,
+            "schema": {
+              "type": "array",
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "enum": [
+                  "CharcInternalID",
+                  "CharcInternalID desc",
+                  "CharcValuePositionNumber",
+                  "CharcValuePositionNumber desc",
+                  "CharcValueDependency",
+                  "CharcValueDependency desc",
+                  "CharcValue",
+                  "CharcValue desc",
+                  "CharcFromNumericValue",
+                  "CharcFromNumericValue desc",
+                  "CharcToNumericValue",
+                  "CharcToNumericValue desc",
+                  "IsDefaultValue",
+                  "IsDefaultValue desc",
+                  "CharcFromNumericValueUnit",
+                  "CharcFromNumericValueUnit desc",
+                  "CharcToNumericValueUnit",
+                  "CharcToNumericValueUnit desc",
+                  "LongTextID",
+                  "LongTextID desc",
+                  "ChangeNumber",
+                  "ChangeNumber desc",
+                  "DocumentType",
+                  "DocumentType desc",
+                  "DocNumber",
+                  "DocNumber desc",
+                  "DocumentPart",
+                  "DocumentPart desc",
+                  "DocumentVersion",
+                  "DocumentVersion desc",
+                  "ValidityStartDate",
+                  "ValidityStartDate desc",
+                  "ValidityEndDate",
+                  "ValidityEndDate desc",
+                  "KeyDate",
+                  "KeyDate desc",
+                  "CharcLastChangedDateTime",
+                  "CharcLastChangedDateTime desc"
+                ]
+              }
+            }
+          },
+          {
+            "name": "$select",
+            "in": "query",
+            "description": "Select properties to be returned, see [Select](https://help.sap.com/doc/5890d27be418427993fafa6722cdc03b/Cloud/en-US/OdataV2.pdf#page=68)",
+            "explode": false,
+            "schema": {
+              "type": "array",
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "enum": [
+                  "Delete_mc",
+                  "Update_mc",
+                  "to_CharcValueDesc_oc",
+                  "CharcInternalID",
+                  "CharcValuePositionNumber",
+                  "CharcValueDependency",
+                  "CharcValue",
+                  "CharcFromNumericValue",
+                  "CharcToNumericValue",
+                  "IsDefaultValue",
+                  "CharcFromNumericValueUnit",
+                  "CharcToNumericValueUnit",
+                  "LongTextID",
+                  "ChangeNumber",
+                  "DocumentType",
+                  "DocNumber",
+                  "DocumentPart",
+                  "DocumentVersion",
+                  "ValidityStartDate",
+                  "ValidityEndDate",
+                  "KeyDate",
+                  "CharcLastChangedDateTime",
+                  "to_CharcValueDesc"
+                ]
+              }
+            }
+          },
+          {
+            "name": "$expand",
+            "in": "query",
+            "description": "Expand related entities, see [Expand](https://help.sap.com/doc/5890d27be418427993fafa6722cdc03b/Cloud/en-US/OdataV2.pdf#page=63)",
+            "explode": false,
+            "schema": {
+              "type": "array",
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "enum": [
+                  "to_CharcValueDesc"
+                ]
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Retrieved entities",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Wrapper",
+                  "type": "object",
+                  "properties": {
+                    "d": {
+                      "title": "Collection of A_ClfnCharcValueForKeyDateType",
+                      "type": "object",
+                      "properties": {
+                        "__count": {
+                          "$ref": "#/components/schemas/count"
+                        },
+                        "results": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/API_CLFN_CHARACTERISTIC_SRV.A_ClfnCharcValueForKeyDateType"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/error"
+          }
+        }
+      },
+      "post": {
+        "summary": "Creates a value for a characteristic.",
+        "description": "Creates a new value for the selected characteristic.",
+        "tags": [
+          "Characteristic Header Data",
+          "Characteristic Values"
+        ],
+        "requestBody": {
+          "required": true,
+          "description": "New entity",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/API_CLFN_CHARACTERISTIC_SRV.A_ClfnCharcValueForKeyDateType-create"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created entity",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "A_ClfnCharcValueForKeyDateType",
+                  "type": "object",
+                  "properties": {
+                    "d": {
+                      "$ref": "#/components/schemas/API_CLFN_CHARACTERISTIC_SRV.A_ClfnCharcValueForKeyDateType"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/error"
+          }
+        }
+      }
+    },
+    "/A_ClfnCharcDescForKeyDate": {
+      "get": {
+        "summary": "List of characteristic descriptions.",
+        "description": "Reads all characteristic descriptions. You can also get descriptions for a selected characteristic or language.",
+        "tags": [
+          "Characteristic Descriptions"
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/top"
+          },
+          {
+            "$ref": "#/components/parameters/skip"
+          },
+          {
+            "name": "$filter",
+            "in": "query",
+            "description": "Filter items by property values, see [Filtering](https://help.sap.com/doc/5890d27be418427993fafa6722cdc03b/Cloud/en-US/OdataV2.pdf#page=64)",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/count"
+          },
+          {
+            "name": "$orderby",
+            "in": "query",
+            "description": "Order items by property values, see [Sorting](https://help.sap.com/doc/5890d27be418427993fafa6722cdc03b/Cloud/en-US/OdataV2.pdf#page=65)",
+            "explode": false,
+            "schema": {
+              "type": "array",
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "enum": [
+                  "CharcInternalID",
+                  "CharcInternalID desc",
+                  "Language",
+                  "Language desc",
+                  "CharcDescription",
+                  "CharcDescription desc",
+                  "ChangeNumber",
+                  "ChangeNumber desc",
+                  "ValidityStartDate",
+                  "ValidityStartDate desc",
+                  "ValidityEndDate",
+                  "ValidityEndDate desc",
+                  "KeyDate",
+                  "KeyDate desc",
+                  "CharcLastChangedDateTime",
+                  "CharcLastChangedDateTime desc"
+                ]
+              }
+            }
+          },
+          {
+            "name": "$select",
+            "in": "query",
+            "description": "Select properties to be returned, see [Select](https://help.sap.com/doc/5890d27be418427993fafa6722cdc03b/Cloud/en-US/OdataV2.pdf#page=68)",
+            "explode": false,
+            "schema": {
+              "type": "array",
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "enum": [
+                  "Delete_mc",
+                  "Update_mc",
+                  "CharcInternalID",
+                  "Language",
+                  "CharcDescription",
+                  "ChangeNumber",
+                  "ValidityStartDate",
+                  "ValidityEndDate",
+                  "KeyDate",
+                  "CharcLastChangedDateTime"
+                ]
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Retrieved entities",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Wrapper",
+                  "type": "object",
+                  "properties": {
+                    "d": {
+                      "title": "Collection of A_ClfnCharcDescForKeyDateType",
+                      "type": "object",
+                      "properties": {
+                        "__count": {
+                          "$ref": "#/components/schemas/count"
+                        },
+                        "results": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/API_CLFN_CHARACTERISTIC_SRV.A_ClfnCharcDescForKeyDateType"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/error"
+          }
+        }
+      },
+      "post": {
+        "summary": "Creates a characteristic description.",
+        "description": "Creates a characteristic description using the internal ID of the characteristic and a language. In case the language is not provided, the logon language is used.",
+        "tags": [
+          "Characteristic Descriptions"
+        ],
+        "requestBody": {
+          "required": true,
+          "description": "New entity",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/API_CLFN_CHARACTERISTIC_SRV.A_ClfnCharcDescForKeyDateType-create"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created entity",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "A_ClfnCharcDescForKeyDateType",
+                  "type": "object",
+                  "properties": {
+                    "d": {
+                      "$ref": "#/components/schemas/API_CLFN_CHARACTERISTIC_SRV.A_ClfnCharcDescForKeyDateType"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/error"
+          }
+        }
+      }
+    },
+    "/A_ClfnCharcDescForKeyDate(CharcInternalID='{CharcInternalID}',Language='{Language}')": {
+      "parameters": [
+        {
+          "name": "CharcInternalID",
+          "in": "path",
+          "required": true,
+          "description": "Characteristic Internal ID",
+          "schema": {
+            "type": "string",
+            "maxLength": 10
+          }
+        },
+        {
+          "name": "Language",
+          "in": "path",
+          "required": true,
+          "description": "Language Key",
+          "schema": {
+            "type": "string",
+            "maxLength": 2
+          }
+        }
+      ],
+      "get": {
+        "summary": "Characteristic description for a given key.",
+        "description": "Reads the description of a characteristic in a selected language.",
+        "tags": [
+          "Characteristic Descriptions"
+        ],
+        "parameters": [
+          {
+            "name": "$select",
+            "in": "query",
+            "description": "Select properties to be returned, see [Select](https://help.sap.com/doc/5890d27be418427993fafa6722cdc03b/Cloud/en-US/OdataV2.pdf#page=68)",
+            "explode": false,
+            "schema": {
+              "type": "array",
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "enum": [
+                  "Delete_mc",
+                  "Update_mc",
+                  "CharcInternalID",
+                  "Language",
+                  "CharcDescription",
+                  "ChangeNumber",
+                  "ValidityStartDate",
+                  "ValidityEndDate",
+                  "KeyDate",
+                  "CharcLastChangedDateTime"
+                ]
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Retrieved entity",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "A_ClfnCharcDescForKeyDateType",
+                  "type": "object",
+                  "properties": {
+                    "d": {
+                      "$ref": "#/components/schemas/API_CLFN_CHARACTERISTIC_SRV.A_ClfnCharcDescForKeyDateType"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/error"
+          }
+        }
+      },
+      "patch": {
+        "summary": "Updates a characteristic description.",
+        "description": "Updates the description of a characteristic defined by the internal ID and the language.",
+        "tags": [
+          "Characteristic Descriptions"
+        ],
+        "requestBody": {
+          "required": true,
+          "description": "New property values",
+          "content": {
+            "application/json": {
+              "schema": {
+                "title": "Modified A_ClfnCharcDescForKeyDateType",
+                "type": "object",
+                "properties": {
+                  "d": {
+                    "$ref": "#/components/schemas/API_CLFN_CHARACTERISTIC_SRV.A_ClfnCharcDescForKeyDateType-update"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Success"
+          },
+          "4XX": {
+            "$ref": "#/components/responses/error"
+          }
+        }
+      },
+      "delete": {
+        "summary": "Deletes a characteristic description.",
+        "description": "Deletes the description of a characteristic defined by the internal ID and the language.",
+        "tags": [
+          "Characteristic Descriptions"
+        ],
+        "responses": {
+          "204": {
+            "description": "Success"
+          },
+          "4XX": {
+            "$ref": "#/components/responses/error"
+          }
+        }
+      }
+    },
+    "/A_ClfnCharcRefForKeyDate": {
+      "get": {
+        "summary": "List of characteristic references.",
+        "description": "Reads all characteristic references. You can also get references for a selected characteristic.",
+        "tags": [
+          "Characteristic References"
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/top"
+          },
+          {
+            "$ref": "#/components/parameters/skip"
+          },
+          {
+            "name": "$filter",
+            "in": "query",
+            "description": "Filter items by property values, see [Filtering](https://help.sap.com/doc/5890d27be418427993fafa6722cdc03b/Cloud/en-US/OdataV2.pdf#page=64)",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/count"
+          },
+          {
+            "name": "$orderby",
+            "in": "query",
+            "description": "Order items by property values, see [Sorting](https://help.sap.com/doc/5890d27be418427993fafa6722cdc03b/Cloud/en-US/OdataV2.pdf#page=65)",
+            "explode": false,
+            "schema": {
+              "type": "array",
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "enum": [
+                  "CharcInternalID",
+                  "CharcInternalID desc",
+                  "CharcReferenceTable",
+                  "CharcReferenceTable desc",
+                  "CharcReferenceTableField",
+                  "CharcReferenceTableField desc",
+                  "KeyDate",
+                  "KeyDate desc",
+                  "CharcLastChangedDateTime",
+                  "CharcLastChangedDateTime desc"
+                ]
+              }
+            }
+          },
+          {
+            "name": "$select",
+            "in": "query",
+            "description": "Select properties to be returned, see [Select](https://help.sap.com/doc/5890d27be418427993fafa6722cdc03b/Cloud/en-US/OdataV2.pdf#page=68)",
+            "explode": false,
+            "schema": {
+              "type": "array",
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "enum": [
+                  "Delete_mc",
+                  "CharcInternalID",
+                  "CharcReferenceTable",
+                  "CharcReferenceTableField",
+                  "KeyDate",
+                  "CharcLastChangedDateTime"
+                ]
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Retrieved entities",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Wrapper",
+                  "type": "object",
+                  "properties": {
+                    "d": {
+                      "title": "Collection of A_ClfnCharcRefForKeyDateType",
+                      "type": "object",
+                      "properties": {
+                        "__count": {
+                          "$ref": "#/components/schemas/count"
+                        },
+                        "results": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/API_CLFN_CHARACTERISTIC_SRV.A_ClfnCharcRefForKeyDateType"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/error"
+          }
+        }
+      },
+      "post": {
+        "summary": "Creates a characteristic reference.",
+        "description": "Creates a characteristic reference using the internal ID of the characteristic, a reference table and a reference field.",
+        "tags": [
+          "Characteristic References"
+        ],
+        "requestBody": {
+          "required": true,
+          "description": "New entity",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/API_CLFN_CHARACTERISTIC_SRV.A_ClfnCharcRefForKeyDateType-create"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created entity",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "A_ClfnCharcRefForKeyDateType",
+                  "type": "object",
+                  "properties": {
+                    "d": {
+                      "$ref": "#/components/schemas/API_CLFN_CHARACTERISTIC_SRV.A_ClfnCharcRefForKeyDateType"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/error"
+          }
+        }
+      }
+    },
+    "/A_ClfnCharcRefForKeyDate(CharcInternalID='{CharcInternalID}',CharcReferenceTable='{CharcReferenceTable}',CharcReferenceTableField='{CharcReferenceTableField}')": {
+      "parameters": [
+        {
+          "name": "CharcInternalID",
+          "in": "path",
+          "required": true,
+          "description": "Characteristic Internal ID",
+          "schema": {
+            "type": "string",
+            "maxLength": 10
+          }
+        },
+        {
+          "name": "CharcReferenceTable",
+          "in": "path",
+          "required": true,
+          "description": "Table Name",
+          "schema": {
+            "type": "string",
+            "maxLength": 30
+          }
+        },
+        {
+          "name": "CharcReferenceTableField",
+          "in": "path",
+          "required": true,
+          "description": "Field Name",
+          "schema": {
+            "type": "string",
+            "maxLength": 30
+          }
+        }
+      ],
+      "get": {
+        "summary": "Characteristic reference for a given key.",
+        "description": "Reads a characteristic reference using the internal ID of the characteristic, a reference table and a reference field.",
+        "tags": [
+          "Characteristic References"
+        ],
+        "parameters": [
+          {
+            "name": "$select",
+            "in": "query",
+            "description": "Select properties to be returned, see [Select](https://help.sap.com/doc/5890d27be418427993fafa6722cdc03b/Cloud/en-US/OdataV2.pdf#page=68)",
+            "explode": false,
+            "schema": {
+              "type": "array",
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "enum": [
+                  "Delete_mc",
+                  "CharcInternalID",
+                  "CharcReferenceTable",
+                  "CharcReferenceTableField",
+                  "KeyDate",
+                  "CharcLastChangedDateTime"
+                ]
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Retrieved entity",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "A_ClfnCharcRefForKeyDateType",
+                  "type": "object",
+                  "properties": {
+                    "d": {
+                      "$ref": "#/components/schemas/API_CLFN_CHARACTERISTIC_SRV.A_ClfnCharcRefForKeyDateType"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/error"
+          }
+        }
+      },
+      "delete": {
+        "summary": "Deletes a characteristic reference.",
+        "description": "Deletes a characteristic reference defined using the internal ID of the characteristic, a reference table and a reference field.",
+        "tags": [
+          "Characteristic References"
+        ],
+        "responses": {
+          "204": {
+            "description": "Success"
+          },
+          "4XX": {
+            "$ref": "#/components/responses/error"
+          }
+        }
+      }
+    },
+    "/A_ClfnCharcRstrcnForKeyDate": {
+      "get": {
+        "summary": "List of characteristic restrictions.",
+        "description": "Reads all characteristic restrictions. You can also get restrictions for a selected characteristic.",
+        "tags": [
+          "Characteristic Restrictions"
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/top"
+          },
+          {
+            "$ref": "#/components/parameters/skip"
+          },
+          {
+            "name": "$filter",
+            "in": "query",
+            "description": "Filter items by property values, see [Filtering](https://help.sap.com/doc/5890d27be418427993fafa6722cdc03b/Cloud/en-US/OdataV2.pdf#page=64)",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/count"
+          },
+          {
+            "name": "$orderby",
+            "in": "query",
+            "description": "Order items by property values, see [Sorting](https://help.sap.com/doc/5890d27be418427993fafa6722cdc03b/Cloud/en-US/OdataV2.pdf#page=65)",
+            "explode": false,
+            "schema": {
+              "type": "array",
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "enum": [
+                  "CharcInternalID",
+                  "CharcInternalID desc",
+                  "ClassType",
+                  "ClassType desc",
+                  "KeyDate",
+                  "KeyDate desc",
+                  "CharcLastChangedDateTime",
+                  "CharcLastChangedDateTime desc"
+                ]
+              }
+            }
+          },
+          {
+            "name": "$select",
+            "in": "query",
+            "description": "Select properties to be returned, see [Select](https://help.sap.com/doc/5890d27be418427993fafa6722cdc03b/Cloud/en-US/OdataV2.pdf#page=68)",
+            "explode": false,
+            "schema": {
+              "type": "array",
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "enum": [
+                  "Delete_mc",
+                  "CharcInternalID",
+                  "ClassType",
+                  "KeyDate",
+                  "CharcLastChangedDateTime"
+                ]
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Retrieved entities",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Wrapper",
+                  "type": "object",
+                  "properties": {
+                    "d": {
+                      "title": "Collection of A_ClfnCharcRstrcnForKeyDateType",
+                      "type": "object",
+                      "properties": {
+                        "__count": {
+                          "$ref": "#/components/schemas/count"
+                        },
+                        "results": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/API_CLFN_CHARACTERISTIC_SRV.A_ClfnCharcRstrcnForKeyDateType"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/error"
+          }
+        }
+      },
+      "post": {
+        "summary": "Creates a characteristic restriction.",
+        "description": "Creates a characteristic restriction using the internal ID of the characteristic and a class type.",
+        "tags": [
+          "Characteristic Restrictions"
+        ],
+        "requestBody": {
+          "required": true,
+          "description": "New entity",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/API_CLFN_CHARACTERISTIC_SRV.A_ClfnCharcRstrcnForKeyDateType-create"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created entity",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "A_ClfnCharcRstrcnForKeyDateType",
+                  "type": "object",
+                  "properties": {
+                    "d": {
+                      "$ref": "#/components/schemas/API_CLFN_CHARACTERISTIC_SRV.A_ClfnCharcRstrcnForKeyDateType"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/error"
+          }
+        }
+      }
+    },
+    "/A_ClfnCharcRstrcnForKeyDate(CharcInternalID='{CharcInternalID}',ClassType='{ClassType}')": {
+      "parameters": [
+        {
+          "name": "CharcInternalID",
+          "in": "path",
+          "required": true,
+          "description": "Characteristic Internal ID",
+          "schema": {
+            "type": "string",
+            "maxLength": 10
+          }
+        },
+        {
+          "name": "ClassType",
+          "in": "path",
+          "required": true,
+          "description": "Class Type",
+          "schema": {
+            "type": "string",
+            "maxLength": 3
+          }
+        }
+      ],
+      "get": {
+        "summary": "Characteristic restriction for a given key.",
+        "description": "Reads a characteristic restriction using the internal ID of the characteristic and a class type.",
+        "tags": [
+          "Characteristic Restrictions"
+        ],
+        "parameters": [
+          {
+            "name": "$select",
+            "in": "query",
+            "description": "Select properties to be returned, see [Select](https://help.sap.com/doc/5890d27be418427993fafa6722cdc03b/Cloud/en-US/OdataV2.pdf#page=68)",
+            "explode": false,
+            "schema": {
+              "type": "array",
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "enum": [
+                  "Delete_mc",
+                  "CharcInternalID",
+                  "ClassType",
+                  "KeyDate",
+                  "CharcLastChangedDateTime"
+                ]
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Retrieved entity",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "A_ClfnCharcRstrcnForKeyDateType",
+                  "type": "object",
+                  "properties": {
+                    "d": {
+                      "$ref": "#/components/schemas/API_CLFN_CHARACTERISTIC_SRV.A_ClfnCharcRstrcnForKeyDateType"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/error"
+          }
+        }
+      },
+      "delete": {
+        "summary": "Deletes a characteristic restriction.",
+        "description": "Deletes a characteristic restriction using the internal ID of the characteristic and a class type.",
+        "tags": [
+          "Characteristic Restrictions"
+        ],
+        "responses": {
+          "204": {
+            "description": "Success"
+          },
+          "4XX": {
+            "$ref": "#/components/responses/error"
+          }
+        }
+      }
+    },
+    "/A_ClfnCharcValueDescForKeyDate": {
+      "get": {
+        "summary": "List of characteristic value descriptions.",
+        "description": "Reads all characteristic value descriptions. You can also get value descriptions for a selected characteristic or characteristic value.",
+        "tags": [
+          "Characteristic Value Descriptions"
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/top"
+          },
+          {
+            "$ref": "#/components/parameters/skip"
+          },
+          {
+            "name": "$filter",
+            "in": "query",
+            "description": "Filter items by property values, see [Filtering](https://help.sap.com/doc/5890d27be418427993fafa6722cdc03b/Cloud/en-US/OdataV2.pdf#page=64)",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/count"
+          },
+          {
+            "name": "$orderby",
+            "in": "query",
+            "description": "Order items by property values, see [Sorting](https://help.sap.com/doc/5890d27be418427993fafa6722cdc03b/Cloud/en-US/OdataV2.pdf#page=65)",
+            "explode": false,
+            "schema": {
+              "type": "array",
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "enum": [
+                  "CharcInternalID",
+                  "CharcInternalID desc",
+                  "CharcValuePositionNumber",
+                  "CharcValuePositionNumber desc",
+                  "Language",
+                  "Language desc",
+                  "CharcValueDescription",
+                  "CharcValueDescription desc",
+                  "ChangeNumber",
+                  "ChangeNumber desc",
+                  "ValidityStartDate",
+                  "ValidityStartDate desc",
+                  "ValidityEndDate",
+                  "ValidityEndDate desc",
+                  "KeyDate",
+                  "KeyDate desc",
+                  "CharcLastChangedDateTime",
+                  "CharcLastChangedDateTime desc"
+                ]
+              }
+            }
+          },
+          {
+            "name": "$select",
+            "in": "query",
+            "description": "Select properties to be returned, see [Select](https://help.sap.com/doc/5890d27be418427993fafa6722cdc03b/Cloud/en-US/OdataV2.pdf#page=68)",
+            "explode": false,
+            "schema": {
+              "type": "array",
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "enum": [
+                  "Delete_mc",
+                  "Update_mc",
+                  "CharcInternalID",
+                  "CharcValuePositionNumber",
+                  "Language",
+                  "CharcValueDescription",
+                  "ChangeNumber",
+                  "ValidityStartDate",
+                  "ValidityEndDate",
+                  "KeyDate",
+                  "CharcLastChangedDateTime"
+                ]
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Retrieved entities",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Wrapper",
+                  "type": "object",
+                  "properties": {
+                    "d": {
+                      "title": "Collection of A_ClfnCharcValueDescForKeyDateType",
+                      "type": "object",
+                      "properties": {
+                        "__count": {
+                          "$ref": "#/components/schemas/count"
+                        },
+                        "results": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/API_CLFN_CHARACTERISTIC_SRV.A_ClfnCharcValueDescForKeyDateType"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/error"
+          }
+        }
+      },
+      "post": {
+        "summary": "Creates a characteristic value description.",
+        "description": "Creates a characteristic value description using a language, the position number of the value and the internal ID of the characteristic. In case the language is not provided, the logon language is used.",
+        "tags": [
+          "Characteristic Value Descriptions"
+        ],
+        "requestBody": {
+          "required": true,
+          "description": "New entity",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/API_CLFN_CHARACTERISTIC_SRV.A_ClfnCharcValueDescForKeyDateType-create"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created entity",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "A_ClfnCharcValueDescForKeyDateType",
+                  "type": "object",
+                  "properties": {
+                    "d": {
+                      "$ref": "#/components/schemas/API_CLFN_CHARACTERISTIC_SRV.A_ClfnCharcValueDescForKeyDateType"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/error"
+          }
+        }
+      }
+    },
+    "/A_ClfnCharcValueDescForKeyDate(CharcInternalID='{CharcInternalID}',CharcValuePositionNumber='{CharcValuePositionNumber}',Language='{Language}')": {
+      "parameters": [
+        {
+          "name": "CharcInternalID",
+          "in": "path",
+          "required": true,
+          "description": "Characteristic Internal ID",
+          "schema": {
+            "type": "string",
+            "maxLength": 10
+          }
+        },
+        {
+          "name": "CharcValuePositionNumber",
+          "in": "path",
+          "required": true,
+          "description": "Int counter",
+          "schema": {
+            "type": "string",
+            "maxLength": 4
+          }
+        },
+        {
+          "name": "Language",
+          "in": "path",
+          "required": true,
+          "description": "Language Key",
+          "schema": {
+            "type": "string",
+            "maxLength": 2
+          }
+        }
+      ],
+      "get": {
+        "summary": "Characteristic value description for a given key.",
+        "description": "Reads a characteristic value description on a selected language using the position number of the value and the internal ID of the characteristic.",
+        "tags": [
+          "Characteristic Value Descriptions"
+        ],
+        "parameters": [
+          {
+            "name": "$select",
+            "in": "query",
+            "description": "Select properties to be returned, see [Select](https://help.sap.com/doc/5890d27be418427993fafa6722cdc03b/Cloud/en-US/OdataV2.pdf#page=68)",
+            "explode": false,
+            "schema": {
+              "type": "array",
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "enum": [
+                  "Delete_mc",
+                  "Update_mc",
+                  "CharcInternalID",
+                  "CharcValuePositionNumber",
+                  "Language",
+                  "CharcValueDescription",
+                  "ChangeNumber",
+                  "ValidityStartDate",
+                  "ValidityEndDate",
+                  "KeyDate",
+                  "CharcLastChangedDateTime"
+                ]
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Retrieved entity",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "A_ClfnCharcValueDescForKeyDateType",
+                  "type": "object",
+                  "properties": {
+                    "d": {
+                      "$ref": "#/components/schemas/API_CLFN_CHARACTERISTIC_SRV.A_ClfnCharcValueDescForKeyDateType"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/error"
+          }
+        }
+      },
+      "patch": {
+        "summary": "Updates a characteristic value description.",
+        "description": "Updates a characteristic value description using a language, the position number of the value and the internal ID of the characteristic.",
+        "tags": [
+          "Characteristic Value Descriptions"
+        ],
+        "requestBody": {
+          "required": true,
+          "description": "New property values",
+          "content": {
+            "application/json": {
+              "schema": {
+                "title": "Modified A_ClfnCharcValueDescForKeyDateType",
+                "type": "object",
+                "properties": {
+                  "d": {
+                    "$ref": "#/components/schemas/API_CLFN_CHARACTERISTIC_SRV.A_ClfnCharcValueDescForKeyDateType-update"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Success"
+          },
+          "4XX": {
+            "$ref": "#/components/responses/error"
+          }
+        }
+      },
+      "delete": {
+        "summary": "Deletes a characteristic value description.",
+        "description": "Deletes a characteristic value description using a language, the position number of the value and the internal ID of the characteristic.",
+        "tags": [
+          "Characteristic Value Descriptions"
+        ],
+        "responses": {
+          "204": {
+            "description": "Success"
+          },
+          "4XX": {
+            "$ref": "#/components/responses/error"
+          }
+        }
+      }
+    },
+    "/A_ClfnCharcValueForKeyDate": {
+      "get": {
+        "summary": "List of characteristic values.",
+        "description": "Reads all characteristic values. You can also get values for a selected characteristic.",
+        "tags": [
+          "Characteristic Values"
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/top"
+          },
+          {
+            "$ref": "#/components/parameters/skip"
+          },
+          {
+            "name": "$filter",
+            "in": "query",
+            "description": "Filter items by property values, see [Filtering](https://help.sap.com/doc/5890d27be418427993fafa6722cdc03b/Cloud/en-US/OdataV2.pdf#page=64)",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/count"
+          },
+          {
+            "name": "$orderby",
+            "in": "query",
+            "description": "Order items by property values, see [Sorting](https://help.sap.com/doc/5890d27be418427993fafa6722cdc03b/Cloud/en-US/OdataV2.pdf#page=65)",
+            "explode": false,
+            "schema": {
+              "type": "array",
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "enum": [
+                  "CharcInternalID",
+                  "CharcInternalID desc",
+                  "CharcValuePositionNumber",
+                  "CharcValuePositionNumber desc",
+                  "CharcValueDependency",
+                  "CharcValueDependency desc",
+                  "CharcValue",
+                  "CharcValue desc",
+                  "CharcFromNumericValue",
+                  "CharcFromNumericValue desc",
+                  "CharcToNumericValue",
+                  "CharcToNumericValue desc",
+                  "IsDefaultValue",
+                  "IsDefaultValue desc",
+                  "CharcFromNumericValueUnit",
+                  "CharcFromNumericValueUnit desc",
+                  "CharcToNumericValueUnit",
+                  "CharcToNumericValueUnit desc",
+                  "LongTextID",
+                  "LongTextID desc",
+                  "ChangeNumber",
+                  "ChangeNumber desc",
+                  "DocumentType",
+                  "DocumentType desc",
+                  "DocNumber",
+                  "DocNumber desc",
+                  "DocumentPart",
+                  "DocumentPart desc",
+                  "DocumentVersion",
+                  "DocumentVersion desc",
+                  "ValidityStartDate",
+                  "ValidityStartDate desc",
+                  "ValidityEndDate",
+                  "ValidityEndDate desc",
+                  "KeyDate",
+                  "KeyDate desc",
+                  "CharcLastChangedDateTime",
+                  "CharcLastChangedDateTime desc"
+                ]
+              }
+            }
+          },
+          {
+            "name": "$select",
+            "in": "query",
+            "description": "Select properties to be returned, see [Select](https://help.sap.com/doc/5890d27be418427993fafa6722cdc03b/Cloud/en-US/OdataV2.pdf#page=68)",
+            "explode": false,
+            "schema": {
+              "type": "array",
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "enum": [
+                  "Delete_mc",
+                  "Update_mc",
+                  "to_CharcValueDesc_oc",
+                  "CharcInternalID",
+                  "CharcValuePositionNumber",
+                  "CharcValueDependency",
+                  "CharcValue",
+                  "CharcFromNumericValue",
+                  "CharcToNumericValue",
+                  "IsDefaultValue",
+                  "CharcFromNumericValueUnit",
+                  "CharcToNumericValueUnit",
+                  "LongTextID",
+                  "ChangeNumber",
+                  "DocumentType",
+                  "DocNumber",
+                  "DocumentPart",
+                  "DocumentVersion",
+                  "ValidityStartDate",
+                  "ValidityEndDate",
+                  "KeyDate",
+                  "CharcLastChangedDateTime",
+                  "to_CharcValueDesc"
+                ]
+              }
+            }
+          },
+          {
+            "name": "$expand",
+            "in": "query",
+            "description": "Expand related entities, see [Expand](https://help.sap.com/doc/5890d27be418427993fafa6722cdc03b/Cloud/en-US/OdataV2.pdf#page=63)",
+            "explode": false,
+            "schema": {
+              "type": "array",
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "enum": [
+                  "to_CharcValueDesc"
+                ]
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Retrieved entities",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Wrapper",
+                  "type": "object",
+                  "properties": {
+                    "d": {
+                      "title": "Collection of A_ClfnCharcValueForKeyDateType",
+                      "type": "object",
+                      "properties": {
+                        "__count": {
+                          "$ref": "#/components/schemas/count"
+                        },
+                        "results": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/API_CLFN_CHARACTERISTIC_SRV.A_ClfnCharcValueForKeyDateType"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/error"
+          }
+        }
+      },
+      "post": {
+        "summary": "Creates a characteristic value.",
+        "description": "Creates a characteristic value using the internal ID of the characteristic. Fields to be filled depend on the data type of the characteristic.",
+        "tags": [
+          "Characteristic Values"
+        ],
+        "requestBody": {
+          "required": true,
+          "description": "New entity",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/API_CLFN_CHARACTERISTIC_SRV.A_ClfnCharcValueForKeyDateType-create"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created entity",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "A_ClfnCharcValueForKeyDateType",
+                  "type": "object",
+                  "properties": {
+                    "d": {
+                      "$ref": "#/components/schemas/API_CLFN_CHARACTERISTIC_SRV.A_ClfnCharcValueForKeyDateType"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/error"
+          }
+        }
+      }
+    },
+    "/A_ClfnCharcValueForKeyDate(CharcInternalID='{CharcInternalID}',CharcValuePositionNumber='{CharcValuePositionNumber}')": {
+      "parameters": [
+        {
+          "name": "CharcInternalID",
+          "in": "path",
+          "required": true,
+          "description": "Characteristic Internal ID",
+          "schema": {
+            "type": "string",
+            "maxLength": 10
+          }
+        },
+        {
+          "name": "CharcValuePositionNumber",
+          "in": "path",
+          "required": true,
+          "description": "Int counter",
+          "schema": {
+            "type": "string",
+            "maxLength": 4
+          }
+        }
+      ],
+      "get": {
+        "summary": "Characteristic value for a given key.",
+        "description": "Reads a characteristic value using a position number and the internal ID of the characteristic.",
+        "tags": [
+          "Characteristic Values"
+        ],
+        "parameters": [
+          {
+            "name": "$select",
+            "in": "query",
+            "description": "Select properties to be returned, see [Select](https://help.sap.com/doc/5890d27be418427993fafa6722cdc03b/Cloud/en-US/OdataV2.pdf#page=68)",
+            "explode": false,
+            "schema": {
+              "type": "array",
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "enum": [
+                  "Delete_mc",
+                  "Update_mc",
+                  "to_CharcValueDesc_oc",
+                  "CharcInternalID",
+                  "CharcValuePositionNumber",
+                  "CharcValueDependency",
+                  "CharcValue",
+                  "CharcFromNumericValue",
+                  "CharcToNumericValue",
+                  "IsDefaultValue",
+                  "CharcFromNumericValueUnit",
+                  "CharcToNumericValueUnit",
+                  "LongTextID",
+                  "ChangeNumber",
+                  "DocumentType",
+                  "DocNumber",
+                  "DocumentPart",
+                  "DocumentVersion",
+                  "ValidityStartDate",
+                  "ValidityEndDate",
+                  "KeyDate",
+                  "CharcLastChangedDateTime",
+                  "to_CharcValueDesc"
+                ]
+              }
+            }
+          },
+          {
+            "name": "$expand",
+            "in": "query",
+            "description": "Expand related entities, see [Expand](https://help.sap.com/doc/5890d27be418427993fafa6722cdc03b/Cloud/en-US/OdataV2.pdf#page=63)",
+            "explode": false,
+            "schema": {
+              "type": "array",
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "enum": [
+                  "to_CharcValueDesc"
+                ]
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Retrieved entity",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "A_ClfnCharcValueForKeyDateType",
+                  "type": "object",
+                  "properties": {
+                    "d": {
+                      "$ref": "#/components/schemas/API_CLFN_CHARACTERISTIC_SRV.A_ClfnCharcValueForKeyDateType"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/error"
+          }
+        }
+      },
+      "patch": {
+        "summary": "Updates a characteristic value.",
+        "description": "Updates a characteristic value using a position number and the internal ID of the characteristic.",
+        "tags": [
+          "Characteristic Values"
+        ],
+        "requestBody": {
+          "required": true,
+          "description": "New property values",
+          "content": {
+            "application/json": {
+              "schema": {
+                "title": "Modified A_ClfnCharcValueForKeyDateType",
+                "type": "object",
+                "properties": {
+                  "d": {
+                    "$ref": "#/components/schemas/API_CLFN_CHARACTERISTIC_SRV.A_ClfnCharcValueForKeyDateType-update"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Success"
+          },
+          "4XX": {
+            "$ref": "#/components/responses/error"
+          }
+        }
+      },
+      "delete": {
+        "summary": "Deletes a characteristic value.",
+        "description": "Deletes a characteristic value using a position number and the internal ID of the characteristic.",
+        "tags": [
+          "Characteristic Values"
+        ],
+        "responses": {
+          "204": {
+            "description": "Success"
+          },
+          "4XX": {
+            "$ref": "#/components/responses/error"
+          }
+        }
+      }
+    },
+    "/A_ClfnCharcValueForKeyDate(CharcInternalID='{CharcInternalID}',CharcValuePositionNumber='{CharcValuePositionNumber}')/to_CharcValueDesc": {
+      "parameters": [
+        {
+          "name": "CharcInternalID",
+          "in": "path",
+          "required": true,
+          "description": "Characteristic Internal ID",
+          "schema": {
+            "type": "string",
+            "maxLength": 10
+          }
+        },
+        {
+          "name": "CharcValuePositionNumber",
+          "in": "path",
+          "required": true,
+          "description": "Int counter",
+          "schema": {
+            "type": "string",
+            "maxLength": 4
+          }
+        }
+      ],
+      "get": {
+        "summary": "Reads the descriptions of a characteristic value.",
+        "description": "Reads the description of the selected characteristic value in each language. Used in case of character type characteristics.",
+        "tags": [
+          "Characteristic Values",
+          "Characteristic Value Descriptions"
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/top"
+          },
+          {
+            "$ref": "#/components/parameters/skip"
+          },
+          {
+            "name": "$filter",
+            "in": "query",
+            "description": "Filter items by property values, see [Filtering](https://help.sap.com/doc/5890d27be418427993fafa6722cdc03b/Cloud/en-US/OdataV2.pdf#page=64)",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/count"
+          },
+          {
+            "name": "$orderby",
+            "in": "query",
+            "description": "Order items by property values, see [Sorting](https://help.sap.com/doc/5890d27be418427993fafa6722cdc03b/Cloud/en-US/OdataV2.pdf#page=65)",
+            "explode": false,
+            "schema": {
+              "type": "array",
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "enum": [
+                  "CharcInternalID",
+                  "CharcInternalID desc",
+                  "CharcValuePositionNumber",
+                  "CharcValuePositionNumber desc",
+                  "Language",
+                  "Language desc",
+                  "CharcValueDescription",
+                  "CharcValueDescription desc",
+                  "ChangeNumber",
+                  "ChangeNumber desc",
+                  "ValidityStartDate",
+                  "ValidityStartDate desc",
+                  "ValidityEndDate",
+                  "ValidityEndDate desc",
+                  "KeyDate",
+                  "KeyDate desc",
+                  "CharcLastChangedDateTime",
+                  "CharcLastChangedDateTime desc"
+                ]
+              }
+            }
+          },
+          {
+            "name": "$select",
+            "in": "query",
+            "description": "Select properties to be returned, see [Select](https://help.sap.com/doc/5890d27be418427993fafa6722cdc03b/Cloud/en-US/OdataV2.pdf#page=68)",
+            "explode": false,
+            "schema": {
+              "type": "array",
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "enum": [
+                  "Delete_mc",
+                  "Update_mc",
+                  "CharcInternalID",
+                  "CharcValuePositionNumber",
+                  "Language",
+                  "CharcValueDescription",
+                  "ChangeNumber",
+                  "ValidityStartDate",
+                  "ValidityEndDate",
+                  "KeyDate",
+                  "CharcLastChangedDateTime"
+                ]
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Retrieved entities",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Wrapper",
+                  "type": "object",
+                  "properties": {
+                    "d": {
+                      "title": "Collection of A_ClfnCharcValueDescForKeyDateType",
+                      "type": "object",
+                      "properties": {
+                        "__count": {
+                          "$ref": "#/components/schemas/count"
+                        },
+                        "results": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/API_CLFN_CHARACTERISTIC_SRV.A_ClfnCharcValueDescForKeyDateType"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/error"
+          }
+        }
+      },
+      "post": {
+        "summary": "Creates a description for a characteristic value.",
+        "description": "Creates a new description for the selected characteristic value.",
+        "tags": [
+          "Characteristic Values",
+          "Characteristic Value Descriptions"
+        ],
+        "requestBody": {
+          "required": true,
+          "description": "New entity",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/API_CLFN_CHARACTERISTIC_SRV.A_ClfnCharcValueDescForKeyDateType-create"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created entity",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "A_ClfnCharcValueDescForKeyDateType",
+                  "type": "object",
+                  "properties": {
+                    "d": {
+                      "$ref": "#/components/schemas/API_CLFN_CHARACTERISTIC_SRV.A_ClfnCharcValueDescForKeyDateType"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/error"
+          }
+        }
+      }
+    },
+    "/$batch": {
+      "post": {
+        "summary": "Send a group of requests",
+        "description": "Group multiple requests into a single request payload, see [Batch Requests](https://help.sap.com/doc/5890d27be418427993fafa6722cdc03b/Cloud/en-US/OdataV2.pdf#page=152).\n\n*Please note that \"Try it out\" is not supported for this request.*",
+        "tags": [
+          "Batch Requests"
+        ],
+        "requestBody": {
+          "required": true,
+          "description": "Batch request",
+          "content": {
+            "multipart/mixed;boundary=request-separator": {
+              "schema": {
+                "type": "string"
+              },
+              "example": "--request-separator\nContent-Type: application/http\nContent-Transfer-Encoding: binary\n\nGET A_ClfnCharacteristicForKeyDate HTTP/1.1\nAccept: application/json\n\n\n--request-separator--"
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Batch response",
+            "content": {
+              "multipart/mixed": {
+                "schema": {
+                  "type": "string"
+                },
+                "example": "--response-separator\nContent-Type: application/http\n\nHTTP/1.1 200 OK\nContent-Type: application/json\n\n{...}\n--response-separator--"
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/error"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "API_CLFN_CHARACTERISTIC_SRV.A_ClfnCharacteristicForKeyDateType": {
+        "type": "object",
+        "properties": {
+          "Delete_mc": {
+            "type": "boolean",
+            "nullable": true,
+            "title": "Dyn. Method Control"
+          },
+          "Update_mc": {
+            "type": "boolean",
+            "nullable": true,
+            "title": "Dyn. Method Control"
+          },
+          "to_CharacteristicDesc_oc": {
+            "type": "boolean",
+            "nullable": true,
+            "title": "Dynamic CbA-Control"
+          },
+          "to_CharacteristicReference_oc": {
+            "type": "boolean",
+            "nullable": true,
+            "title": "Dynamic CbA-Control"
+          },
+          "to_CharacteristicRestriction_oc": {
+            "type": "boolean",
+            "nullable": true,
+            "title": "Dynamic CbA-Control"
+          },
+          "to_CharacteristicValue_oc": {
+            "type": "boolean",
+            "nullable": true,
+            "title": "Dynamic CbA-Control"
+          },
+          "CharcInternalID": {
+            "type": "string",
+            "maxLength": 10,
+            "title": "Characteristic Internal ID"
+          },
+          "Characteristic": {
+            "type": "string",
+            "nullable": true,
+            "maxLength": 30,
+            "title": "Characteristic Name"
+          },
+          "CharcStatus": {
+            "type": "string",
+            "nullable": true,
+            "maxLength": 1,
+            "title": "Status",
+            "description": "Characteristic status"
+          },
+          "CharcStatusName": {
+            "type": "string",
+            "nullable": true,
+            "maxLength": 20,
+            "title": "Char. Status",
+            "description": "Characteristic Status"
+          },
+          "CharcDataType": {
+            "type": "string",
+            "nullable": true,
+            "maxLength": 4,
+            "title": "Format",
+            "description": "Data type of characteristic"
+          },
+          "CharcLength": {
+            "type": "integer",
+            "nullable": true,
+            "format": "int16",
+            "title": "Number of Characters"
+          },
+          "CharcDecimals": {
+            "type": "integer",
+            "nullable": true,
+            "format": "int16",
+            "title": "Decimal Places",
+            "description": "Number of Decimal Places"
+          },
+          "CharcTemplate": {
+            "type": "string",
+            "nullable": true,
+            "maxLength": 70,
+            "title": "Template",
+            "description": "Value with template"
+          },
+          "ValueIsCaseSensitive": {
+            "type": "boolean",
+            "nullable": true,
+            "title": "Case Sensitive"
+          },
+          "CharcGroup": {
+            "type": "string",
+            "nullable": true,
+            "maxLength": 10,
+            "title": "Characteristic Group"
+          },
+          "CharcGroupName": {
+            "type": "string",
+            "nullable": true,
+            "maxLength": 40,
+            "title": "Char. Group",
+            "description": "Description of Characteristics Group"
+          },
+          "EntryIsRequired": {
+            "type": "boolean",
+            "nullable": true,
+            "title": "Entry Required"
+          },
+          "MultipleValuesAreAllowed": {
+            "type": "boolean",
+            "nullable": true,
+            "title": "Multiple Values Allowed",
+            "description": "Multiple Values Are Allowed"
+          },
+          "CharcValueUnit": {
+            "type": "string",
+            "nullable": true,
+            "maxLength": 3,
+            "title": "Internal UoM",
+            "description": "Unit of Measurement"
+          },
+          "UnitOfMeasureISOCode": {
+            "type": "string",
+            "nullable": true,
+            "maxLength": 3,
+            "title": "ISO Code",
+            "description": "ISO Code for Unit of Measurement"
+          },
+          "Currency": {
+            "type": "string",
+            "nullable": true,
+            "maxLength": 5,
+            "title": "Currency",
+            "description": "Currency Key"
+          },
+          "CurrencyISOCode": {
+            "type": "string",
+            "nullable": true,
+            "maxLength": 3,
+            "title": "ISO Code",
+            "description": "ISO Currency Code"
+          },
+          "CharcExponentValue": {
+            "type": "integer",
+            "nullable": true,
+            "format": "int16",
+            "title": "Exponent",
+            "description": "Exponent display"
+          },
+          "ValueIntervalIsAllowed": {
+            "type": "boolean",
+            "nullable": true,
+            "title": "Interval Values Allowed"
+          },
+          "AdditionalValueIsAllowed": {
+            "type": "boolean",
+            "nullable": true,
+            "title": "Additional Values",
+            "description": "Indicator: Additional Values"
+          },
+          "NegativeValueIsAllowed": {
+            "type": "boolean",
+            "nullable": true,
+            "title": "+/- Sign",
+            "description": "Value with Plus or Minus Sign"
+          },
+          "ValidityStartDate": {
+            "type": "string",
+            "nullable": true,
+            "example": "/Date(1492041600000)/",
+            "title": "Valid From",
+            "description": "Valid-From Date"
+          },
+          "ValidityEndDate": {
+            "type": "string",
+            "nullable": true,
+            "example": "/Date(1492041600000)/",
+            "title": "Valid to",
+            "description": "Valid-to date"
+          },
+          "ChangeNumber": {
+            "type": "string",
+            "nullable": true,
+            "maxLength": 12,
+            "title": "Change Number"
+          },
+          "DocumentType": {
+            "type": "string",
+            "nullable": true,
+            "maxLength": 3,
+            "title": "Document Type"
+          },
+          "DocNumber": {
+            "type": "string",
+            "nullable": true,
+            "maxLength": 25,
+            "title": "Document",
+            "description": "Document Number"
+          },
+          "DocumentVersion": {
+            "type": "string",
+            "nullable": true,
+            "maxLength": 2,
+            "title": "Document Version"
+          },
+          "DocumentPart": {
+            "type": "string",
+            "nullable": true,
+            "maxLength": 3,
+            "title": "Document Part"
+          },
+          "CharcMaintAuthGrp": {
+            "type": "string",
+            "nullable": true,
+            "maxLength": 3,
+            "title": "Authorization Group",
+            "description": "Authorization Group for Characteristics Maintenance"
+          },
+          "CharcIsReadOnly": {
+            "type": "boolean",
+            "nullable": true,
+            "title": "No Entry Allowed for Charc.",
+            "description": "No Entry Allowed for Characteristic"
+          },
+          "CharcIsHidden": {
+            "type": "boolean",
+            "nullable": true,
+            "title": "Charc. Not To Be Displayed",
+            "description": "Characteristic Not To Be Displayed"
+          },
+          "CharcIsRestrictable": {
+            "type": "string",
+            "nullable": true,
+            "maxLength": 1,
+            "title": "Restrictable",
+            "description": "Indicator: restrictable characteristic"
+          },
+          "CharcExponentFormat": {
+            "type": "string",
+            "nullable": true,
+            "maxLength": 1,
+            "title": "Exponent Display",
+            "description": "Exponent Display Format"
+          },
+          "CharcEntryIsNotFormatCtrld": {
+            "type": "boolean",
+            "nullable": true,
+            "title": "Unformatted Entry Control"
+          },
+          "CharcTemplateIsDisplayed": {
+            "type": "boolean",
+            "nullable": true,
+            "title": "Display Template When Assigning Values",
+            "description": "Indicator: Display Template When Assigning Values"
+          },
+          "CreationDate": {
+            "type": "string",
+            "nullable": true,
+            "example": "/Date(1492041600000)/",
+            "title": "Created On",
+            "description": "Record Creation Date"
+          },
+          "LastChangeDate": {
+            "type": "string",
+            "nullable": true,
+            "example": "/Date(1492041600000)/",
+            "title": "Changed On",
+            "description": "Last Changed On"
+          },
+          "CharcLastChangedDateTime": {
+            "type": "string",
+            "nullable": true,
+            "example": "/Date(1492098664000)/",
+            "title": "Time Stamp",
+            "description": "UTC Time Stamp in Long Form (YYYYMMDDhhmmssmmmuuun)"
+          },
+          "KeyDate": {
+            "type": "string",
+            "nullable": true,
+            "example": "/Date(1492041600000)/",
+            "title": "Date data element for SYST"
+          },
+          "to_CharacteristicDesc": {
+            "type": "object",
+            "properties": {
+              "results": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/API_CLFN_CHARACTERISTIC_SRV.A_ClfnCharcDescForKeyDateType"
+                }
+              }
+            }
+          },
+          "to_CharacteristicReference": {
+            "type": "object",
+            "properties": {
+              "results": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/API_CLFN_CHARACTERISTIC_SRV.A_ClfnCharcRefForKeyDateType"
+                }
+              }
+            }
+          },
+          "to_CharacteristicRestriction": {
+            "type": "object",
+            "properties": {
+              "results": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/API_CLFN_CHARACTERISTIC_SRV.A_ClfnCharcRstrcnForKeyDateType"
+                }
+              }
+            }
+          },
+          "to_CharacteristicValue": {
+            "type": "object",
+            "properties": {
+              "results": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/API_CLFN_CHARACTERISTIC_SRV.A_ClfnCharcValueForKeyDateType"
+                }
+              }
+            }
+          }
+        },
+        "title": "Characteristic Header Data"
+      },
+      "API_CLFN_CHARACTERISTIC_SRV.A_ClfnCharacteristicForKeyDateType-create": {
+        "type": "object",
+        "properties": {
+          "Characteristic": {
+            "type": "string",
+            "nullable": true,
+            "maxLength": 30,
+            "title": "Characteristic Name"
+          },
+          "CharcStatus": {
+            "type": "string",
+            "nullable": true,
+            "maxLength": 1,
+            "title": "Status",
+            "description": "Characteristic status"
+          },
+          "CharcDataType": {
+            "type": "string",
+            "nullable": true,
+            "maxLength": 4,
+            "title": "Format",
+            "description": "Data type of characteristic"
+          },
+          "CharcLength": {
+            "type": "integer",
+            "nullable": true,
+            "format": "int16",
+            "title": "Number of Characters"
+          },
+          "CharcDecimals": {
+            "type": "integer",
+            "nullable": true,
+            "format": "int16",
+            "title": "Decimal Places",
+            "description": "Number of Decimal Places"
+          },
+          "CharcTemplate": {
+            "type": "string",
+            "nullable": true,
+            "maxLength": 70,
+            "title": "Template",
+            "description": "Value with template"
+          },
+          "ValueIsCaseSensitive": {
+            "type": "boolean",
+            "nullable": true,
+            "title": "Case Sensitive"
+          },
+          "CharcGroup": {
+            "type": "string",
+            "nullable": true,
+            "maxLength": 10,
+            "title": "Characteristic Group"
+          },
+          "EntryIsRequired": {
+            "type": "boolean",
+            "nullable": true,
+            "title": "Entry Required"
+          },
+          "MultipleValuesAreAllowed": {
+            "type": "boolean",
+            "nullable": true,
+            "title": "Multiple Values Allowed",
+            "description": "Multiple Values Are Allowed"
+          },
+          "CharcValueUnit": {
+            "type": "string",
+            "nullable": true,
+            "maxLength": 3,
+            "title": "Internal UoM",
+            "description": "Unit of Measurement"
+          },
+          "UnitOfMeasureISOCode": {
+            "type": "string",
+            "nullable": true,
+            "maxLength": 3,
+            "title": "ISO Code",
+            "description": "ISO Code for Unit of Measurement"
+          },
+          "Currency": {
+            "type": "string",
+            "nullable": true,
+            "maxLength": 5,
+            "title": "Currency",
+            "description": "Currency Key"
+          },
+          "CurrencyISOCode": {
+            "type": "string",
+            "nullable": true,
+            "maxLength": 3,
+            "title": "ISO Code",
+            "description": "ISO Currency Code"
+          },
+          "CharcExponentValue": {
+            "type": "integer",
+            "nullable": true,
+            "format": "int16",
+            "title": "Exponent",
+            "description": "Exponent display"
+          },
+          "ValueIntervalIsAllowed": {
+            "type": "boolean",
+            "nullable": true,
+            "title": "Interval Values Allowed"
+          },
+          "AdditionalValueIsAllowed": {
+            "type": "boolean",
+            "nullable": true,
+            "title": "Additional Values",
+            "description": "Indicator: Additional Values"
+          },
+          "NegativeValueIsAllowed": {
+            "type": "boolean",
+            "nullable": true,
+            "title": "+/- Sign",
+            "description": "Value with Plus or Minus Sign"
+          },
+          "DocumentType": {
+            "type": "string",
+            "nullable": true,
+            "maxLength": 3,
+            "title": "Document Type"
+          },
+          "DocNumber": {
+            "type": "string",
+            "nullable": true,
+            "maxLength": 25,
+            "title": "Document",
+            "description": "Document Number"
+          },
+          "DocumentVersion": {
+            "type": "string",
+            "nullable": true,
+            "maxLength": 2,
+            "title": "Document Version"
+          },
+          "DocumentPart": {
+            "type": "string",
+            "nullable": true,
+            "maxLength": 3,
+            "title": "Document Part"
+          },
+          "CharcMaintAuthGrp": {
+            "type": "string",
+            "nullable": true,
+            "maxLength": 3,
+            "title": "Authorization Group",
+            "description": "Authorization Group for Characteristics Maintenance"
+          },
+          "CharcIsReadOnly": {
+            "type": "boolean",
+            "nullable": true,
+            "title": "No Entry Allowed for Charc.",
+            "description": "No Entry Allowed for Characteristic"
+          },
+          "CharcIsHidden": {
+            "type": "boolean",
+            "nullable": true,
+            "title": "Charc. Not To Be Displayed",
+            "description": "Characteristic Not To Be Displayed"
+          },
+          "CharcIsRestrictable": {
+            "type": "string",
+            "nullable": true,
+            "maxLength": 1,
+            "title": "Restrictable",
+            "description": "Indicator: restrictable characteristic"
+          },
+          "CharcExponentFormat": {
+            "type": "string",
+            "nullable": true,
+            "maxLength": 1,
+            "title": "Exponent Display",
+            "description": "Exponent Display Format"
+          },
+          "CharcEntryIsNotFormatCtrld": {
+            "type": "boolean",
+            "nullable": true,
+            "title": "Unformatted Entry Control"
+          },
+          "CharcTemplateIsDisplayed": {
+            "type": "boolean",
+            "nullable": true,
+            "title": "Display Template When Assigning Values",
+            "description": "Indicator: Display Template When Assigning Values"
+          },
+          "to_CharacteristicDesc": {
+            "type": "object",
+            "properties": {
+              "results": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/API_CLFN_CHARACTERISTIC_SRV.A_ClfnCharcDescForKeyDateType-create"
+                }
+              }
+            }
+          },
+          "to_CharacteristicReference": {
+            "type": "object",
+            "properties": {
+              "results": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/API_CLFN_CHARACTERISTIC_SRV.A_ClfnCharcRefForKeyDateType-create"
+                }
+              }
+            }
+          },
+          "to_CharacteristicRestriction": {
+            "type": "object",
+            "properties": {
+              "results": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/API_CLFN_CHARACTERISTIC_SRV.A_ClfnCharcRstrcnForKeyDateType-create"
+                }
+              }
+            }
+          },
+          "to_CharacteristicValue": {
+            "type": "object",
+            "properties": {
+              "results": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/API_CLFN_CHARACTERISTIC_SRV.A_ClfnCharcValueForKeyDateType-create"
+                }
+              }
+            }
+          }
+        },
+        "required": [
+          "Characteristic",
+          "CharcStatus",
+          "CharcDataType"
+        ],
+        "title": "Characteristic Header Data (for create)"
+      },
+      "API_CLFN_CHARACTERISTIC_SRV.A_ClfnCharacteristicForKeyDateType-update": {
+        "type": "object",
+        "properties": {
+          "Characteristic": {
+            "type": "string",
+            "nullable": true,
+            "maxLength": 30,
+            "title": "Characteristic Name"
+          },
+          "CharcStatus": {
+            "type": "string",
+            "nullable": true,
+            "maxLength": 1,
+            "title": "Status",
+            "description": "Characteristic status"
+          },
+          "CharcDataType": {
+            "type": "string",
+            "nullable": true,
+            "maxLength": 4,
+            "title": "Format",
+            "description": "Data type of characteristic"
+          },
+          "CharcLength": {
+            "type": "integer",
+            "nullable": true,
+            "format": "int16",
+            "title": "Number of Characters"
+          },
+          "CharcDecimals": {
+            "type": "integer",
+            "nullable": true,
+            "format": "int16",
+            "title": "Decimal Places",
+            "description": "Number of Decimal Places"
+          },
+          "CharcTemplate": {
+            "type": "string",
+            "nullable": true,
+            "maxLength": 70,
+            "title": "Template",
+            "description": "Value with template"
+          },
+          "ValueIsCaseSensitive": {
+            "type": "boolean",
+            "nullable": true,
+            "title": "Case Sensitive"
+          },
+          "CharcGroup": {
+            "type": "string",
+            "nullable": true,
+            "maxLength": 10,
+            "title": "Characteristic Group"
+          },
+          "EntryIsRequired": {
+            "type": "boolean",
+            "nullable": true,
+            "title": "Entry Required"
+          },
+          "MultipleValuesAreAllowed": {
+            "type": "boolean",
+            "nullable": true,
+            "title": "Multiple Values Allowed",
+            "description": "Multiple Values Are Allowed"
+          },
+          "CharcValueUnit": {
+            "type": "string",
+            "nullable": true,
+            "maxLength": 3,
+            "title": "Internal UoM",
+            "description": "Unit of Measurement"
+          },
+          "UnitOfMeasureISOCode": {
+            "type": "string",
+            "nullable": true,
+            "maxLength": 3,
+            "title": "ISO Code",
+            "description": "ISO Code for Unit of Measurement"
+          },
+          "Currency": {
+            "type": "string",
+            "nullable": true,
+            "maxLength": 5,
+            "title": "Currency",
+            "description": "Currency Key"
+          },
+          "CurrencyISOCode": {
+            "type": "string",
+            "nullable": true,
+            "maxLength": 3,
+            "title": "ISO Code",
+            "description": "ISO Currency Code"
+          },
+          "CharcExponentValue": {
+            "type": "integer",
+            "nullable": true,
+            "format": "int16",
+            "title": "Exponent",
+            "description": "Exponent display"
+          },
+          "ValueIntervalIsAllowed": {
+            "type": "boolean",
+            "nullable": true,
+            "title": "Interval Values Allowed"
+          },
+          "AdditionalValueIsAllowed": {
+            "type": "boolean",
+            "nullable": true,
+            "title": "Additional Values",
+            "description": "Indicator: Additional Values"
+          },
+          "NegativeValueIsAllowed": {
+            "type": "boolean",
+            "nullable": true,
+            "title": "+/- Sign",
+            "description": "Value with Plus or Minus Sign"
+          },
+          "DocumentType": {
+            "type": "string",
+            "nullable": true,
+            "maxLength": 3,
+            "title": "Document Type"
+          },
+          "DocNumber": {
+            "type": "string",
+            "nullable": true,
+            "maxLength": 25,
+            "title": "Document",
+            "description": "Document Number"
+          },
+          "DocumentVersion": {
+            "type": "string",
+            "nullable": true,
+            "maxLength": 2,
+            "title": "Document Version"
+          },
+          "DocumentPart": {
+            "type": "string",
+            "nullable": true,
+            "maxLength": 3,
+            "title": "Document Part"
+          },
+          "CharcMaintAuthGrp": {
+            "type": "string",
+            "nullable": true,
+            "maxLength": 3,
+            "title": "Authorization Group",
+            "description": "Authorization Group for Characteristics Maintenance"
+          },
+          "CharcIsReadOnly": {
+            "type": "boolean",
+            "nullable": true,
+            "title": "No Entry Allowed for Charc.",
+            "description": "No Entry Allowed for Characteristic"
+          },
+          "CharcIsHidden": {
+            "type": "boolean",
+            "nullable": true,
+            "title": "Charc. Not To Be Displayed",
+            "description": "Characteristic Not To Be Displayed"
+          },
+          "CharcIsRestrictable": {
+            "type": "string",
+            "nullable": true,
+            "maxLength": 1,
+            "title": "Restrictable",
+            "description": "Indicator: restrictable characteristic"
+          },
+          "CharcExponentFormat": {
+            "type": "string",
+            "nullable": true,
+            "maxLength": 1,
+            "title": "Exponent Display",
+            "description": "Exponent Display Format"
+          },
+          "CharcEntryIsNotFormatCtrld": {
+            "type": "boolean",
+            "nullable": true,
+            "title": "Unformatted Entry Control"
+          },
+          "CharcTemplateIsDisplayed": {
+            "type": "boolean",
+            "nullable": true,
+            "title": "Display Template When Assigning Values",
+            "description": "Indicator: Display Template When Assigning Values"
+          }
+        },
+        "title": "Characteristic Header Data (for update)"
+      },
+      "API_CLFN_CHARACTERISTIC_SRV.A_ClfnCharcDescForKeyDateType": {
+        "type": "object",
+        "properties": {
+          "Delete_mc": {
+            "type": "boolean",
+            "nullable": true,
+            "title": "Dyn. Method Control"
+          },
+          "Update_mc": {
+            "type": "boolean",
+            "nullable": true,
+            "title": "Dyn. Method Control"
+          },
+          "CharcInternalID": {
+            "type": "string",
+            "maxLength": 10,
+            "title": "Characteristic Internal ID"
+          },
+          "Language": {
+            "type": "string",
+            "maxLength": 2,
+            "title": "Language Key"
+          },
+          "CharcDescription": {
+            "type": "string",
+            "nullable": true,
+            "maxLength": 30,
+            "title": "Characteristic Description"
+          },
+          "ChangeNumber": {
+            "type": "string",
+            "nullable": true,
+            "maxLength": 12,
+            "title": "Change Number"
+          },
+          "ValidityStartDate": {
+            "type": "string",
+            "nullable": true,
+            "example": "/Date(1492041600000)/",
+            "title": "Valid From",
+            "description": "Valid-From Date"
+          },
+          "ValidityEndDate": {
+            "type": "string",
+            "nullable": true,
+            "example": "/Date(1492041600000)/",
+            "title": "Valid to",
+            "description": "Valid-to date"
+          },
+          "KeyDate": {
+            "type": "string",
+            "nullable": true,
+            "example": "/Date(1492041600000)/",
+            "title": "Date data element for SYST"
+          },
+          "CharcLastChangedDateTime": {
+            "type": "string",
+            "nullable": true,
+            "example": "/Date(1492098664000)/",
+            "title": "Time Stamp",
+            "description": "UTC Time Stamp in Long Form (YYYYMMDDhhmmssmmmuuun)"
+          }
+        },
+        "title": "Characteristic Descriptions"
+      },
+      "API_CLFN_CHARACTERISTIC_SRV.A_ClfnCharcDescForKeyDateType-create": {
+        "type": "object",
+        "properties": {
+          "CharcInternalID": {
+            "type": "string",
+            "maxLength": 10,
+            "title": "Characteristic Internal ID"
+          },
+          "Language": {
+            "type": "string",
+            "maxLength": 2,
+            "title": "Language Key"
+          },
+          "CharcDescription": {
+            "type": "string",
+            "nullable": true,
+            "maxLength": 30,
+            "title": "Characteristic Description"
+          }
+        },
+        "required": [
+          "CharcInternalID",
+          "Language",
+          "CharcDescription"
+        ],
+        "title": "Characteristic Descriptions (for create)"
+      },
+      "API_CLFN_CHARACTERISTIC_SRV.A_ClfnCharcDescForKeyDateType-update": {
+        "type": "object",
+        "properties": {
+          "CharcDescription": {
+            "type": "string",
+            "nullable": true,
+            "maxLength": 30,
+            "title": "Characteristic Description"
+          }
+        },
+        "title": "Characteristic Descriptions (for update)"
+      },
+      "API_CLFN_CHARACTERISTIC_SRV.A_ClfnCharcRefForKeyDateType": {
+        "type": "object",
+        "properties": {
+          "Delete_mc": {
+            "type": "boolean",
+            "nullable": true,
+            "title": "Dyn. Method Control"
+          },
+          "CharcInternalID": {
+            "type": "string",
+            "maxLength": 10,
+            "title": "Characteristic Internal ID"
+          },
+          "CharcReferenceTable": {
+            "type": "string",
+            "maxLength": 30,
+            "title": "Table Name"
+          },
+          "CharcReferenceTableField": {
+            "type": "string",
+            "maxLength": 30,
+            "title": "Field Name"
+          },
+          "KeyDate": {
+            "type": "string",
+            "nullable": true,
+            "example": "/Date(1492041600000)/",
+            "title": "Date data element for SYST"
+          },
+          "CharcLastChangedDateTime": {
+            "type": "string",
+            "nullable": true,
+            "example": "/Date(1492098664000)/",
+            "title": "Time Stamp",
+            "description": "UTC Time Stamp in Long Form (YYYYMMDDhhmmssmmmuuun)"
+          }
+        },
+        "title": "Characteristic References"
+      },
+      "API_CLFN_CHARACTERISTIC_SRV.A_ClfnCharcRefForKeyDateType-create": {
+        "type": "object",
+        "properties": {
+          "CharcReferenceTable": {
+            "type": "string",
+            "maxLength": 30,
+            "title": "Table Name"
+          },
+          "CharcReferenceTableField": {
+            "type": "string",
+            "maxLength": 30,
+            "title": "Field Name"
+          }
+        },
+        "required": [
+          "CharcReferenceTable",
+          "CharcReferenceTableField"
+        ],
+        "title": "Characteristic References (for create)"
+      },
+      "API_CLFN_CHARACTERISTIC_SRV.A_ClfnCharcRefForKeyDateType-update": {
+        "type": "object",
+        "title": "Characteristic References (for update)"
+      },
+      "API_CLFN_CHARACTERISTIC_SRV.A_ClfnCharcRstrcnForKeyDateType": {
+        "type": "object",
+        "properties": {
+          "Delete_mc": {
+            "type": "boolean",
+            "nullable": true,
+            "title": "Dyn. Method Control"
+          },
+          "CharcInternalID": {
+            "type": "string",
+            "maxLength": 10,
+            "title": "Characteristic Internal ID"
+          },
+          "ClassType": {
+            "type": "string",
+            "maxLength": 3,
+            "title": "Class Type"
+          },
+          "KeyDate": {
+            "type": "string",
+            "nullable": true,
+            "example": "/Date(1492041600000)/",
+            "title": "Date data element for SYST"
+          },
+          "CharcLastChangedDateTime": {
+            "type": "string",
+            "nullable": true,
+            "example": "/Date(1492098664000)/",
+            "title": "Time Stamp",
+            "description": "UTC Time Stamp in Long Form (YYYYMMDDhhmmssmmmuuun)"
+          }
+        },
+        "title": "Characteristic Restrictions"
+      },
+      "API_CLFN_CHARACTERISTIC_SRV.A_ClfnCharcRstrcnForKeyDateType-create": {
+        "type": "object",
+        "properties": {
+          "ClassType": {
+            "type": "string",
+            "maxLength": 3,
+            "title": "Class Type"
+          }
+        },
+        "required": [
+          "ClassType"
+        ],
+        "title": "Characteristic Restrictions (for create)"
+      },
+      "API_CLFN_CHARACTERISTIC_SRV.A_ClfnCharcRstrcnForKeyDateType-update": {
+        "type": "object",
+        "title": "Characteristic Restrictions (for update)"
+      },
+      "API_CLFN_CHARACTERISTIC_SRV.A_ClfnCharcValueDescForKeyDateType": {
+        "type": "object",
+        "properties": {
+          "Delete_mc": {
+            "type": "boolean",
+            "nullable": true,
+            "title": "Dyn. Method Control"
+          },
+          "Update_mc": {
+            "type": "boolean",
+            "nullable": true,
+            "title": "Dyn. Method Control"
+          },
+          "CharcInternalID": {
+            "type": "string",
+            "maxLength": 10,
+            "title": "Characteristic Internal ID"
+          },
+          "CharcValuePositionNumber": {
+            "type": "string",
+            "maxLength": 4,
+            "title": "Int counter values",
+            "description": "Int counter"
+          },
+          "Language": {
+            "type": "string",
+            "maxLength": 2,
+            "title": "Language Key"
+          },
+          "CharcValueDescription": {
+            "type": "string",
+            "nullable": true,
+            "maxLength": 70,
+            "title": "Value description",
+            "description": "Characteristic value description"
+          },
+          "ChangeNumber": {
+            "type": "string",
+            "nullable": true,
+            "maxLength": 12,
+            "title": "Change Number"
+          },
+          "ValidityStartDate": {
+            "type": "string",
+            "nullable": true,
+            "example": "/Date(1492041600000)/",
+            "title": "Valid From",
+            "description": "Valid-From Date"
+          },
+          "ValidityEndDate": {
+            "type": "string",
+            "nullable": true,
+            "example": "/Date(1492041600000)/",
+            "title": "Valid to",
+            "description": "Valid-to date"
+          },
+          "KeyDate": {
+            "type": "string",
+            "nullable": true,
+            "example": "/Date(1492041600000)/",
+            "title": "Date data element for SYST"
+          },
+          "CharcLastChangedDateTime": {
+            "type": "string",
+            "nullable": true,
+            "example": "/Date(1492098664000)/",
+            "title": "Time Stamp",
+            "description": "UTC Time Stamp in Long Form (YYYYMMDDhhmmssmmmuuun)"
+          }
+        },
+        "title": "Characteristic Value Descriptions"
+      },
+      "API_CLFN_CHARACTERISTIC_SRV.A_ClfnCharcValueDescForKeyDateType-create": {
+        "type": "object",
+        "properties": {
+          "Language": {
+            "type": "string",
+            "maxLength": 2,
+            "title": "Language Key"
+          },
+          "CharcValueDescription": {
+            "type": "string",
+            "nullable": true,
+            "maxLength": 70,
+            "title": "Value description",
+            "description": "Characteristic value description"
+          }
+        },
+        "required": [
+          "Language",
+          "CharcValueDescription"
+        ],
+        "title": "Characteristic Value Descriptions (for create)"
+      },
+      "API_CLFN_CHARACTERISTIC_SRV.A_ClfnCharcValueDescForKeyDateType-update": {
+        "type": "object",
+        "properties": {
+          "CharcValueDescription": {
+            "type": "string",
+            "nullable": true,
+            "maxLength": 70,
+            "title": "Value description",
+            "description": "Characteristic value description"
+          }
+        },
+        "title": "Characteristic Value Descriptions (for update)"
+      },
+      "API_CLFN_CHARACTERISTIC_SRV.A_ClfnCharcValueForKeyDateType": {
+        "type": "object",
+        "properties": {
+          "Delete_mc": {
+            "type": "boolean",
+            "nullable": true,
+            "title": "Dyn. Method Control"
+          },
+          "Update_mc": {
+            "type": "boolean",
+            "nullable": true,
+            "title": "Dyn. Method Control"
+          },
+          "to_CharcValueDesc_oc": {
+            "type": "boolean",
+            "nullable": true,
+            "title": "Dynamic CbA-Control"
+          },
+          "CharcInternalID": {
+            "type": "string",
+            "maxLength": 10,
+            "title": "Characteristic Internal ID"
+          },
+          "CharcValuePositionNumber": {
+            "type": "string",
+            "maxLength": 4,
+            "title": "Int counter values",
+            "description": "Int counter"
+          },
+          "CharcValueDependency": {
+            "type": "string",
+            "nullable": true,
+            "maxLength": 1,
+            "title": "Code",
+            "description": "Code for value dependency"
+          },
+          "CharcValue": {
+            "type": "string",
+            "nullable": true,
+            "maxLength": 70,
+            "title": "Characteristic Value"
+          },
+          "CharcFromNumericValue": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "nullable": true,
+            "format": "double",
+            "example": 3.14,
+            "title": "Value from",
+            "description": "Internal floating point from"
+          },
+          "CharcToNumericValue": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "nullable": true,
+            "format": "double",
+            "example": 3.14,
+            "title": "Value to",
+            "description": "Internal floating point value to"
+          },
+          "IsDefaultValue": {
+            "type": "boolean",
+            "nullable": true,
+            "title": "Default",
+            "description": "Default value"
+          },
+          "CharcFromNumericValueUnit": {
+            "type": "string",
+            "nullable": true,
+            "maxLength": 3,
+            "title": "Internal UoM",
+            "description": "Unit of Measurement"
+          },
+          "CharcToNumericValueUnit": {
+            "type": "string",
+            "nullable": true,
+            "maxLength": 3,
+            "title": "Internal UoM",
+            "description": "Unit of Measurement"
+          },
+          "LongTextID": {
+            "type": "string",
+            "nullable": true,
+            "maxLength": 4,
+            "title": "Text number",
+            "description": "Number of Related Text"
+          },
+          "ChangeNumber": {
+            "type": "string",
+            "nullable": true,
+            "maxLength": 12,
+            "title": "Change Number"
+          },
+          "DocumentType": {
+            "type": "string",
+            "nullable": true,
+            "maxLength": 3,
+            "title": "Document Type"
+          },
+          "DocNumber": {
+            "type": "string",
+            "nullable": true,
+            "maxLength": 25,
+            "title": "Document",
+            "description": "Document Number"
+          },
+          "DocumentPart": {
+            "type": "string",
+            "nullable": true,
+            "maxLength": 3,
+            "title": "Document Part"
+          },
+          "DocumentVersion": {
+            "type": "string",
+            "nullable": true,
+            "maxLength": 2,
+            "title": "Document Version"
+          },
+          "ValidityStartDate": {
+            "type": "string",
+            "nullable": true,
+            "example": "/Date(1492041600000)/",
+            "title": "Valid From",
+            "description": "Valid-From Date"
+          },
+          "ValidityEndDate": {
+            "type": "string",
+            "nullable": true,
+            "example": "/Date(1492041600000)/",
+            "title": "Valid to",
+            "description": "Valid-to date"
+          },
+          "KeyDate": {
+            "type": "string",
+            "nullable": true,
+            "example": "/Date(1492041600000)/",
+            "title": "Date data element for SYST"
+          },
+          "CharcLastChangedDateTime": {
+            "type": "string",
+            "nullable": true,
+            "example": "/Date(1492098664000)/",
+            "title": "Time Stamp",
+            "description": "UTC Time Stamp in Long Form (YYYYMMDDhhmmssmmmuuun)"
+          },
+          "to_CharcValueDesc": {
+            "type": "object",
+            "properties": {
+              "results": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/API_CLFN_CHARACTERISTIC_SRV.A_ClfnCharcValueDescForKeyDateType"
+                }
+              }
+            }
+          }
+        },
+        "title": "Characteristic Values"
+      },
+      "API_CLFN_CHARACTERISTIC_SRV.A_ClfnCharcValueForKeyDateType-create": {
+        "type": "object",
+        "properties": {
+          "CharcValueDependency": {
+            "type": "string",
+            "nullable": true,
+            "maxLength": 1,
+            "title": "Code",
+            "description": "Code for value dependency"
+          },
+          "CharcValue": {
+            "type": "string",
+            "nullable": true,
+            "maxLength": 70,
+            "title": "Characteristic Value"
+          },
+          "CharcFromNumericValue": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "nullable": true,
+            "format": "double",
+            "example": 3.14,
+            "title": "Value from",
+            "description": "Internal floating point from"
+          },
+          "CharcToNumericValue": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "nullable": true,
+            "format": "double",
+            "example": 3.14,
+            "title": "Value to",
+            "description": "Internal floating point value to"
+          },
+          "IsDefaultValue": {
+            "type": "boolean",
+            "nullable": true,
+            "title": "Default",
+            "description": "Default value"
+          },
+          "CharcFromNumericValueUnit": {
+            "type": "string",
+            "nullable": true,
+            "maxLength": 3,
+            "title": "Internal UoM",
+            "description": "Unit of Measurement"
+          },
+          "CharcToNumericValueUnit": {
+            "type": "string",
+            "nullable": true,
+            "maxLength": 3,
+            "title": "Internal UoM",
+            "description": "Unit of Measurement"
+          },
+          "DocumentType": {
+            "type": "string",
+            "nullable": true,
+            "maxLength": 3,
+            "title": "Document Type"
+          },
+          "DocNumber": {
+            "type": "string",
+            "nullable": true,
+            "maxLength": 25,
+            "title": "Document",
+            "description": "Document Number"
+          },
+          "DocumentPart": {
+            "type": "string",
+            "nullable": true,
+            "maxLength": 3,
+            "title": "Document Part"
+          },
+          "DocumentVersion": {
+            "type": "string",
+            "nullable": true,
+            "maxLength": 2,
+            "title": "Document Version"
+          },
+          "to_CharcValueDesc": {
+            "type": "object",
+            "properties": {
+              "results": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/API_CLFN_CHARACTERISTIC_SRV.A_ClfnCharcValueDescForKeyDateType-create"
+                }
+              }
+            }
+          }
+        },
+        "title": "Characteristic Values (for create)"
+      },
+      "API_CLFN_CHARACTERISTIC_SRV.A_ClfnCharcValueForKeyDateType-update": {
+        "type": "object",
+        "properties": {
+          "CharcValueDependency": {
+            "type": "string",
+            "nullable": true,
+            "maxLength": 1,
+            "title": "Code",
+            "description": "Code for value dependency"
+          },
+          "CharcValue": {
+            "type": "string",
+            "nullable": true,
+            "maxLength": 70,
+            "title": "Characteristic Value"
+          },
+          "CharcFromNumericValue": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "nullable": true,
+            "format": "double",
+            "example": 3.14,
+            "title": "Value from",
+            "description": "Internal floating point from"
+          },
+          "CharcToNumericValue": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "nullable": true,
+            "format": "double",
+            "example": 3.14,
+            "title": "Value to",
+            "description": "Internal floating point value to"
+          },
+          "IsDefaultValue": {
+            "type": "boolean",
+            "nullable": true,
+            "title": "Default",
+            "description": "Default value"
+          },
+          "CharcFromNumericValueUnit": {
+            "type": "string",
+            "nullable": true,
+            "maxLength": 3,
+            "title": "Internal UoM",
+            "description": "Unit of Measurement"
+          },
+          "CharcToNumericValueUnit": {
+            "type": "string",
+            "nullable": true,
+            "maxLength": 3,
+            "title": "Internal UoM",
+            "description": "Unit of Measurement"
+          },
+          "DocumentType": {
+            "type": "string",
+            "nullable": true,
+            "maxLength": 3,
+            "title": "Document Type"
+          },
+          "DocNumber": {
+            "type": "string",
+            "nullable": true,
+            "maxLength": 25,
+            "title": "Document",
+            "description": "Document Number"
+          },
+          "DocumentPart": {
+            "type": "string",
+            "nullable": true,
+            "maxLength": 3,
+            "title": "Document Part"
+          },
+          "DocumentVersion": {
+            "type": "string",
+            "nullable": true,
+            "maxLength": 2,
+            "title": "Document Version"
+          }
+        },
+        "title": "Characteristic Values (for update)"
+      },
+      "count": {
+        "type": "string",
+        "description": "The number of entities in the collection. Available when using the [$inlinecount](https://help.sap.com/doc/5890d27be418427993fafa6722cdc03b/Cloud/en-US/OdataV2.pdf#page=67) query option."
+      },
+      "error": {
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "object",
+            "required": [
+              "code",
+              "message"
+            ],
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "message": {
+                "type": "object",
+                "required": [
+                  "lang",
+                  "value"
+                ],
+                "properties": {
+                  "lang": {
+                    "type": "string"
+                  },
+                  "value": {
+                    "type": "string"
+                  }
+                }
+              },
+              "innererror": {
+                "type": "object",
+                "description": "The structure of this object is service-specific"
+              }
+            }
+          }
+        }
+      }
+    },
+    "parameters": {
+      "top": {
+        "name": "$top",
+        "in": "query",
+        "description": "Show only the first n items, see [Paging - Top](https://help.sap.com/doc/5890d27be418427993fafa6722cdc03b/Cloud/en-US/OdataV2.pdf#page=66)",
+        "schema": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "example": 50
+      },
+      "skip": {
+        "name": "$skip",
+        "in": "query",
+        "description": "Skip the first n items, see [Paging - Skip](https://help.sap.com/doc/5890d27be418427993fafa6722cdc03b/Cloud/en-US/OdataV2.pdf#page=65)",
+        "schema": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "count": {
+        "name": "$inlinecount",
+        "in": "query",
+        "description": "Include count of items, see [Inlinecount](https://help.sap.com/doc/5890d27be418427993fafa6722cdc03b/Cloud/en-US/OdataV2.pdf#page=67)",
+        "schema": {
+          "type": "string",
+          "enum": [
+            "allpages",
+            "none"
+          ]
+        }
+      }
+    },
+    "responses": {
+      "error": {
+        "description": "Error",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/error"
+            }
+          }
+        }
+      }
+    },
+    "securitySchemes": {
+      "OAuth2Auth": {
+        "type": "oauth2",
+        "flows": {
+          "authorizationCode": {
+            "scopes": {
+              "API_CLFN_CHARACTERISTIC_SRV_0001": ""
+            },
+            "refreshUrl": "https://{host}:{port}",
+            "authorizationUrl": "https://{host}:{port}",
+            "tokenUrl": "https://{host}:{port}"
+          }
+        }
+      },
+      "BasicAuth": {
+        "type": "http",
+        "scheme": "basic"
+      }
+    }
+  },
+  "security": [
+    {
+      "OAuth2Auth": [
+        "API_CLFN_CHARACTERISTIC_SRV_0001"
+      ]
+    },
+    {
+      "BasicAuth": []
+    }
+  ]
+}

@@ -16,7 +16,7 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * Validaciones de negocio del aggregate Customer (SPEC.md §3, §9).
+ * Validaciones de negocio del aggregate Customer (OVERVIEW.md §2).
  * Orquesta los validadores de cada feature; se puede invocar sobre el aggregate
  * completo o sobre un subconjunto de features.
  */

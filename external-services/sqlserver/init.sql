@@ -45,3 +45,75 @@ VALUES
      'contacto@globex.es', '+34 600 333 444', 'https://globex.es',
      'ES8023100001180000012345', 'BBVAESMM')
 GO
+
+-- =============================================================================
+-- Outbox CDC (Debezium) — dominio CUSTOMER
+-- MENSAJE FINO (ADR-0013): la outbox NO publica datos del cliente. Cada cambio
+-- inserta una fila cuyo `message` es el aviso que leen los listeners Kafka:
+--   {"entityId":"...","operation":"CREATE|UPDATE|DELETE","occurredAt":"..."}
+-- El consumidor relee el estado actual del legacy y calcula el hash sobre el
+-- snapshot leido. Las columnas `payload` y `payload_hash` se conservan un ciclo,
+-- NULLABLE y siempre NULL, para no romper lo que aun las lea.
+-- El orden de los cambios de una misma entidad es el de la particion de Kafka
+-- (la clave es entity_id); la columna `id` es el numero de secuencia local.
+-- =============================================================================
+
+CREATE TABLE dbo.outbox_customer (
+    id           BIGINT IDENTITY(1,1) PRIMARY KEY,
+    entity_id    VARCHAR(50)    NOT NULL,
+    operation    VARCHAR(10)    NOT NULL,
+    occurred_at  DATETIME2      NOT NULL DEFAULT SYSUTCDATETIME(),
+    message      NVARCHAR(1000) NOT NULL,
+    payload_hash VARCHAR(64)    NULL,   -- ADR-0013: deja de emitirse
+    payload      NVARCHAR(MAX)  NULL,   -- ADR-0013: deja de emitirse
+    created_at   DATETIME2      NOT NULL DEFAULT SYSUTCDATETIME()
+);
+GO
+
+CREATE TRIGGER dbo.trg_customers_outbox
+ON dbo.customers
+AFTER INSERT, UPDATE, DELETE
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    DECLARE @op VARCHAR(10) =
+        CASE
+            WHEN EXISTS (SELECT 1 FROM inserted) AND EXISTS (SELECT 1 FROM deleted) THEN 'UPDATE'
+            WHEN EXISTS (SELECT 1 FROM inserted) THEN 'CREATE'
+            ELSE 'DELETE'
+        END;
+
+    DECLARE @now DATETIME2 = SYSUTCDATETIME();
+
+    INSERT INTO dbo.outbox_customer (entity_id, operation, occurred_at, message)
+    SELECT
+        s.id,
+        @op,
+        @now,
+        N'{"entityId":"' + STRING_ESCAPE(s.id, 'json')
+            + N'","operation":"' + @op
+            + N'","occurredAt":"' + CONVERT(VARCHAR(33), @now, 127)
+            + N'Z"}'
+    FROM (
+        SELECT id FROM inserted
+        UNION ALL
+        SELECT id FROM deleted WHERE @op = 'DELETE'
+    ) s;
+END;
+GO
+
+-- =============================================================================
+-- CDC requerido por Debezium (SQL Server): habilitar en la BD y en la outbox.
+-- Requiere SQL Server Agent activo (MSSQL_AGENT_ENABLED=true en docker-compose).
+-- =============================================================================
+
+EXEC sys.sp_cdc_enable_db;
+GO
+
+EXEC sys.sp_cdc_enable_table
+    @source_schema        = N'dbo',
+    @source_name          = N'outbox_customer',
+    @role_name            = NULL,
+    @supports_net_changes = 0;
+GO

@@ -1,43 +1,37 @@
 package com.poc.sap.it.contract;
 
+import com.poc.sap.common.domain.port.SapOutboundPort.SapResponse;
+import com.poc.sap.customer.adapters.sap.BtpContactAdapter;
+import com.poc.sap.customer.domain.feature.contact.ContactData;
 import org.junit.jupiter.api.Test;
 
-import java.net.http.HttpResponse;
-
-import static com.github.tomakehurst.wiremock.client.WireMock.*;
+import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
+import static com.github.tomakehurst.wiremock.client.WireMock.equalTo;
+import static com.github.tomakehurst.wiremock.client.WireMock.matchingJsonPath;
+import static com.github.tomakehurst.wiremock.client.WireMock.post;
+import static com.github.tomakehurst.wiremock.client.WireMock.postRequestedFor;
+import static com.github.tomakehurst.wiremock.client.WireMock.urlPathEqualTo;
 import static org.assertj.core.api.Assertions.assertThat;
 
-/**
- * Test de contrato SAP BTP para la feature CONTACT (SPEC.md §5; TECH.md §10).
- */
+/** Contrato BTP del contacto, ejercitando el adaptador REAL (auditoria B6). */
 class BtpContactContractTest extends AbstractSapContractTest {
 
-    @Test
-    void contactEndpointRespondsCreated() throws Exception {
-        sap.stubFor(post(urlPathEqualTo("/sap/btp/odata/CustomerContact"))
-                .willReturn(aResponse()
-                        .withStatus(201)
-                        .withBody("{\"Email\":\"info@acme.com\"}")));
-
-        HttpResponse<String> resp = postJson(
-                "/sap/btp/odata/CustomerContact",
-                """
-                {"BusinessPartner":"C-1","Email":"info@acme.com","Phone":"+34 600000000","Fax":"","Website":""}""");
-
-        assertThat(resp.statusCode()).isEqualTo(201);
-        sap.verify(postRequestedFor(urlPathEqualTo("/sap/btp/odata/CustomerContact")));
-    }
+    private static final String PATH = "/sap/btp/odata/CustomerContact";
 
     @Test
-    void badRequestWhenContactBodyMalformed() throws Exception {
-        sap.stubFor(post(urlPathEqualTo("/sap/btp/odata/CustomerContact"))
-                .willReturn(aResponse().withStatus(400).withBody("malformed contact")));
+    void realAdapterPostsMappedContact() {
+        sap.stubFor(post(urlPathEqualTo(PATH)).willReturn(aResponse().withStatus(201).withBody("{}")));
 
-        HttpResponse<String> resp = postJson(
-                "/sap/btp/odata/CustomerContact",
-                """
-                {"BusinessPartner":"C-1"}""");
+        SapResponse r = new BtpContactAdapter(sapClient, PATH)
+                .send("C-1", "h-1", new ContactData("info@acme.com", "+34 600 000 000", null, "https://acme.com"));
 
-        assertThat(resp.statusCode()).isEqualTo(400);
+        assertThat(r.httpStatus()).isEqualTo(201);
+        sap.verify(postRequestedFor(urlPathEqualTo(PATH))
+                .withHeader("Authorization", equalTo("Bearer " + TOKEN))
+                .withHeader("Idempotency-Key", equalTo("h-1"))
+                .withRequestBody(matchingJsonPath("$.BusinessPartner", equalTo("C-1")))
+                .withRequestBody(matchingJsonPath("$.Email", equalTo("info@acme.com")))
+                .withRequestBody(matchingJsonPath("$.Phone", equalTo("+34 600 000 000")))
+                .withRequestBody(matchingJsonPath("$.Website", equalTo("https://acme.com"))));
     }
 }

@@ -1,0 +1,505 @@
+# Changelog
+
+Qué cambia en la aplicación, contado en términos de **negocio**: qué se puede
+hacer ahora que antes no, y qué dejaba de funcionar. Sin detalle técnico.
+
+Dónde está lo demás:
+
+| Necesitas | Dónde |
+|---|---|
+| El **detalle técnico** de cada defecto: causa, dónde estaba, cómo se arregló | [`docs/sdd/README.md`](docs/sdd/README.md) §6 |
+| Los cambios de **una feature concreta** | `docs/sdd/<subproyecto>/CHANGELOG.md` |
+| Quién pidió una feature, cuándo y en qué estado está | registro `sdd_registry` — [`docs/sdd/README.md`](docs/sdd/README.md) §8 |
+| Lo que **aún no** se ha hecho | [`docs/MEJORAS-Y-PROPUESTAS.md`](docs/MEJORAS-Y-PROPUESTAS.md) |
+
+Cada revisión agrupa sus cambios en **Añadido**, **Cambiado**, **Corregido** y
+**Pendiente**. Mientras no haya versiones publicadas, las revisiones se
+identifican por fecha.
+
+---
+
+## [Sin publicar]
+
+### 2026-09-23 — Cierre de OPS-010: broker de mensajería único, sin máquina virtual extra
+
+Sustitución del broker de Kafka+ZooKeeper por **Redpanda** (mismo *wire*
+Kafka 3.x, sin JVM, sin ZooKeeper) en **todos los entornos** a la vez. La
+aplicación cliente no cambia: solo se renombra la variable de entorno y el
+puerto por defecto.
+
+#### Cambiado
+
+- El broker de eventos deja de ser Apache Kafka (más su ZooKeeper) y pasa
+  a ser **Redpanda**: un solo binario, escrito en C++, sin JVM, sin
+  ZooKeeper y con el mismo *wire* Kafka 3.x. La aplicación cliente
+  (Spring Kafka) no se ha tocado —solo cambia la variable de entorno
+  `KAFKA_BOOTSTRAP` por `MESSAGING_BOOTSTRAP`, y los nombres
+  operativos pasan de `kafka-*` a `rpk`. Se aplica a **todos los
+  entornos** a la vez (local, test, producción).
+- **Ahorro operativo**: 2 JVM menos por clúster de Kubernetes (ZooKeeper
+  + broker Kafka en Java) y arranque del broker local en segundos en
+  lugar del minuto largo del antiguo Kafka + ZooKeeper.
+
+#### Añadido
+
+- Un cluster de Redpanda por clúster de Kubernetes (test, producción),
+  operado por el **Redpanda Operator** con la CRD
+  `cluster.redpanda.com/v1alpha2` (`kind: Redpanda`), 3 nodos HA con
+  factor de réplica 3 en los topics de la aplicación.
+- **Manifiestos Kubernetes** con Redpanda Operator + CRD `Redpanda`,
+  3 nodos HA, **Tiered Storage desactivado** (la activación se deja
+  como propuesta `OPS-011` para después de la prueba de carga), y el
+  *worker* de Debezium Connect apuntando al servicio `redpanda:9092`
+  dentro del clúster. Procedimiento de validación en un k3s local.
+- Test de integración nuevo `DebeziumRedpandaIT` en verde contra
+  `RedpandaContainer` v25.3.9 LTS (sustituye al antiguo
+  `ConfluentKafkaContainer` que ya no se podía usar en Testcontainers
+  1.21). `InfrastructureSmokeIT` migrado al mismo contenedor.
+- Cierre del acuerdo **D-16** de [ADR-0011](../docs/architecture/adr/0011-concurrencia-entre-instancias-fencing-sin-lease.md):
+  ya no se comparte un Kafka multi-AZ entre clusters; cada clúster K8s
+  tiene su propio cluster Redpanda y un *consumer group* por clúster.
+  [ADR-0014](../docs/architecture/adr/0014-redpanda-como-broker-de-mensajeria.md)
+  justifica la elección.
+
+#### Pendiente
+
+- **Cifras definitivas de rendimiento**: se miden cuando se desmonte el
+  broker antiguo (próximo PR, fuera de OPS-010). En el apartado de
+  *baseline* de producción queda el hueco para anotar el *throughput*
+  CDC, la **latencia p99** de extremo a extremo del flujo CDC→SAP y el
+  heap JVM que se ahorra por clúster. El plan es medir *después* de
+  cerrar el cambio para que la cifra sea comparable.
+
+### 2026-09-23 — Pausa de la vista grafo de UI-002
+
+#### Pendiente
+- La pestaña "Grafo" del panel de operación queda en pausa. El caso de negocio y los criterios de aceptación están escritos, pero el stack Prometheus del proyecto no garantiza que las métricas del grafo tengan cardinalidad controlada. Se reabre cuando ese trabajo previo esté hecho.
+
+### 2026-09-23 — Panel web de consulta de entidades y subentidades (UI-001)
+
+#### Añadido
+- Web de consulta del estado de un cliente y su histórico, sin pasar por la API del sistema. Antes había que abrir tres herramientas distintas para reconstruir la historia de un cliente.
+- Reconocimiento explícito de las alertas de sincronización parcial: el operador puede decir "vi esta alerta" y queda registrado con su nombre de usuario.
+
+#### Cambiado
+- Las series de Prometheus pasan a etiquetarse por entorno y cluster (OBS-005). El panel enlaza al dashboard de Grafana correspondiente filtrado por la entidad consultada.
+- La utilidad de enmascarado de datos personales se ha movido a una zona común del proyecto para que el panel web y la API la reutilicen sin acoplarse.
+
+### 2026-09-23 — Las series de métricas ya distinguen entorno y cluster; los paneles y alertas viven en el repositorio
+
+#### Añadido
+- Cada serie Prometheus lleva ahora tres etiquetas: además del nombre de aplicación, el entorno (`local`, `test` o `prod`) y el nombre del cluster Kubernetes. Sin ellas, los paneles de Grafana mezclaban datos de entornos distintos.
+
+#### Cambiado
+- Los paneles de Grafana y las reglas de Prometheus que se usan para vigilar el sistema están ahora versionados en el repositorio (`deploy/observability/`). Quien opera cada entorno los aprovisiona desde ahí. La operación del propio stack de recolección (Prometheus, Grafana, Loki) sigue siendo de plataforma, no del repositorio.
+
+### 2026-09-19 — Los avisos de cambio ya no llevan datos personales; el sistema siempre envía a SAP el estado actual
+
+#### Cambiado
+
+- Cuando algo cambia en un sistema de origen, el aviso que circula por la cola
+  **ya no lleva los datos del cliente ni del artículo**: solo dice qué ficha ha
+  cambiado y cuándo. Nombres, direcciones, correos, teléfonos e IBAN dejan de
+  copiarse a un sitio más del que nadie había fijado cuánto se guardan.
+- Al atender ese aviso, el sistema **va a buscar la ficha tal y como está en ese
+  momento** y es eso lo que envía a SAP. Si un aviso llega tarde o se reprocesa,
+  ya no puede escribir en SAP una versión antigua: siempre gana el estado actual.
+- Como consecuencia, repetir un envío ya no depende de lo que diga el mensaje:
+  si la ficha no ha cambiado, no se vuelve a escribir en SAP. El primer aviso de
+  cada ficha tras la puesta en marcha sí provoca un envío de puesta al día.
+- Llamar al servicio a mano es más simple: basta indicar la ficha.
+
+### 2026-09-18 — Antes de escribir en SAP se pregunta qué tiene; el aviso de fallo parcial ya cuenta paso a paso qué entró y qué no
+
+#### Añadido
+
+- Cada servicio publica su **contrato de API en un fichero estándar** que se
+  puede compartir e importar para probarlo: dice qué se puede pedir, qué
+  devuelve, qué permiso hace falta y trae ejemplos, y se puede apuntar tanto al
+  entorno local como al de pruebas. El fichero no se queda viejo: si la API
+  cambia y el contrato no, la compilación falla.
+- Antes de dar de alta cualquier dato en SAP, la aplicación **pregunta primero**
+  qué tiene SAP: si ya existe, lo actualiza; si no, lo crea; y si SAP no
+  contesta, no escribe nada. Así un reintento actualiza en vez de duplicar.
+- Los **datos de contacto** —email, teléfono, fax y página web— por fin viajan
+  a SAP. Antes el envío iba vacío y SAP lo habría rechazado.
+- Documentadas **las tres vías de comunicación con SAP** (llamada directa,
+  servicio intermedio en BTP, eventos desde SAP) y el estado real de cada una:
+  solo la llamada directa está probada de punta a punta; el servicio
+  intermedio existe pero todavía no se ha conectado con esta aplicación; los
+  eventos desde SAP siguen siendo una propuesta sin diseño.
+- Propuesta de **servicio de autenticación**: se recomienda mantener el
+  proveedor de identidad actual frente a dos alternativas de mercado
+  evaluadas; la decisión final queda para quien es dueño del proyecto.
+
+#### Cambiado
+
+- Cuando una parte del cliente (dirección, datos fiscales, contacto o banco)
+  no llega a SAP, el cliente queda marcado para revisión **siempre**, y el
+  aviso ya explica paso a paso qué entró y qué no, en vez de quedarse callado
+  cuando la causa era que SAP estaba caído.
+- Un reenvío que antes podía **duplicar** una entrada en SAP por una respuesta
+  lenta ya no se repite a ciegas: solo se reintenta cuando es seguro que la
+  primera petición nunca llegó a salir.
+- **Dos instancias o dos centros de datos** trabajando a la vez sobre el mismo
+  cliente ya no pierden el cambio en la cola de mensajes fallidos: la
+  colisión se detecta y el mensaje se reintenta en vez de descartarse en
+  silencio sin que nadie se entere.
+- Un cliente que quedó con un aviso de error tras un envío incompleto ya no se
+  da por sincronizado solo porque se repite el mismo dato: el sistema recuerda
+  que la última vez no todo llegó a SAP y vuelve a intentarlo entero.
+
+#### Corregido
+
+- Un fallo de red pasajero (no encontrar la dirección de SAP) se trataba como
+  un error de programación y el mensaje se descartaba sin reintentar. Ahora se
+  reintenta como cualquier otro problema de red temporal.
+- Las **reglas de arquitectura** que el proyecto decía vigilar en cada compilación
+  (el núcleo de negocio sin dependencias técnicas, y ningún endpoint sin control
+  de acceso declarado) **no se estaban ejecutando** desde la migración a la
+  versión actual de la plataforma: pasaban en verde sin comprobar nada. Ahora se
+  ejecutan de verdad y, comprobadas por primera vez, no encuentran ninguna
+  violación.
+
+#### Pendiente
+
+- Verificar contra el **tenant real de SAP** todo lo marcado "a confirmar en
+  tenant": el comportamiento del alta/actualización, el formato del
+  identificador de dirección que asigna SAP, y el envío real de contacto.
+- La integración **extremo a extremo con el servicio intermedio de BTP**
+  sigue sin probarse en ninguno de los dos sentidos.
+- El mecanismo de **eventos desde SAP** hacia esta aplicación sigue sin
+  diseño.
+- La decisión sobre **qué servicio de autenticación** usar queda en
+  propuesta, pendiente de quien es dueño del proyecto.
+- ~~Las pruebas que necesitan un entorno con contenedores no se han podido
+  ejecutar en esta máquina.~~ Ejecutadas el 2026-09-19: todas en verde, y el
+  aviso de cambio sin datos personales comprobado de punta a punta (base legacy
+  → captura de cambios → cola de mensajes) en clientes y artículos.
+- ~~El registro histórico de features sigue sin actualizarse.~~ Al día el
+  2026-09-19.
+
+### 2026-09-14 — Cuando una parte del cliente no llega a SAP, se sabe cuál y se avisa (decisión D-2)
+
+#### Cambiado
+
+- Decidido **no deshacer** lo que ya entró en SAP cuando falla una de las partes
+  de un cliente: deshacer sería otra modificación más, con su propio rastro y su
+  propio riesgo de fallar. En su lugar, el cliente queda marcado como error, se
+  conserva el estado de cada parte y el siguiente cambio lo reenvía entero.
+
+#### Añadido
+
+- **Aviso de sincronización parcial**: un mensaje en el canal `sap.sync.alerts`
+  y una entrada en el registro con las partes que entraron y las que no, más un
+  contador por parte para los paneles. Falta quien lo escuche (correo, ticket).
+- Consulta `GET /customers/{id}/state`: estado del cliente y de cada una de sus
+  partes, con el último cambio que lo produjo. Es la respuesta a «¿dónde falló?».
+
+### 2026-09-12 — Las APIs exigen identidad; camino al despliegue (Fase 4 y decisiones D-7/D-9)
+
+#### Añadido
+
+- **Control de acceso** a las APIs con la identidad corporativa (Keycloak):
+  nadie sin token puede consultar ni disparar envíos a SAP; cada operación
+  exige un rol (lectura, escritura, administración) y los **clientes externos**
+  ven el histórico con los datos personales enmascarados y sin comparación de
+  versiones. En el entorno local de desarrollo sigue abierto, avisándolo.
+- **Despliegue en Kubernetes**: manifiestos para los dos clústeres (test y
+  producción), imagen construida y publicada por la integración continua al
+  publicar una versión. Los secretos nunca viajan en el repositorio.
+- Trazas distribuidas listas para activarse cuando exista un destino (Tempo);
+  métricas y logs siguen llegando a Prometheus y Loki, que ya existen.
+
+### 2026-09-12 — Limpieza interna (Fase 7 de la auditoría)
+
+#### Cambiado
+
+- El recorrido que siguen las cuatro partes del cliente (dirección, fiscal,
+  contacto, banco) al validarse y enviarse a SAP estaba escrito cuatro veces;
+  ahora está una vez y las cuatro lo usan. Igual con el registro de cada paso
+  del proceso (catorce copias) y con la gestión de errores de la cola (dos).
+  Menos sitios donde equivocarse; el comportamiento no cambia y las mismas
+  pruebas lo demuestran.
+
+- La lógica de negocio deja de depender del framework: los casos de uso ya no
+  conocen Spring ni la librería de métricas, y una regla automática impide que
+  vuelvan a hacerlo. No cambia el comportamiento.
+- Los productos se envían a SAP omitiendo los campos sin valor en vez de mandar
+  cadenas vacías, que SAP puede rechazar.
+- Se retiran código y opciones de configuración que nadie usaba (un puerto sin
+  implementación, dos propiedades sin lector, un caso de uso sin llamadores).
+
+### 2026-09-12 — Memoria del proyecto: decisiones, incidencias y operación (Fase 9 de la auditoría)
+
+#### Añadido
+
+- **Registro de decisiones** de arquitectura: por qué se eligió cada pieza y
+  cuándo se revisa (seis decisiones documentadas).
+- **Incidencias y post-mortems**: qué se rompió, por qué, cuánto tardó en verse
+  y qué patrón se repite, para que la tercera vez no sea una sorpresa.
+- **Guías de operación** para las seis situaciones conocidas (entidad atascada,
+  mensaje en la cola de errores, SAP caído, la app no arranca, Kafka expulsa al
+  consumidor, bajas), y la **lista de lo que falta para producción** con quién
+  decide cada punto.
+- Checklist para la primera sesión contra el SAP de test y comprobación
+  automática de que el registro de features coincide con los specs.
+- Cierre de la auditoría: 11 de 14 bloqueantes cerrados, 1 mitigado por
+  decisión, 1 parcial a la espera del SAP de test, 1 pendiente de decidir.
+
+### 2026-09-12 — Cadena de suministro (Fase 8 de la auditoría)
+
+#### Añadido
+
+- El repositorio incluye su propia herramienta de construcción (Maven wrapper):
+  todos compilan con la misma versión sin instalar nada.
+- La compilación **rechaza** entornos que no cumplen lo prometido (Maven o Java
+  antiguos) y genera el **inventario de componentes** (SBOM) de cada versión.
+- Avisos automáticos semanales de actualizaciones de dependencias (Dependabot).
+- Las imágenes de la infraestructura local quedan fijadas exactamente
+  (por digest), no solo por etiqueta.
+
+#### Pendiente
+
+- Empaquetado para despliegue (contenedor, Helm...): a la espera de decidir la
+  plataforma de destino (D-9).
+
+### 2026-09-12 — Lo que guardamos coincide con lo que SAP tiene (Fase 6 de la auditoría)
+
+#### Corregido
+
+- Un cambio que **volvía** a un valor anterior (A → B → A) se descartaba como
+  repetido aunque SAP tuviera el valor intermedio. Ahora solo se descarta lo que
+  coincide con **el último** envío aceptado.
+- La copia local de «lo que SAP tiene» se guardaba **antes** de enviar: si SAP
+  rechazaba, quedaba registrado un dato que SAP nunca recibió, y el siguiente
+  evento idéntico se daba por sincronizado. Ahora se guarda solo cuando SAP
+  acepta.
+- Un reenvío tras un fallo de SAP **sobrescribía** la versión anterior en el
+  histórico. Ahora cada intento es una versión distinta y el rastro se conserva.
+- Tras el salto a Spring Boot 4.1, la **primera escritura en el histórico**
+  (Elasticsearch) fallaba por una librería incompatible. Detectado en la
+  verificación en vivo y corregido; ninguna prueba automática lo cubría.
+
+#### Pendiente
+
+- Qué hacer cuando SAP acepta unas partes del cliente y rechaza otras
+  (compensación entre features): decisión D-2 del plan.
+
+### 2026-09-12 — Operación y métricas (Fase 5 de la auditoría, parcial)
+
+#### Añadido
+
+- Métricas nuevas para operar el sistema: cuánto tarda cada etapa del proceso
+  (leer del origen, validar, guardar, enviar), cuánto tarda cada llamada a SAP y
+  con qué resultado, y en qué estado está el cortacircuitos hacia SAP. Antes
+  solo se contaban entidades por estado.
+- Cada aplicación etiqueta sus métricas con su propio nombre; antes las dos se
+  mezclaban.
+- Los registros de actividad pueden emitirse en formato JSON estándar (ECS)
+  para el stack ELK, activándolo por configuración.
+
+#### Cambiado
+
+- **Parada ordenada**: al detener una aplicación se dejan terminar las
+  peticiones y los mensajes en curso en vez de cortarlos.
+- Se ha ampliado el margen que Kafka concede para procesar un mensaje, y la
+  aplicación comprueba al arrancar que los reintentos hacia SAP caben en ese
+  margen. Con la configuración anterior, un SAP degradado podía provocar que
+  Kafka expulsara al consumidor una y otra vez.
+
+#### Pendiente
+
+- Trazas distribuidas (seguir una operación entre sistemas): a la espera de
+  decidir la integración con OpenTelemetry (D-7).
+
+### 2026-09-12 — Sin credenciales, la aplicación no arranca (adelanto de la Fase 4 de la auditoría)
+
+#### Cambiado
+
+- Hasta ahora, si faltaban las credenciales de SAP, la aplicación arrancaba con
+  un token falso y fallaba en la primera llamada con un error indistinguible de
+  un problema de SAP. Ahora **se niega a arrancar** y dice qué falta. El token
+  falso sigue disponible para el SAP simulado, pero hay que pedirlo
+  expresamente.
+- Las contraseñas de las bases de datos de origen ya no viajan dentro del
+  paquete de la aplicación: se aportan desde el entorno. En local las trae el
+  fichero de arranque; en test hay que rellenarlas.
+
+### 2026-09-12 — Cliente SAP sobre un transporte más simple (Fase 3.1 y 3.2 de la auditoría)
+
+#### Corregido (datos bancarios y mandatos, Fase 3.2)
+
+- Los **datos bancarios** se enviaban a SAP con el código BIC en un campo que no
+  es el suyo y sin el país del banco. Ahora van con el contrato real de SAP.
+- Los **mandatos SEPA** se enviaban a una API de SAP que **no existe**. Ahora se
+  dan de alta y se revocan en la API oficial de mandatos, identificados por el
+  acreedor SEPA de la empresa (nuevo dato de configuración obligatorio).
+- La **baja de un mandato** ya no intenta borrarlo: lo cancela, como exige SAP,
+  y se conserva el historial de cobros. Sigue sin haber eventos de mandato
+  desde el sistema origen: la funcionalidad está lista pero no se dispara.
+
+#### Cambiado
+
+- La pieza que habla por HTTP con SAP se ha reescrito sobre el cliente
+  síncrono estándar de Spring. Se comporta igual (reintentos, cortacircuitos,
+  token CSRF) y lo prueban las mismas pruebas, pero deja de arrastrar una pila
+  reactiva que no se usaba y el SDK de SAP, que tampoco. La decisión y el
+  momento de revisarla quedan escritos en el primer registro de decisiones de
+  arquitectura del proyecto.
+
+#### Corregido
+
+- Al pedir el token CSRF a SAP se enviaban siempre unas credenciales fijas,
+  aunque el sistema estuviera configurado con otro método de autenticación.
+- Cualquier rechazo «prohibido» de SAP se interpretaba como un problema de
+  token CSRF y se reintentaba; ahora solo se reintenta cuando SAP lo pide.
+
+### 2026-09-12 — Red de seguridad antes de tocar SAP (Fase 2 de la auditoría)
+
+#### Añadido
+
+- **Integración continua**: cada cambio se compila y se prueba automáticamente
+  en GitHub, con y sin Docker. Hasta ahora las pruebas solo se lanzaban a mano.
+- **Umbral de calidad que rompe la compilación**: si la lógica de negocio pierde
+  cobertura de pruebas, o si esa lógica empieza a depender de tecnología
+  concreta (Spring, Mongo, Kafka), la compilación falla.
+- Pruebas de contrato que ejercitan el **código real** que llama a SAP: hasta
+  ahora comprobaban el simulador, no nuestra aplicación. Incluye la **baja**
+  (`DELETE`) y el reintento ante un SAP caído.
+- Prueba del registro de estado contra una **base de datos Mongo real** (no
+  simulada): reenvío tras fallo, dos procesos escribiendo a la vez y convivencia
+  con datos antiguos.
+
+#### Corregido
+
+- **Cuatro pruebas que existían pero nunca se ejecutaban** por un error de
+  configuración del build (detectado por la auditoría). Ya corren en cada build.
+- Una prueba de infraestructura que nunca arrancaba Kafka por un nombre de
+  imagen duplicado.
+- La cifra de pruebas era distinta en cada documento (211, 240, 264 según el
+  fichero). Ahora hay una sola, **270 pruebas declaradas**, y un test falla si un
+  documento se queda atrás.
+- La generación de modelos SAP fallaba de forma intermitente en Windows.
+
+#### Cambiado
+
+- **Salto de versión**: Spring Boot 4.1.1 y **Java 25 como mínimo** (antes se
+  aceptaban Java 21 y 23). Se retira Spring Cloud, que era incompatible con
+  Boot 4 y nada lo usaba.
+- Todo lo anterior sigue probado contra un **SAP simulado**. La siguiente fase
+  cambia el transporte HTTP y valida el contrato contra el tenant SAP de test.
+
+### 2026-09-11 — Auditoría externa y cambio de naturaleza del proyecto
+
+#### Cambiado
+
+- **El proyecto deja de ser una prueba de concepto y pasa a ser la aplicación
+  final.** Las decisiones de seguridad, retención de datos, alta disponibilidad y
+  despliegue se toman ya con ese criterio. La documentación lo refleja.
+- Una auditoría externa del código completo ha identificado 14 defectos
+  bloqueantes y unos 36 de atención. El informe y el plan de acción por fases
+  están en `docs/auditorias/`; se ejecutan de más crítico a menos.
+- La documentación técnica describía nueve componentes que no existían y
+  afirmaba tres cosas falsas sobre cómo se activan los adaptadores. Corregido:
+  ahora describe solo lo que hay, y lo aspiracional va marcado como tal.
+
+#### Corregido
+
+- **Un cliente cuyo envío a SAP fallara quedaba bloqueado para siempre.** Ahora
+  el siguiente cambio lo vuelve a sincronizar, igual que si el proceso se hubiera
+  interrumpido a mitad. Es el defecto más grave de la auditoría.
+- **La baja de cliente nunca llegaba a ejecutarse**, y de haberlo hecho habría
+  enviado un alta vacía. Ahora se comunica a SAP como baja y la ficha local
+  queda **bloqueada, no borrada**: el rastro se conserva para auditoría.
+- **Un fallo de infraestructura** (base de datos, buscador, red) a mitad de una
+  sincronización dejaba el registro colgado. Ahora queda marcado en error y se
+  reintenta con el siguiente evento.
+- Con **varias instancias** en marcha, dos procesos ya no pueden pisarse el
+  estado de un mismo registro: una escritura gana y la otra se detecta.
+- Cuando SAP no está disponible y salta la protección de circuito, el envío se
+  **reintenta más tarde** en vez de darse por fallido en silencio.
+- Los mensajes malformados van directos a la cola de descartes, sin tres
+  reintentos inútiles que solo retrasaban su llegada.
+
+#### Pendiente (detectado por la auditoría)
+
+- Cuatro pruebas automáticas existen pero **nunca se ejecutan** por un error de
+  configuración del build (Fase 2).
+- Todo lo anterior está probado contra un **SAP simulado**. El re-envío tras
+  fallo, la recuperación de un registro interrumpido y la baja por CDC se han
+  verificado en vivo sobre el entorno local completo.
+
+
+### 2026-09-10 — Primera verificación del ciclo completo
+
+Primera vez que el sistema se levanta entero y se prueba de punta a punta. Hasta
+esta revisión **nada llegaba realmente a SAP** en un entorno limpio: la
+sincronización fallaba en varios puntos distintos.
+
+#### Corregido
+
+- **Ninguna sincronización llegaba a SAP.** El histórico de versiones no se podía
+  guardar y eso abortaba el proceso entero, de modo que ni clientes ni artículos
+  se enviaban. Ahora el ciclo completo termina correctamente.
+- **Un cliente solo se podía sincronizar una vez.** El primer envío funcionaba,
+  pero cualquier cambio posterior sobre ese mismo cliente se perdía: el mensaje
+  acababa en la cola de descartes sin llegar a SAP y sin aviso. Un cliente se
+  re-sincroniza ahora tantas veces como cambie **mientras cada envío termine
+  bien**; si un envío a SAP falla, el cliente sigue quedando bloqueado (ver
+  *Pendiente* del 2026-09-11).
+- **Solo se admitía un cliente y un artículo.** El segundo registro de cada tipo
+  fallaba al guardarse.
+- **La aplicación de artículos no arrancaba.**
+- **El estado y la ficha de cada registro no eran consultables donde debían.** Se
+  guardaban en un almacén genérico compartido por los dos dominios en vez de en
+  el de cada uno, así que buscar el estado de un cliente no devolvía nada.
+- **Los cambios en datos de dirección, fiscales, de contacto o bancarios no se
+  enviaban.** El envío por bloques de datos del cliente nunca llegaba a
+  ejecutarse.
+
+#### Añadido
+
+- **Puesta en marcha completa con un solo comando**, esperando a que cada pieza
+  esté lista antes de seguir, y avisando de dónde mirar si algo falla. Al
+  terminar indica en qué dirección está cada servicio.
+- **Dos modos de arranque**: todo en el equipo del desarrollador, o las
+  aplicaciones en local contra los servicios de un servidor de test. La migración
+  a test se puede hacer servicio a servicio.
+- **Herramientas para consultar el sistema sin tocar la base de datos**:
+  colección de Postman lista para importar y guía de acceso a los datos de
+  clientes, artículos, histórico y mensajes.
+- **Registro de features**: qué se ha pedido, quién, cuándo, en qué estado está y
+  cómo ha ido cambiando.
+- **Trazabilidad del comportamiento**: cada feature tiene una especificación con
+  sus reglas de negocio y sus criterios de aceptación, y cada criterio está
+  respaldado por una prueba automática.
+
+#### Cambiado
+
+- **Forma de trabajar**: toda feature se define antes de construirse, y su
+  especificación y su código no pueden divergir. Ningún cambio de comportamiento
+  se da por terminado sin la prueba que lo respalde.
+- **Documentación reorganizada** por para qué sirve: qué debe hacer el sistema,
+  cómo está construido, cómo se desarrolla, cómo se arranca y se prueba.
+- La documentación de flujos ahora describe **solo lo que existe**; lo propuesto
+  se ha separado a un listado de mejoras, para que nadie confunda una idea con
+  una funcionalidad disponible.
+
+#### Pendiente
+
+Conocido y no abordado en esta revisión:
+
+- Los **datos de contacto** (email y teléfono) no usan todavía el formato que
+  espera SAP, así que llegarían mal contra un entorno real.
+- Los **mandatos SEPA** no llegan desde el sistema origen: los datos bancarios
+  van incompletos.
+- Si el proceso se interrumpe a mitad de un envío, ese registro **queda
+  bloqueado** y hoy no hay forma de desbloquearlo salvo intervenir en la base de
+  datos.
+- Un fallo parcial puede dejar **datos a medias en SAP**: no hay compensación
+  entre los distintos bloques de datos de un cliente.
+- Las **APIs no tienen autenticación**: no pueden exponerse fuera del entorno de
+  desarrollo.
+- Todo lo anterior se ha probado contra un **SAP simulado**, no contra un entorno
+  real de SAP.

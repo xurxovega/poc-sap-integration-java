@@ -71,4 +71,19 @@ class SyncArticleControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.state").value("SAP_ERROR"));
     }
+
+    /** AC-9 (ADR-0013): cuerpo sin payloadHash ni payload. */
+    @Test
+    void syncAcceptsBodyWithoutPayloadHashNorPayload() throws Exception {
+        when(syncUseCase.execute(any(IngestionMessage.class))).thenReturn(SyncState.SENT_SAP);
+
+        mvc.perform(post("/articles/sync")
+                        .contentType("application/json")
+                        .content("""
+                                {"entityId":"A-3","operation":"UPDATE"}
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.entityId").value("A-3"))
+                .andExpect(jsonPath("$.state").value("SENT_SAP"));
+    }
 }

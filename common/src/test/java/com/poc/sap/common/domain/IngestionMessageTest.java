@@ -6,7 +6,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
- * Tests de invariantes de {@link IngestionMessage} (SPEC.md §4).
+ * Tests de invariantes de {@link IngestionMessage} (TECH.md §6).
  */
 class IngestionMessageTest {
 
@@ -59,13 +59,47 @@ class IngestionMessageTest {
                 .hasMessageContaining("origin");
     }
 
+    /**
+     * AC-4 (contrato-mensaje-de-cambio.md): el mensaje fino no lleva ni hash ni
+     * payload. El hash lo calcula el consumidor sobre el snapshot que relee del
+     * legacy, asi que dejar de exigirlo es parte del contrato, no una relajacion.
+     */
     @Test
-    void rejectsBlankPayloadHash() {
-        assertThatThrownBy(() -> new IngestionMessage(
+    void acceptsThinMessageWithoutHashAndWithoutPayload() {
+        IngestionMessage m = new IngestionMessage(
+                "C-1", "customer", OperationType.UPDATE,
+                IngestionOrigin.CDC, null, null);
+        assertThat(m.payloadHash()).isNull();
+        assertThat(m.payload()).isNull();
+        assertThat(m.entityId()).isEqualTo("C-1");
+    }
+
+    /** AC-4: un hash en blanco se normaliza a ausente; no hay "hash vacio". */
+    @Test
+    void normalizesBlankPayloadHashToNull() {
+        IngestionMessage m = new IngestionMessage(
                 "C-1", "customer", OperationType.CREATE,
-                IngestionOrigin.CDC, "", "{}"))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("payloadHash");
+                IngestionOrigin.CDC, "  ", "{}");
+        assertThat(m.payloadHash()).isNull();
+    }
+
+    /** AC-4: el mensaje antiguo con hash y payload sigue siendo valido. */
+    @Test
+    void stillAcceptsTheLegacyMessageWithPayload() {
+        IngestionMessage m = new IngestionMessage(
+                "C-1", "customer", OperationType.CREATE,
+                IngestionOrigin.CDC, "hash-1", "{\"id\":\"C-1\"}");
+        assertThat(m.payloadHash()).isEqualTo("hash-1");
+        assertThat(m.payload()).isEqualTo("{\"id\":\"C-1\"}");
+    }
+
+    /** AC-4: constructor corto del mensaje fino, sin hash ni payload. */
+    @Test
+    void thinFactoryBuildsMessageWithoutDataFields() {
+        IngestionMessage m = IngestionMessage.thin(
+                "C-1", "customer", OperationType.UPDATE, IngestionOrigin.CDC);
+        assertThat(m.payloadHash()).isNull();
+        assertThat(m.payload()).isNull();
     }
 
     @Test

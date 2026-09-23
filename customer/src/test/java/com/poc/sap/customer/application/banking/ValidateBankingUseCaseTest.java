@@ -1,9 +1,10 @@
 package com.poc.sap.customer.application.banking;
 
+import java.time.Clock;
 import com.poc.sap.common.domain.SyncState;
 import com.poc.sap.common.domain.SyncStateTransition;
 import com.poc.sap.common.domain.port.SyncStateRepositoryPort;
-import com.poc.sap.common.observability.SyncMetrics;
+import com.poc.sap.common.domain.port.MetricsPort;
 import com.poc.sap.customer.application.CustomerFixtures;
 import com.poc.sap.customer.domain.Customer;
 import com.poc.sap.customer.domain.feature.banking.BankingData;
@@ -23,13 +24,13 @@ import static org.mockito.Mockito.*;
 class ValidateBankingUseCaseTest {
 
     @Mock SyncStateRepositoryPort stateRepo;
-    @Mock SyncMetrics metrics;
+    @Mock MetricsPort metrics;
 
     private ValidateBankingUseCase useCase;
 
     @BeforeEach
     void setUp() {
-        useCase = new ValidateBankingUseCase(stateRepo, metrics);
+        useCase = new ValidateBankingUseCase(stateRepo, metrics, Clock.systemUTC());
     }
 
     private Customer invalidBanking() {
@@ -64,10 +65,9 @@ class ValidateBankingUseCaseTest {
 
         useCase.execute(c, "hash-v");
 
-        verify(stateRepo, times(2)).transition(
-                eq("customer"),
-                eq("C-1:BANKING"),
-                any(SyncStateTransition.class));
+        // La entrada abre ciclo; el veredicto avanza dentro de el.
+        verify(stateRepo).beginCycle(eq("customer"), eq("C-1:BANKING"), any(SyncStateTransition.class));
+        verify(stateRepo, times(1)).transition(eq("customer"), eq("C-1:BANKING"), any(SyncStateTransition.class));
         verify(metrics).incrementState("customer", "VALIDATING");
         verify(metrics).incrementState("customer", "INVALID");
     }

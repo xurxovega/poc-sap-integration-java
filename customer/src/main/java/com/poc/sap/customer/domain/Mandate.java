@@ -1,7 +1,7 @@
 package com.poc.sap.customer.domain;
 
 /**
- * Entidad Mandate (mandato bancario) asociada a un Customer (SPEC.md §3).
+ * Entidad Mandate (mandato bancario) asociada a un Customer (OVERVIEW.md §2).
  *
  * @param id            identificador del mandato
  * @param customerId    identificador del cliente al que pertenece

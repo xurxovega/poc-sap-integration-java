@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{layout :: header}"></head>
+<body>
+<header th:replace="~{layout :: header}"></header>
+<main>
+    <nav class="tabs">
+        <a th:href="@{|/customers/${entityId}|}">Resumen</a>
+        <a th:href="@{|/customers/${entityId}/history|}">Histórico</a>
+        <a th:href="@{|/customers/${entityId}/history/diff|}">Diff</a>
+        <a class="active" th:href="@{|/customers/${entityId}/state|}">Estado</a>
+    </nav>
+
+    <div class="card" th:if="${state != null and state.lastCycle() != null}">
+        <h3>Último ciclo <span class="pill" th:text="${state.lastCycle().cycleId()}">cyc</span></h3>
+        <p class="muted">
+            <span>Inicio <code th:text="${state.lastCycle().startedAt()}">start</code></span> ·
+            <span>Fin <code th:text="${state.lastCycle().endedAt()}">end</code></span>
+        </p>
+    </div>
+    <pre th:text="${state != null ? T(com.poc.sap.dashboard.customer.application.GetCustomerOverview).pretty(state) : ''}">json</pre>
+</main>
+</body>
+</html>

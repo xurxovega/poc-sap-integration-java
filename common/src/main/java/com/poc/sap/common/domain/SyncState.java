@@ -2,7 +2,7 @@ package com.poc.sap.common.domain;
 
 /**
  * Estados de sincronizacion por registro.
- * Dominio-agnostico, reside en el shared kernel (SPEC.md §8).
+ * Dominio-agnostico, reside en el shared kernel (OVERVIEW.md §5).
  */
 public enum SyncState {
     RECEIVED(1),

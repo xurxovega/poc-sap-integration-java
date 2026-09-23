@@ -4,18 +4,26 @@ Infraestructura externa necesaria para ejecutar `poc-sap-integration-java` en lo
 
 Equivalente al `docker-compose.yml` del proyecto Python de referencia, pero adaptado a las URLs y credenciales por defecto de las apps Java.
 
+> Arranque de punta a punta (infra + apps + primer smoke test):
+> [`../docs/QUICK_START.md`](../docs/QUICK_START.md).
+>
+> Para levantar todo esto **esperando a cada healthcheck**, usa
+> [`../scripts/start-all.sh`](../scripts/start-all.sh): `docker compose up -d`
+> vuelve al instante y los contenedores siguen arrancando por detrás.
+
 ## Servicios incluidos
 
 | Servicio | Puerto | Uso | Credenciales |
 |---|---|---|---|
-| Zookeeper | `2181` | Coordinación de Kafka | — |
-| Kafka | `9092` (`localhost`), `29092` (red Docker) | Eventos CDC y directos | — |
+| Redpanda | `19092` (`localhost`), `9092` (red Docker) | **Broker Kafka 3.x wire-compatible, single-binary C++**. Sustituye a Kafka+ZooKeeper desde OPS-010 ([ADR-0014](../docs/architecture/adr/0014-redpanda-como-broker-de-mensajeria.md)). La app cliente (Spring Kafka) habla el mismo *wire* y la única variable renombrada es `KAFKA_BOOTSTRAP` → `MESSAGING_BOOTSTRAP`. Diagnóstico con `rpk` | — |
+| Kafka Connect (Debezium) | `8083` | CDC outbox legacy → topics `outbox.*`. El worker arranca con `BOOTSTRAP_SERVERS=redpanda:9092` (puerto interno del servicio Docker, **no** `localhost:19092`) | — |
 | PostgreSQL | `5432` | Legacy source (artículos) | `postgres` / `postgres` |
 | SQL Server | `1433` | Legacy source (clientes) | `sa` / `SqlServer_Pa55w0rd!` |
 | MongoDB | `27017` | Imagen actual + estado | sin auth |
 | Elasticsearch | `9200` | Histórico / búsqueda | sin auth |
 | Kibana | `5601` | UI de Elasticsearch | sin auth |
 | MinIO (S3) | `9000` (API), `9001` (console) | Almacenamiento de objetos | `minioadmin` / `minioadmin123` |
+| MySQL | `3306` | Registro de features SDD (`sdd_registry`) — **no** es una BD de la aplicación | `sdd` / `sdd` |
 
 ## Arrancar
 
@@ -23,6 +31,59 @@ Equivalente al `docker-compose.yml` del proyecto Python de referencia, pero adap
 cd external-services
 docker compose up -d
 ```
+
+El servicio `redpanda-init-topics` crea `outbox.CUSTOMER`,
+`outbox.CUSTOMER-dlt`, `outbox.ARTICLE` y `outbox.ARTICLE-dlt` con 12
+particiones (RF=1 en local) en cuanto `redpanda` está sano, y termina
+(`restart: "no"`). Solo actúa sobre topics que **no existan**: uno creado
+antes con 1 partición hay que ampliarlo a mano con `rpk topic add-partitions`
+(ver [`debezium/README.md`](debezium/README.md)). Las apps **no** crean
+topics (`APP_KAFKA_TOPICS_CREATE=false`, ver [`../deploy/README.md`](../deploy/README.md)).
+
+## CDC end-to-end (Debezium)
+
+Los legacy tienen tablas outbox (`dbo.outbox_customer` en SQL Server,
+`outbox_article` en Postgres) rellenadas por triggers; Debezium las captura y
+publica en `outbox.CUSTOMER` / `outbox.ARTICLE` el **aviso de cambio fino**
+(columna `message`: identidad del cambio, sin datos ni PII —
+[ADR-0013](../docs/architecture/adr/0013-outbox-mensaje-fino-sin-payload.md)).
+
+> Antes (con Kafka+ZooKeeper) Debezium apuntaba a `kafka-broker:29092`.
+> Con Redpanda el worker arranca con `BOOTSTRAP_SERVERS=redpanda:9092`
+> (configurado en el servicio `kafka-connect`).
+
+1. Levantar todo y esperar a que `kafka-connect` esté sano:
+
+   ```bash
+   docker compose up -d
+   curl -s http://localhost:8083/ | jq .version
+   ```
+
+2. Registrar los dos conectores:
+
+   ```bash
+   cd debezium
+   curl -i -X POST -H "Content-Type: application/json" \
+     http://localhost:8083/connectors/ -d @register-sqlserver-customer.json
+   curl -i -X POST -H "Content-Type: application/json" \
+     http://localhost:8083/connectors/ -d @register-postgres-article.json
+   ```
+
+3. Verificar estado y topics:
+
+   ```bash
+   curl -s http://localhost:8083/connectors/outbox-customer-sqlserver/status | jq .connector.state
+   curl -s http://localhost:8083/connectors/outbox-article-postgres/status | jq .connector.state
+
+   # Sustituye a `kafka-topics --bootstrap-server localhost:9092 --list`
+   docker exec redpanda rpk topic list --brokers localhost:19092
+   # Sustituye a `kafka-console-consumer ... --from-beginning`
+   docker exec redpanda rpk topic consume outbox.CUSTOMER \
+     --brokers localhost:19092 --num 5 --print-headers
+   ```
+
+Detalle de los conectores, formato de mensaje y cómo provocar eventos de prueba:
+[`debezium/README.md`](debezium/README.md).
 
 ## Parar
 
@@ -55,5 +116,43 @@ Consola: http://localhost:9001
 ## Notas
 
 - SQL Server tarda ~30-60s en arrancar. El contenedor `sqlserver-init` ejecuta el script DDL cuando SQL Server está sano.
+- SQL Server corre con `MSSQL_AGENT_ENABLED=true` (el Agent es necesario para los jobs de captura CDC de Debezium) y el `init.sql` habilita CDC sobre la BD y la tabla `dbo.outbox_customer`.
 - Elasticsearch requiere `vm.max_map_count >= 262144` en Linux/WSL. Si falla: `sudo sysctl -w vm.max_map_count=262144`.
 - Kafka expone `localhost:9092` para conexiones desde el host y `kafka-broker:29092` para conexiones entre contenedores.
+- `mongodb/init.js` crea, además de las colecciones de imagen/estado por dominio,
+  `sync_state` con el índice `dom_cycle_idx` (`{domain, cycleId, seq}`, sustenta
+  la traza de `GET /customers/{id}/state`) y `sap_keys` con `dom_ent_key_idx`
+  (`{domain, entityId}`): guarda la clave que asigna SAP (p. ej. `AddressID`)
+  para el upsert idempotente (PRD-11); si se pierde, el siguiente ciclo duplica
+  en vez de actualizar.
+- `scripts/start-all.sh` registra en el mock SAP (WireMock) un stub más
+  específico que hace que el `GET` de verificación previa (lookup) devuelva
+  `404` ("no existe en SAP") en vez del `201` genérico: así el flujo local
+  ejercita también la rama de alta del upsert idempotente, no solo la de
+  actualización.
+
+## Métricas, logs y trazas que expone la app (OBS-005)
+
+Las apps exponen `/actuator/prometheus` con las series documentadas en
+[`docs/sdd/common/observabilidad.md`](../docs/sdd/common/observabilidad.md) §4
+(R-1..R-3, R-6, R-8) y los tags comunes `application`, `env`, `cluster` (R-8).
+Los **dashboards Grafana y las reglas de alerta Prometheus** que la plataforma
+provisionará en cada entorno viven versionados en
+[`deploy/observability/`](../deploy/observability/):
+
+```
+deploy/observability/
+├── README.md
+├── grafana/dashboards/{customer-pipeline,article-pipeline,sap-resilience}.json
+└── prometheus/rules/alerts.yml
+```
+
+El **stack de recolección** (Prometheus/Grafana/Loki/Keycloak) lo aporta la
+plataforma en cada entorno — **no se levanta en este compose**.
+
+## Logs
+
+Activar JSON para Loki/ELK: `LOGGING_STRUCTURED_FORMAT_CONSOLE=ecs` en
+`scripts/env/<entorno>.env` (nativo de Boot, sin código). Con `TRACING_ENABLED=true`
+y `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` apuntando al colector, el `traceId`
+aparece en cada log.

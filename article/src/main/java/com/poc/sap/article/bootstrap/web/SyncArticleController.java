@@ -5,7 +5,9 @@ import com.poc.sap.common.domain.IngestionOrigin;
 import com.poc.sap.common.domain.OperationType;
 import com.poc.sap.common.domain.SyncState;
 import com.poc.sap.article.application.SyncArticleUseCase;
+import com.poc.sap.common.security.ApiRoles;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
@@ -21,6 +23,7 @@ public class SyncArticleController {
     }
 
     @PostMapping("/sync")
+    @PreAuthorize("hasRole('" + ApiRoles.WRITE + "')")
     public ResponseEntity<Map<String, Object>> sync(@RequestBody SyncRequest req) {
         IngestionMessage msg = new IngestionMessage(
                 req.entityId(),

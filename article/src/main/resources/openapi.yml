@@ -1,0 +1,351 @@
+openapi: 3.1.0
+
+# Contrato REST del modulo article.
+# Regla: docs/sdd/common/contrato-openapi-rest.md — este fichero y los
+# controladores de article/bootstrap/web son el mismo hecho contado dos veces;
+# lo vigila OpenApiMatchesControllersTest (rompe el build si divergen).
+# No se sirve por HTTP: se importa en Postman/Bruno/Swagger UI.
+
+info:
+  title: SAP Integration — API de Article
+  version: 0.1.0-SNAPSHOT
+  description: |
+    Sincronizacion de articulos (datos maestros) desde los sistemas legacy hacia
+    SAP S/4 Public Cloud, y consulta de lo que se envio.
+
+    - **Ingesta**: `POST /articles/sync` dispara el mismo pipeline que la
+      captura de cambios por Kafka (CDC).
+    - **Consulta**: `GET /articles/{id}/history` (versiones enviadas) y
+      `/history/diff` (que cambio entre dos versiones).
+
+    Los articulos no llevan datos personales, asi que aqui no hay enmascarado:
+    `sap-external-read` los lee completos (seguridad-api.md R-4).
+
+    **Autenticacion**: JWT de Keycloak en `Authorization: Bearer <token>`. Cada
+    operacion declara en `x-required-role` el rol minimo que exige; los roles se
+    crean en Keycloak en minusculas y con guion (`SAP_WRITE` → `sap-write`).
+    Jerarquia: `sap-superadmin` ⊃ `sap-admin` ⊃ `sap-write` ⊃ `sap-read`.
+
+    Detalle: `docs/sdd/common/seguridad-api.md`, `docs/sdd/article/sincronizacion-articulo.md`
+    y `docs/tools-integrations/KEYCLOAK.md` (como obtener el token).
+
+servers:
+  - url: http://localhost:8082
+    description: Local — la aplicacion arrancada con `scripts/start-all.sh` (puerto 8082, AGENTS.md §2.1).
+  - url: https://{host}
+    description: |
+      Entorno de test en Kubernetes. Todavia no hay Ingress definido
+      (auditoria 2A-15), asi que el host se rellena a mano: preguntalo a quien
+      opera el cluster o usa `kubectl port-forward svc/article 8082:8082` y
+      entonces sirve el servidor local.
+    variables:
+      host:
+        default: article.test.example.invalid
+        description: Host publico del servicio article en el entorno de test (placeholder hasta que exista el Ingress).
+
+security:
+  - keycloak: []
+
+tags:
+  - name: Sincronizacion
+    description: Disparar el pipeline de sincronizacion hacia SAP.
+  - name: Consulta
+    description: Historico y diff de las versiones enviadas.
+
+paths:
+
+  /articles/sync:
+    post:
+      tags: [Sincronizacion]
+      operationId: syncArticle
+      summary: Sincronizar un articulo con SAP
+      description: |
+        Mete el articulo en el pipeline de sincronizacion (el mismo que la
+        ingesta por Kafka) y devuelve el estado en que ha quedado.
+        Basta con la identidad: el cuerpo **no es fuente de datos**, el servicio
+        relee el estado actual del legacy (ADR-0013). Es idempotente por el hash
+        que calcula sobre ese estado: si SAP ya tiene ese mismo estado, no
+        vuelve a escribir.
+      x-required-role: SAP_WRITE
+      x-masked-for-external-read: false
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SyncRequest'
+            example:
+              entityId: ART-001
+              operation: UPDATE
+      responses:
+        '200':
+          description: Procesado; el estado final va en la respuesta (tambien si acabo en error de SAP).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SyncResponse'
+              example:
+                entityId: ART-001
+                state: SENT_SAP
+        '400':
+          $ref: '#/components/responses/PeticionMalFormada'
+        '401':
+          $ref: '#/components/responses/SinToken'
+        '403':
+          $ref: '#/components/responses/SinPermiso'
+
+  /articles/{id}/history:
+    get:
+      tags: [Consulta]
+      operationId: articleHistory
+      summary: Versiones del articulo enviadas a SAP
+      description: |
+        Versiones indexadas, de la mas reciente a la mas antigua. Con
+        `full=true` incluye el contenido completo de cada version, sin enmascarar
+        (los articulos no llevan datos personales).
+      x-required-role: [SAP_READ, SAP_EXTERNAL_READ]
+      x-masked-for-external-read: false
+      parameters:
+        - $ref: '#/components/parameters/EntityId'
+        - name: full
+          in: query
+          required: false
+          description: Incluir el contenido completo de cada version, no solo su hash e instante.
+          schema:
+            type: boolean
+            default: false
+      responses:
+        '200':
+          description: Versiones encontradas (lista vacia si el articulo no tiene historico).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HistoryResponse'
+              example:
+                entityId: ART-001
+                versions:
+                  - payloadHash: 3d5e7f9a1b
+                    timestamp: '2026-09-18T09:20:44Z'
+                    snapshot:
+                      id: ART-001
+                      sku: SKU-001
+                      description: Articulo de ejemplo
+                      category: GENERAL
+                      unit: UN
+                      status: ACTIVE
+        '401':
+          $ref: '#/components/responses/SinToken'
+        '403':
+          $ref: '#/components/responses/SinPermiso'
+        '404':
+          $ref: '#/components/responses/NoEncontrado'
+
+  /articles/{id}/history/diff:
+    get:
+      tags: [Consulta]
+      operationId: articleHistoryDiff
+      summary: Que cambio entre dos versiones del articulo
+      description: |
+        Campos que cambian entre dos versiones del historico, ruta a ruta. Sin
+        parametros compara la ultima version contra la anterior.
+      x-required-role: [SAP_READ, SAP_EXTERNAL_READ]
+      x-masked-for-external-read: false
+      parameters:
+        - $ref: '#/components/parameters/EntityId'
+        - name: from
+          in: query
+          required: false
+          description: Hash de la version base; por defecto, la anterior a `to`.
+          schema:
+            type: string
+        - name: to
+          in: query
+          required: false
+          description: Hash de la version destino; por defecto, la mas reciente.
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Diferencias entre las dos versiones.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HistoryDiff'
+              example:
+                entityId: ART-001
+                from:
+                  payloadHash: 1a2b3c4d5e
+                  timestamp: '2026-09-17T11:02:10Z'
+                to:
+                  payloadHash: 3d5e7f9a1b
+                  timestamp: '2026-09-18T09:20:44Z'
+                changes:
+                  description:
+                    before: Articulo de ejemplo
+                    after: Articulo de ejemplo (rev. B)
+        '401':
+          $ref: '#/components/responses/SinToken'
+        '403':
+          $ref: '#/components/responses/SinPermiso'
+        '404':
+          $ref: '#/components/responses/NoEncontrado'
+
+components:
+
+  securitySchemes:
+    keycloak:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        JWT firmado por el Keycloak configurado en
+        `spring.security.oauth2.resourceserver.jwt.issuer-uri`. Como obtenerlo:
+        `docs/tools-integrations/KEYCLOAK.md`.
+
+  parameters:
+    EntityId:
+      name: id
+      in: path
+      required: true
+      description: Identificador del articulo en el sistema legacy (p. ej. `ART-001`).
+      schema:
+        type: string
+      example: ART-001
+
+  responses:
+    PeticionMalFormada:
+      description: El cuerpo no se puede leer o le faltan campos obligatorios.
+    SinToken:
+      description: Falta el token o no es valido (seguridad-api.md R-1).
+    SinPermiso:
+      description: El token es valido pero no tiene el rol que pide `x-required-role`.
+    NoEncontrado:
+      description: No hay historico para esa entidad, o la version pedida no existe.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorMessage'
+          example:
+            error: Sin historico para article ART-001
+
+  schemas:
+
+    SyncState:
+      type: string
+      description: Estado de sincronizacion del registro (maquina de estados, `docs/sdd/common/maquina-de-estados.md`).
+      enum: [RECEIVED, FETCHING, VALIDATING, VALID, INVALID, INDEXING, INDEXED,
+             SENDING_SAP, SENT_SAP, SAP_ERROR, ERROR, COMMUNICATION_ERROR]
+
+    OperationType:
+      type: string
+      description: Que se hace con la entidad; si no se indica, `UPDATE`.
+      enum: [CREATE, UPDATE, DELETE]
+
+    SyncRequest:
+      type: object
+      required: [entityId]
+      properties:
+        entityId:
+          type: string
+          description: Identificador del articulo en el legacy.
+        operation:
+          $ref: '#/components/schemas/OperationType'
+        payloadHash:
+          type: string
+          description: |
+            Opcional e **ignorado como fuente de datos** (ADR-0013): el servicio
+            relee el legacy y calcula el hash sobre el estado actual. Solo se
+            registra como pista de diagnostico.
+        payload:
+          type: string
+          description: |
+            Opcional e **ignorado como fuente de datos** (ADR-0013): se acepta por
+            compatibilidad con los avisos antiguos, pero el servicio nunca lo usa
+            como contenido; relee el legacy.
+
+    SyncResponse:
+      type: object
+      properties:
+        entityId:
+          type: string
+        state:
+          $ref: '#/components/schemas/SyncState'
+
+    HistoryResponse:
+      type: object
+      properties:
+        entityId:
+          type: string
+        versions:
+          type: array
+          items:
+            $ref: '#/components/schemas/HistoryVersion'
+
+    HistoryVersion:
+      type: object
+      properties:
+        payloadHash:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+        snapshot:
+          description: Solo con `full=true`.
+          $ref: '#/components/schemas/Article'
+
+    Article:
+      type: object
+      description: Articulo tal y como se envio a SAP en esa version.
+      properties:
+        id:
+          type: string
+        sku:
+          type: string
+          description: Codigo de articulo (clave de negocio).
+        description:
+          type: string
+        category:
+          type: string
+        unit:
+          type: string
+          description: Unidad de medida.
+        status:
+          type: string
+          enum: [ACTIVE, INACTIVE, DISCONTINUED]
+
+    VersionRef:
+      type: object
+      properties:
+        payloadHash:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+
+    Change:
+      type: object
+      description: Valor anterior y nuevo de una ruta; `null` en `before` es campo añadido y en `after`, eliminado.
+      properties:
+        before: { type: [string, 'null'] }
+        after: { type: [string, 'null'] }
+
+    HistoryDiff:
+      type: object
+      properties:
+        entityId:
+          type: string
+        from:
+          $ref: '#/components/schemas/VersionRef'
+        to:
+          $ref: '#/components/schemas/VersionRef'
+        changes:
+          type: object
+          description: Una entrada por ruta cambiada (`description`, `category`...).
+          additionalProperties:
+            $ref: '#/components/schemas/Change'
+
+    ErrorMessage:
+      type: object
+      properties:
+        error:
+          type: string

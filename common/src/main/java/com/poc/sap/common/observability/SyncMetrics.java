@@ -1,5 +1,6 @@
 package com.poc.sap.common.observability;
 
+import com.poc.sap.common.domain.port.MetricsPort;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
@@ -9,12 +10,12 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
 /**
- * Facade de metricas por dominio y estado de la maquina de estados (SPEC.md §7,
+ * Facade de metricas por dominio y estado de la maquina de estados (OVERVIEW.md §9,
  * TECH.md §9). Centraliza contadores y timers para que los dominios no dependan
  * directamente de Micrometer.
  */
 @Component
-public class SyncMetrics {
+public class SyncMetrics implements MetricsPort {
 
     private final MeterRegistry registry;
     private final ConcurrentMap<String, Counter> stateCounters = new ConcurrentHashMap<>();
@@ -27,6 +28,7 @@ public class SyncMetrics {
     /**
      * Incrementa el contador de registros que alcanzan un estado.
      */
+    @Override
     public void incrementState(String domain, String state) {
         stateCounters.computeIfAbsent(
                 key(domain, state),
@@ -40,6 +42,7 @@ public class SyncMetrics {
     /**
      * Registra la duracion de una etapa del pipeline (fetch, validate, index, send).
      */
+    @Override
     public void recordStageDuration(String domain, String stage, long durationMillis) {
         stageTimers.computeIfAbsent(
                 key(domain, stage),
@@ -49,6 +52,18 @@ public class SyncMetrics {
                         .publishPercentiles(0.5, 0.95, 0.99)
                         .register(registry))
                 .record(java.time.Duration.ofMillis(durationMillis));
+    }
+
+    @Override
+    public void incrementFeatureResult(String domain, String feature, String result) {
+        stateCounters.computeIfAbsent(
+                key(domain, "feature:" + feature + ":" + result),
+                k -> Counter.builder("sap_sync_feature_result_total")
+                        .tag("domain", domain)
+                        .tag("feature", feature)
+                        .tag("result", result)
+                        .register(registry))
+                .increment();
     }
 
     private static String key(String a, String b) {

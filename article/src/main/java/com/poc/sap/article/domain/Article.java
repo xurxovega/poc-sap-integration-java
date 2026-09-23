@@ -1,7 +1,7 @@
 package com.poc.sap.article.domain;
 
 /**
- * Entidad Article del dominio (SPEC.md §3).
+ * Entidad Article del dominio (OVERVIEW.md §2).
  *
  * @param id           identificador legacy (PostgreSQL)
  * @param sku          codigo de articulo (business key)

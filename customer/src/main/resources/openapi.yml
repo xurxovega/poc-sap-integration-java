@@ -1,0 +1,614 @@
+openapi: 3.1.0
+
+# Contrato REST del modulo customer.
+# Regla: docs/sdd/common/contrato-openapi-rest.md — este fichero y los
+# controladores de customer/bootstrap/web son el mismo hecho contado dos veces;
+# lo vigila OpenApiMatchesControllersTest (rompe el build si divergen).
+# No se sirve por HTTP: se importa en Postman/Bruno/Swagger UI.
+
+info:
+  title: SAP Integration — API de Customer
+  version: 0.1.0-SNAPSHOT
+  description: |
+    Sincronizacion de clientes (datos maestros) desde los sistemas legacy hacia
+    SAP S/4 Public Cloud, y consulta de lo que se envio.
+
+    - **Ingesta**: `POST /customers/sync` dispara el mismo pipeline que la
+      captura de cambios por Kafka (CDC). `POST /customers/validate` solo valida.
+    - **Consulta**: `GET /customers/{id}/history` (versiones enviadas),
+      `/history/diff` (que cambio entre dos versiones) y `/state` (donde esta
+      cada parte del cliente y donde ha dado el error).
+
+    **Autenticacion**: JWT de Keycloak en `Authorization: Bearer <token>`. Cada
+    operacion declara en `x-required-role` el rol minimo que exige; los roles se
+    crean en Keycloak en minusculas y con guion (`SAP_WRITE` → `sap-write`).
+    Jerarquia: `sap-superadmin` ⊃ `sap-admin` ⊃ `sap-write` ⊃ `sap-read`;
+    `sap-external-read` va aparte y recibe la informacion personal enmascarada.
+
+    Detalle: `docs/sdd/common/seguridad-api.md`, `docs/sdd/customer/*.md` y
+    `docs/tools-integrations/KEYCLOAK.md` (como obtener el token).
+
+servers:
+  - url: http://localhost:8081
+    description: Local — la aplicacion arrancada con `scripts/start-all.sh` (puerto 8081, AGENTS.md §2.1).
+  - url: https://{host}
+    description: |
+      Entorno de test en Kubernetes. Todavia no hay Ingress definido
+      (auditoria 2A-15), asi que el host se rellena a mano: preguntalo a quien
+      opera el cluster o usa `kubectl port-forward svc/customer 8081:8081` y
+      entonces sirve el servidor local.
+    variables:
+      host:
+        default: customer.test.example.invalid
+        description: Host publico del servicio customer en el entorno de test (placeholder hasta que exista el Ingress).
+
+security:
+  - keycloak: []
+
+tags:
+  - name: Sincronizacion
+    description: Disparar el pipeline de sincronizacion hacia SAP.
+  - name: Consulta
+    description: Historico, diff y estado de sincronizacion.
+
+paths:
+
+  /customers/sync:
+    post:
+      tags: [Sincronizacion]
+      operationId: syncCustomer
+      summary: Sincronizar un cliente con SAP
+      description: |
+        Mete el cliente en el pipeline de sincronizacion (el mismo que la ingesta
+        por Kafka) y devuelve el estado en que ha quedado.
+        Basta con la identidad: el cuerpo **no es fuente de datos**, el servicio
+        relee el estado actual del legacy (ADR-0013). Es idempotente por el hash
+        que calcula sobre ese estado: si SAP ya tiene ese mismo estado, no
+        vuelve a escribir.
+      x-required-role: SAP_WRITE
+      x-masked-for-external-read: false
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SyncRequest'
+            example:
+              entityId: CUST-001
+              operation: UPDATE
+      responses:
+        '200':
+          description: Procesado; el estado final va en la respuesta (tambien si acabo en error de SAP).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SyncResponse'
+              example:
+                entityId: CUST-001
+                state: SENT_SAP
+        '400':
+          $ref: '#/components/responses/PeticionMalFormada'
+        '401':
+          $ref: '#/components/responses/SinToken'
+        '403':
+          $ref: '#/components/responses/SinPermiso'
+        '409':
+          $ref: '#/components/responses/SincronizacionConcurrente'
+
+  /customers/validate:
+    post:
+      tags: [Sincronizacion]
+      operationId: validateCustomer
+      summary: Validar un cliente sin enviarlo a SAP
+      description: |
+        Ejecuta solo las reglas de validacion del cliente y devuelve `VALID` o
+        `INVALID`. No escribe en SAP, pero si deja traza del ciclo, por eso exige
+        el mismo rol de escritura.
+      x-required-role: SAP_WRITE
+      x-masked-for-external-read: false
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ValidateRequest'
+            example:
+              entityId: CUST-001
+              payloadHash: 9f2c1a7b4e
+      responses:
+        '200':
+          description: Validado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SyncResponse'
+              example:
+                entityId: CUST-001
+                state: VALID
+        '400':
+          $ref: '#/components/responses/PeticionMalFormada'
+        '401':
+          $ref: '#/components/responses/SinToken'
+        '403':
+          $ref: '#/components/responses/SinPermiso'
+        '409':
+          $ref: '#/components/responses/SincronizacionConcurrente'
+
+  /customers/{id}/history:
+    get:
+      tags: [Consulta]
+      operationId: customerHistory
+      summary: Versiones del cliente enviadas a SAP
+      description: |
+        Versiones indexadas, de la mas reciente a la mas antigua. Con
+        `full=true` incluye el contenido completo de cada version.
+
+        A quien solo tiene `sap-external-read` se le devuelve ese contenido con
+        la informacion personal enmascarada (IBAN y NIF con los ultimos 4, email
+        con la inicial y el dominio, telefono y fax con los ultimos 3) y el campo
+        `masked` a `true` (seguridad-api.md R-4).
+      x-required-role: [SAP_READ, SAP_EXTERNAL_READ]
+      x-masked-for-external-read: true
+      parameters:
+        - $ref: '#/components/parameters/EntityId'
+        - name: full
+          in: query
+          required: false
+          description: Incluir el contenido completo de cada version, no solo su hash e instante.
+          schema:
+            type: boolean
+            default: false
+      responses:
+        '200':
+          description: Versiones encontradas (lista vacia si el cliente no tiene historico).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HistoryResponse'
+              example:
+                entityId: CUST-001
+                versions:
+                  - payloadHash: 9f2c1a7b4e
+                    timestamp: '2026-09-18T09:12:03Z'
+                    snapshot:
+                      id: CUST-001
+                      code: C001
+                      name: Cliente de ejemplo
+                      status: ACTIVE
+                      address:
+                        street: Calle Mayor 1
+                        city: Madrid
+                        postalCode: '28001'
+                        country: ES
+                        region: Madrid
+                      fiscal:
+                        taxId: '****6789'
+                        vatNumber: '****6789'
+                        legalName: Cliente de ejemplo S.L.
+                        taxResidency: ES
+                      contact:
+                        email: c***@ejemplo.es
+                        phone: '******789'
+                        fax: null
+                        website: https://ejemplo.es
+                      banking:
+                        iban: '********************3000'
+                        bic: BANKESMM
+                        mandateIds: ['****01']
+                masked: true
+        '401':
+          $ref: '#/components/responses/SinToken'
+        '403':
+          $ref: '#/components/responses/SinPermiso'
+        '404':
+          $ref: '#/components/responses/NoEncontrado'
+
+  /customers/{id}/history/diff:
+    get:
+      tags: [Consulta]
+      operationId: customerHistoryDiff
+      summary: Que cambio entre dos versiones del cliente
+      description: |
+        Campos que cambian entre dos versiones del historico, ruta a ruta. Sin
+        parametros compara la ultima version contra la anterior.
+
+        Exige `sap-read`: muestra valores campo a campo sin enmascarar, asi que
+        `sap-external-read` recibe `403` (seguridad-api.md R-4).
+      x-required-role: SAP_READ
+      x-masked-for-external-read: false
+      parameters:
+        - $ref: '#/components/parameters/EntityId'
+        - name: from
+          in: query
+          required: false
+          description: Hash de la version base; por defecto, la anterior a `to`.
+          schema:
+            type: string
+        - name: to
+          in: query
+          required: false
+          description: Hash de la version destino; por defecto, la mas reciente.
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Diferencias entre las dos versiones.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HistoryDiff'
+              example:
+                entityId: CUST-001
+                from:
+                  payloadHash: 7a1b2c3d4e
+                  timestamp: '2026-09-17T18:40:11Z'
+                to:
+                  payloadHash: 9f2c1a7b4e
+                  timestamp: '2026-09-18T09:12:03Z'
+                changes:
+                  contact.phone:
+                    before: '+34600000000'
+                    after: '+34600123456'
+        '401':
+          $ref: '#/components/responses/SinToken'
+        '403':
+          $ref: '#/components/responses/SinPermiso'
+        '404':
+          $ref: '#/components/responses/NoEncontrado'
+
+  /customers/{id}/state:
+    get:
+      tags: [Consulta]
+      operationId: customerState
+      summary: Donde esta cada parte del cliente
+      description: |
+        Estado del cliente completo y de cada una de sus partes (ADDRESS,
+        FISCAL, CONTACT, BANKING) con su ultimo hash, su motivo y su instante,
+        mas la traza de pasos del ultimo ciclo. Es lo que se mira tras una
+        alerta de sincronizacion parcial (ADR-0010; sincronizacion-cliente.md §5).
+
+        El motivo (`detail`) puede arrastrar el cuerpo de error de SAP, que en un
+        400 repite el valor rechazado: para `sap-external-read` va enmascarado.
+      x-required-role: [SAP_READ, SAP_EXTERNAL_READ]
+      x-masked-for-external-read: true
+      parameters:
+        - $ref: '#/components/parameters/EntityId'
+      responses:
+        '200':
+          description: |
+            Estado conocido. Si el cliente nunca se sincronizo, `aggregate`,
+            `lastCycle` y `features` vienen vacios o a `null`.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EntityState'
+              example:
+                entityId: CUST-001
+                aggregate:
+                  state: SAP_ERROR
+                  payloadHash: 9f2c1a7b4e
+                  cycleId: 4f0e9b1a-1c2d-4e5f-8a9b-0c1d2e3f4a5b
+                  detail: 'SAP 400: Bank account rejected'
+                  at: '2026-09-18T09:12:03Z'
+                features:
+                  ADDRESS:
+                    state: SENT_SAP
+                    payloadHash: 9f2c1a7b4e
+                    cycleId: 4f0e9b1a-1c2d-4e5f-8a9b-0c1d2e3f4a5b
+                    detail: null
+                    at: '2026-09-18T09:12:01Z'
+                  BANKING:
+                    state: SAP_ERROR
+                    payloadHash: 9f2c1a7b4e
+                    cycleId: 4f0e9b1a-1c2d-4e5f-8a9b-0c1d2e3f4a5b
+                    detail: 'SAP 400: Bank account rejected'
+                    at: '2026-09-18T09:12:03Z'
+                lastCycle:
+                  cycleId: 4f0e9b1a-1c2d-4e5f-8a9b-0c1d2e3f4a5b
+                  payloadHash: 9f2c1a7b4e
+                  startedAt: '2026-09-18T09:12:00Z'
+                  endedAt: '2026-09-18T09:12:03Z'
+                  steps:
+                    - line: CUST-001
+                      state: RECEIVED
+                      detail: null
+                      at: '2026-09-18T09:12:00Z'
+                    - line: 'CUST-001:BANKING'
+                      state: SAP_ERROR
+                      detail: 'SAP 400: Bank account rejected'
+                      at: '2026-09-18T09:12:03Z'
+        '401':
+          $ref: '#/components/responses/SinToken'
+        '403':
+          $ref: '#/components/responses/SinPermiso'
+
+components:
+
+  securitySchemes:
+    keycloak:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        JWT firmado por el Keycloak configurado en
+        `spring.security.oauth2.resourceserver.jwt.issuer-uri`. Como obtenerlo:
+        `docs/tools-integrations/KEYCLOAK.md`.
+
+  parameters:
+    EntityId:
+      name: id
+      in: path
+      required: true
+      description: Identificador del cliente en el sistema legacy (p. ej. `CUST-001`).
+      schema:
+        type: string
+      example: CUST-001
+
+  responses:
+    PeticionMalFormada:
+      description: El cuerpo no se puede leer o le faltan campos obligatorios.
+    SinToken:
+      description: Falta el token o no es valido (seguridad-api.md R-1).
+    SinPermiso:
+      description: El token es valido pero no tiene el rol que pide `x-required-role`.
+    NoEncontrado:
+      description: No hay historico para esa entidad, o la version pedida no existe.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorMessage'
+          example:
+            error: Sin historico para customer CUST-001
+    SincronizacionConcurrente:
+      description: |
+        Otro ciclo —Kafka o REST— esta procesando esa misma entidad (ADR-0011).
+        No es un fallo: reintentalo mas tarde.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetail'
+          example:
+            type: about:blank
+            title: Sincronizacion concurrente
+            status: 409
+            detail: La entidad la esta procesando otro ciclo de sincronizacion; reintentelo.
+
+  schemas:
+
+    SyncState:
+      type: string
+      description: Estado de sincronizacion del registro (maquina de estados, `docs/sdd/common/maquina-de-estados.md`).
+      enum: [RECEIVED, FETCHING, VALIDATING, VALID, INVALID, INDEXING, INDEXED,
+             SENDING_SAP, SENT_SAP, SAP_ERROR, ERROR, COMMUNICATION_ERROR]
+
+    OperationType:
+      type: string
+      description: Que se hace con la entidad; si no se indica, `UPDATE`.
+      enum: [CREATE, UPDATE, DELETE]
+
+    SyncRequest:
+      type: object
+      required: [entityId]
+      properties:
+        entityId:
+          type: string
+          description: Identificador del cliente en el legacy.
+        operation:
+          $ref: '#/components/schemas/OperationType'
+        payloadHash:
+          type: string
+          description: |
+            Opcional e **ignorado como fuente de datos** (ADR-0013): el servicio
+            relee el legacy y calcula el hash sobre el estado actual. Solo se
+            registra como pista de diagnostico.
+        payload:
+          type: string
+          description: |
+            Opcional e **ignorado como fuente de datos** (ADR-0013): se acepta por
+            compatibilidad con los avisos antiguos, pero el servicio nunca lo usa
+            como contenido; relee el legacy.
+
+    ValidateRequest:
+      type: object
+      required: [entityId]
+      properties:
+        entityId:
+          type: string
+        payloadHash:
+          type: string
+
+    SyncResponse:
+      type: object
+      properties:
+        entityId:
+          type: string
+        state:
+          $ref: '#/components/schemas/SyncState'
+
+    HistoryResponse:
+      type: object
+      properties:
+        entityId:
+          type: string
+        versions:
+          type: array
+          items:
+            $ref: '#/components/schemas/HistoryVersion'
+        masked:
+          type: boolean
+          description: '`true` cuando el contenido se ha devuelto con la informacion personal enmascarada.'
+
+    HistoryVersion:
+      type: object
+      properties:
+        payloadHash:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+        snapshot:
+          description: Solo con `full=true`.
+          $ref: '#/components/schemas/Customer'
+
+    Customer:
+      type: object
+      description: Cliente tal y como se envio a SAP en esa version.
+      properties:
+        id:
+          type: string
+        code:
+          type: string
+          description: Codigo de cliente (clave de negocio).
+        name:
+          type: string
+        status:
+          type: string
+          enum: [ACTIVE, INACTIVE, BLOCKED]
+        address:
+          $ref: '#/components/schemas/AddressData'
+        fiscal:
+          $ref: '#/components/schemas/FiscalData'
+        contact:
+          $ref: '#/components/schemas/ContactData'
+        banking:
+          $ref: '#/components/schemas/BankingData'
+
+    AddressData:
+      type: object
+      properties:
+        street: { type: string }
+        city: { type: string }
+        postalCode: { type: string }
+        country: { type: string, description: 'ISO-3166 alpha-2' }
+        region: { type: string }
+
+    FiscalData:
+      type: object
+      properties:
+        taxId: { type: string, description: 'NIF/CIF. Enmascarado para lectura externa.' }
+        vatNumber: { type: string, description: 'Numero VAT. Enmascarado para lectura externa.' }
+        legalName: { type: string }
+        taxResidency: { type: string, description: 'ISO-3166 alpha-2' }
+
+    ContactData:
+      type: object
+      properties:
+        email: { type: string, description: 'Enmascarado para lectura externa.' }
+        phone: { type: string, description: 'Enmascarado para lectura externa.' }
+        fax: { type: string, description: 'Enmascarado para lectura externa.' }
+        website: { type: string }
+
+    BankingData:
+      type: object
+      properties:
+        iban: { type: string, description: 'Enmascarado para lectura externa.' }
+        bic: { type: string }
+        mandateIds:
+          type: array
+          items: { type: string }
+
+    VersionRef:
+      type: object
+      properties:
+        payloadHash:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+
+    Change:
+      type: object
+      description: Valor anterior y nuevo de una ruta; `null` en `before` es campo añadido y en `after`, eliminado.
+      properties:
+        before: { type: [string, 'null'] }
+        after: { type: [string, 'null'] }
+
+    HistoryDiff:
+      type: object
+      properties:
+        entityId:
+          type: string
+        from:
+          $ref: '#/components/schemas/VersionRef'
+        to:
+          $ref: '#/components/schemas/VersionRef'
+        changes:
+          type: object
+          description: Una entrada por ruta cambiada (`contact.phone`, `banking.mandateIds[0]`...).
+          additionalProperties:
+            $ref: '#/components/schemas/Change'
+
+    LineState:
+      type: object
+      description: Ultimo estado conocido de una linea (el cliente entero o una de sus partes).
+      properties:
+        state:
+          $ref: '#/components/schemas/SyncState'
+        payloadHash:
+          type: string
+        cycleId:
+          type: string
+        detail:
+          type: [string, 'null']
+          description: Motivo si termino en error. Enmascarado para lectura externa.
+        at:
+          type: string
+          format: date-time
+
+    Step:
+      type: object
+      properties:
+        line:
+          type: string
+          description: Que linea dio el paso; la parte va como `<id>:<PARTE>`.
+        state:
+          $ref: '#/components/schemas/SyncState'
+        detail:
+          type: [string, 'null']
+        at:
+          type: string
+          format: date-time
+
+    CycleTrace:
+      type: object
+      description: Traza del ultimo ciclo; `null` para ciclos anteriores a que existiera la traza.
+      properties:
+        cycleId: { type: string }
+        payloadHash: { type: string }
+        startedAt: { type: string, format: date-time }
+        endedAt: { type: string, format: date-time }
+        steps:
+          type: array
+          items:
+            $ref: '#/components/schemas/Step'
+
+    EntityState:
+      type: object
+      properties:
+        entityId:
+          type: string
+        aggregate:
+          $ref: '#/components/schemas/LineState'
+        features:
+          type: object
+          description: Una entrada por parte con historial (ADDRESS, FISCAL, CONTACT, BANKING); las que nunca se sincronizaron no aparecen.
+          additionalProperties:
+            $ref: '#/components/schemas/LineState'
+        lastCycle:
+          $ref: '#/components/schemas/CycleTrace'
+
+    ErrorMessage:
+      type: object
+      properties:
+        error:
+          type: string
+
+    ProblemDetail:
+      type: object
+      description: Error en formato RFC 7807, tal y como lo emite Spring.
+      properties:
+        type: { type: string }
+        title: { type: string }
+        status: { type: integer }
+        detail: { type: string }
+        instance: { type: string }

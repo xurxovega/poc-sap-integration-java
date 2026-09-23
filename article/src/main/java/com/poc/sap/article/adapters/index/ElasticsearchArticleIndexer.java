@@ -6,7 +6,6 @@ import org.springframework.data.elasticsearch.repository.ElasticsearchRepository
 import org.springframework.stereotype.Component;
 
 import java.time.Instant;
-import java.util.Comparator;
 import java.util.List;
 
 @Component
@@ -27,7 +26,13 @@ public class ElasticsearchArticleIndexer implements ArticleHistoryIndexerPort {
     public List<Article> history(String entityId) {
         return repo.findByArticleIdOrderByTimestampDesc(entityId).stream()
                 .map(ArticleHistoryDoc::toDomain)
-                .sorted(Comparator.comparing(Article::id))
+                .toList();
+    }
+
+    @Override
+    public List<Snapshot<Article>> snapshots(String entityId) {
+        return repo.findByArticleIdOrderByTimestampDesc(entityId).stream()
+                .map(d -> new Snapshot<>(d.getPayloadHash(), d.getTimestamp(), d.toDomain()))
                 .toList();
     }
 }

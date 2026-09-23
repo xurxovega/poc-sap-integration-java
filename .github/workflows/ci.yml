@@ -1,0 +1,86 @@
+# CI minimo (plan de accion Fase 2, auditoria B7/T12): sin esto, cuatro tests
+# vivieron 53 dias sin ejecutarse y nadie lo supo.
+#
+# - build: enforcer + unit + slice + ArchUnit + contract (WireMock) + JaCoCo + SBOM. Sin Docker.
+#   Usa ./mvnw: la version de Maven la fija el repo, no el runner.
+# - e2e-docker: las IT gateadas por -Ddocker.available=true (Testcontainers).
+#   Separado para que un runner sin Docker siga dando senal.
+name: ci
+
+on:
+  push:
+    branches: ["main", "feature/**"]
+    tags: ["v*"]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "25"
+          cache: maven
+      - name: Verify (unit, slice, ArchUnit, contract, JaCoCo)
+        run: ./mvnw -B -ntp verify
+      - name: Subir informes JaCoCo
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: jacoco
+          path: "**/target/site/jacoco/**"
+          if-no-files-found: ignore
+      - name: Subir SBOM (CycloneDX)
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom
+          path: target/bom.*
+          if-no-files-found: error
+
+  e2e-docker:
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "25"
+          cache: maven
+      - name: IT con Testcontainers (Mongo real, smoke de infraestructura)
+        run: ./mvnw -B -ntp -pl it -am verify -DskipTests=false -Ddocker.available=true
+
+  # Imagen OCI con buildpacks (sin Dockerfile) al etiquetar una release (v*).
+  # Registro por defecto: GHCR del repositorio; cambiar aqui y en
+  # deploy/k8s/overlays/*/kustomization.yaml si se usa el registro corporativo.
+  image:
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    needs: build
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "25"
+          cache: maven
+      - name: Login GHCR
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+      - name: Build & push
+        run: |
+          TAG=${GITHUB_REF_NAME#v}
+          ./mvnw -B -ntp -pl customer,article spring-boot:build-image -DskipTests \
+            -Dproject.image.registry=ghcr.io/${{ github.repository_owner }} -Dproject.image.tag=$TAG \
+            -Dspring-boot.build-image.publish=true \
+            -Ddocker.publishRegistry.url=ghcr.io \
+            -Ddocker.publishRegistry.username=${{ github.actor }} \
+            -Ddocker.publishRegistry.password=${{ secrets.GITHUB_TOKEN }}

@@ -1,5 +1,6 @@
 package com.poc.sap.article.application;
 
+import java.time.Clock;
 import com.poc.sap.article.domain.Article;
 import com.poc.sap.article.domain.port.ArticleHistoryIndexerPort;
 import com.poc.sap.article.domain.port.ArticleImageStorePort;
@@ -8,10 +9,11 @@ import com.poc.sap.article.domain.port.ArticleSapOutboundPort;
 import com.poc.sap.common.domain.IngestionMessage;
 import com.poc.sap.common.domain.IngestionOrigin;
 import com.poc.sap.common.domain.OperationType;
+import com.poc.sap.common.domain.PayloadHasher;
 import com.poc.sap.common.domain.SyncState;
 import com.poc.sap.common.domain.port.SyncStateRepositoryPort;
 import com.poc.sap.common.domain.port.SapOutboundPort.SapResponse;
-import com.poc.sap.common.observability.SyncMetrics;
+import com.poc.sap.common.domain.port.MetricsPort;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -22,6 +24,9 @@ import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.*;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.ArgumentMatchers.argThat;
 
 @ExtendWith(MockitoExtension.class)
 class SyncArticleUseCaseTest {
@@ -31,14 +36,16 @@ class SyncArticleUseCaseTest {
     @Mock ArticleHistoryIndexerPort historyIndexer;
     @Mock ArticleSapOutboundPort sapOutbound;
     @Mock SyncStateRepositoryPort stateRepo;
-    @Mock SyncMetrics metrics;
+    @Mock MetricsPort metrics;
 
     private SyncArticleUseCase useCase;
 
     @BeforeEach
     void setUp() {
         useCase = new SyncArticleUseCase(legacyRepo, imageStore, historyIndexer,
-                sapOutbound, stateRepo, metrics);
+                sapOutbound, stateRepo, metrics, Clock.systemUTC());
+        lenient().when(stateRepo.alreadySent(anyString(), anyString(), anyString()))
+                .thenReturn(false);
     }
 
     private Article validArticle() {
@@ -61,7 +68,54 @@ class SyncArticleUseCaseTest {
 
         assertThat(result).isEqualTo(SyncState.SENT_SAP);
         verify(imageStore).save(eq("A-1"), any());
-        verify(historyIndexer).index(eq("A-1"), any(), eq("hash-a"));
+        verify(historyIndexer).index(eq("A-1"), any(), eq(PayloadHasher.hash(validArticle())));
+    }
+
+    /** observabilidad AC-2 (auditoria A9): cada etapa deja su duracion. */
+    @Test
+    void happyPathRecordsTheDurationOfEveryStage() {
+        when(legacyRepo.fetch("A-1")).thenReturn(Optional.of(validArticle()));
+        when(sapOutbound.send(eq("A-1"), anyString(), any()))
+                .thenReturn(new SapResponse(201, "", null));
+
+        useCase.execute(ingestion());
+
+        for (String stage : new String[] {"fetch", "validate", "index", "send"}) {
+            verify(metrics).recordStageDuration(eq("article"), eq(stage), anyLong());
+        }
+    }
+
+    @Test
+    void unchangedSnapshotAfterSentSapSkipsResend() {
+        Article a = validArticle();
+        when(legacyRepo.fetch("A-1")).thenReturn(Optional.of(a));
+        when(stateRepo.currentState("article", "A-1")).thenReturn(Optional.of(SyncState.SENT_SAP));
+        when(imageStore.find("A-1")).thenReturn(Optional.of(a));
+
+        SyncState result = useCase.execute(ingestion());
+
+        assertThat(result).isEqualTo(SyncState.SENT_SAP);
+        verify(imageStore, never()).save(anyString(), any());
+        verify(historyIndexer, never()).index(anyString(), any(), anyString());
+        verify(sapOutbound, never()).send(any(), any(), any());
+    }
+
+    @Test
+    void changedSnapshotAfterSentSapIsResent() {
+        Article stored = validArticle();
+        Article modified = new Article("A-1", "SKU-001", "Tornillo M8", "Hardware", "UN",
+                Article.Status.ACTIVE);
+        when(legacyRepo.fetch("A-1")).thenReturn(Optional.of(modified));
+        when(stateRepo.currentState("article", "A-1")).thenReturn(Optional.of(SyncState.SENT_SAP));
+        when(imageStore.find("A-1")).thenReturn(Optional.of(stored));
+        when(sapOutbound.send(eq("A-1"), anyString(), any()))
+                .thenReturn(new SapResponse(201, "", null));
+
+        SyncState result = useCase.execute(ingestion());
+
+        assertThat(result).isEqualTo(SyncState.SENT_SAP);
+        verify(imageStore).save(eq("A-1"), eq(modified));
+        verify(sapOutbound).send(eq("A-1"), anyString(), any());
     }
 
     @Test
@@ -86,6 +140,42 @@ class SyncArticleUseCaseTest {
         verify(sapOutbound, never()).send(any(), any(), any());
     }
 
+    /**
+     * AC-5 (sdd/common/idempotencia-y-dedupe.md, ADR-0013): el dedupe usa el hash
+     * del snapshot releido del legacy, no el que traiga el mensaje.
+     */
+    @Test
+    void dedupeUsesTheHashOfTheSnapshotNotTheMessage() {
+        Article a = validArticle();
+        when(legacyRepo.fetch("A-1")).thenReturn(Optional.of(a));
+        when(stateRepo.alreadySent("article", "A-1", PayloadHasher.hash(a))).thenReturn(true);
+
+        SyncState result = useCase.execute(new IngestionMessage("A-1", "article",
+                OperationType.UPDATE, IngestionOrigin.CDC, "hash-que-no-corresponde", null));
+
+        assertThat(result).isEqualTo(SyncState.SENT_SAP);
+        verify(sapOutbound, never()).send(any(), any(), any());
+        verify(stateRepo, never()).transition(anyString(), anyString(), any());
+    }
+
+    /**
+     * AC-6 (sdd/article/sincronizacion-articulo.md §3, ADR-0013): el mensaje fino
+     * -sin hash y sin payload- se procesa: el estado actual sale del legacy.
+     */
+    @Test
+    void thinMessageWithoutPayloadIsProcessed() {
+        Article a = validArticle();
+        when(legacyRepo.fetch("A-1")).thenReturn(Optional.of(a));
+        when(sapOutbound.send(any(), any(), any())).thenReturn(new SapResponse(201, "ok", null));
+
+        SyncState result = useCase.execute(IngestionMessage.thin(
+                "A-1", "article", OperationType.UPDATE, IngestionOrigin.CDC));
+
+        assertThat(result).isEqualTo(SyncState.SENT_SAP);
+        verify(historyIndexer).index("A-1", a, PayloadHasher.hash(a));
+        verify(sapOutbound).send("A-1", PayloadHasher.hash(a), a);
+    }
+
     @Test
     void sapErrorReturnsSapError() {
         when(legacyRepo.fetch("A-1")).thenReturn(Optional.of(validArticle()));
@@ -95,5 +185,24 @@ class SyncArticleUseCaseTest {
         SyncState result = useCase.execute(ingestion());
 
         assertThat(result).isEqualTo(SyncState.SAP_ERROR);
+        // idempotencia-y-dedupe AC-3: historico si, imagen no (SAP no tiene el dato).
+        verify(historyIndexer).index(eq("A-1"), any(), eq(PayloadHasher.hash(validArticle())));
+        verify(imageStore, never()).save(anyString(), any());
+    }
+
+    /**
+     * R-6 del spec del agregado, en article: un fallo de infraestructura tras
+     * VALID deja la entidad en ERROR y se propaga (auditoria B12/C2).
+     */
+    @Test
+    void infrastructureFailureAfterValidMarksErrorAndPropagates() {
+        when(legacyRepo.fetch("A-1")).thenReturn(Optional.of(validArticle()));
+        doThrow(new RuntimeException("Elasticsearch caido"))
+                .when(historyIndexer).index(any(), any(), any());
+
+        assertThatThrownBy(() -> useCase.execute(ingestion()))
+                .hasMessageContaining("Elasticsearch caido");
+        verify(stateRepo).transition(eq("article"), eq("A-1"),
+                argThat(t -> t.to() == SyncState.ERROR));
     }
 }

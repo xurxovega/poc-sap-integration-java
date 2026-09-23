@@ -1,0 +1,38 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: sap-integration
+---
+# Valores comunes NO secretos. Los secretos (SAP_*_CLIENT_SECRET, SAP_S4_PASSWORD,
+# SAP_SEPA_CREDITOR_ID, SQLSERVER_PASSWORD, POSTGRES_PASSWORD...) van en los Secret
+# `sap-integration-secrets` y `<app>-secrets`, gestionados FUERA de este repo
+# (sealed-secrets, External Secrets Operator o Vault; decision pendiente).
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: sap-integration-config
+data:
+  MESSAGING_BOOTSTRAP: "redpanda.sap-integration.svc.cluster.local:9092"
+  ES_URL: "http://elasticsearch.data.svc:9200"
+  SAP_AUTH_ALLOW_STUB: "false"          # nunca true fuera del mock local
+  APP_SECURITY_ENABLED: "true"           # JWT de Keycloak obligatorio
+  KEYCLOAK_CLIENT_ID: "sap-integration"
+  SAP_S4_CSRF_ENABLED: "true"
+  SAP_ODATA_ADDRESS_ENABLED: "true"      # ruta OData nativa (la familia BTP no tiene servicio detras)
+  SAP_ODATA_FISCAL_ENABLED: "true"
+  SAP_ODATA_CONTACT_ENABLED: "true"
+  SAP_ODATA_BANKING_ENABLED: "true"
+  SAP_ODATA_CUSTOMER_ENABLED: "true"
+  SAP_ODATA_READ_ENABLED: "true"
+  LOGGING_STRUCTURED_FORMAT_CONSOLE: "ecs"   # Loki/Alloy leen JSON de stdout
+  KAFKA_MAX_POLL_INTERVAL_MS: "900000"
+  KAFKA_MAX_POLL_RECORDS: "10"           # lotes cortos: hasta 11 llamadas a SAP por mensaje (ADR-0011)
+  CUSTOMER_KAFKA_CONCURRENCY: "3"        # particiones (12) >= instancias x concurrency
+  ARTICLE_KAFKA_CONCURRENCY: "3"
+  APP_KAFKA_TOPICS_CREATE: "false"       # los topics los crea la plataforma, no la app (deploy/README.md)
+  APP_KAFKA_TOPICS_PARTITIONS: "12"
+  APP_KAFKA_RETRY_CIRCUIT_OPEN_BACKOFF_MS: "30000"   # cubre la ventana de circuito abierto
+  SHUTDOWN_TIMEOUT: "30s"
+  TRACING_ENABLED: "false"               # true cuando exista Tempo/colector OTLP (ADR-0009)
+  OBS_ENV: "test"                        # OBS-005: tag env en /actuator/prometheus
+  OBS_CLUSTER: "sap-test-cluster-1"      # OBS-005: tag cluster en /actuator/prometheus

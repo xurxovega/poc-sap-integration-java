@@ -1,0 +1,128 @@
+# =============================================================================
+# Kafka Connect (Debezium) — CDC legacy → Redpanda
+# OPS-010: el broker es Redpanda (kafka 3.x), pero Kafka Connect usa el mismo
+# wire, asi que el contenedor `debezium/connect:2.7.3.Final` se conserva.
+# BOOTSTRAP_SERVERS apunta al servicio in-cluster de Redpanda.
+# El registro de conectores (sqlserver, postgres) lo hace un Job aparte
+# `register-connectors.yaml` para no acoplar el ciclo de vida del worker.
+# =============================================================================
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: debezium-connect-config
+  namespace: sap-integration
+  labels:
+    app.kubernetes.io/part-of: sap-integration
+data:
+  # Sin secretos: el registro de conectores los inyecta via API REST al
+  # worker. Los conectores SQL Server/Postgres se montan como Jobs.
+  GROUP_ID: "poc-sap-connect"
+  CONFIG_STORAGE_TOPIC: "connect_configs"
+  OFFSET_STORAGE_TOPIC: "connect_offsets"
+  STATUS_STORAGE_TOPIC: "connect_statuses"
+  KEY_CONVERTER: "org.apache.kafka.connect.json.JsonConverter"
+  VALUE_CONVERTER: "org.apache.kafka.connect.json.JsonConverter"
+  CONNECT_KEY_CONVERTER_SCHEMAS_ENABLE: "false"
+  CONNECT_VALUE_CONVERTER_SCHEMAS_ENABLE: "false"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: debezium-connect
+  namespace: sap-integration
+  labels:
+    app: debezium-connect
+    app.kubernetes.io/part-of: sap-integration
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: debezium-connect
+  template:
+    metadata:
+      labels:
+        app: debezium-connect
+        app.kubernetes.io/part-of: sap-integration
+    spec:
+      containers:
+        - name: connect
+          image: debezium/connect:2.7.3.Final@sha256:997b67feff614549acd20d54bfed398fc73b339881c649d42821c1e55ec9972b
+          env:
+            - name: BOOTSTRAP_SERVERS
+              # Servicio interno del CRD Redpanda; el Operator crea el Service
+              # `redpanda` y el headless `redpanda-<cluster>` por defecto.
+              value: "redpanda.sap-integration.svc.cluster.local:9092"
+            - name: GROUP_ID
+              valueFrom:
+                configMapKeyRef:
+                  name: debezium-connect-config
+                  key: GROUP_ID
+            - name: CONFIG_STORAGE_TOPIC
+              valueFrom:
+                configMapKeyRef:
+                  name: debezium-connect-config
+                  key: CONFIG_STORAGE_TOPIC
+            - name: OFFSET_STORAGE_TOPIC
+              valueFrom:
+                configMapKeyRef:
+                  name: debezium-connect-config
+                  key: OFFSET_STORAGE_TOPIC
+            - name: STATUS_STORAGE_TOPIC
+              valueFrom:
+                configMapKeyRef:
+                  name: debezium-connect-config
+                  key: STATUS_STORAGE_TOPIC
+            - name: KEY_CONVERTER
+              valueFrom:
+                configMapKeyRef:
+                  name: debezium-connect-config
+                  key: KEY_CONVERTER
+            - name: VALUE_CONVERTER
+              valueFrom:
+                configMapKeyRef:
+                  name: debezium-connect-config
+                  key: VALUE_CONVERTER
+            - name: CONNECT_KEY_CONVERTER_SCHEMAS_ENABLE
+              valueFrom:
+                configMapKeyRef:
+                  name: debezium-connect-config
+                  key: CONNECT_KEY_CONVERTER_SCHEMAS_ENABLE
+            - name: CONNECT_VALUE_CONVERTER_SCHEMAS_ENABLE
+              valueFrom:
+                configMapKeyRef:
+                  name: debezium-connect-config
+                  key: CONNECT_VALUE_CONVERTER_SCHEMAS_ENABLE
+          ports:
+            - containerPort: 8083
+              name: rest
+          readinessProbe:
+            httpGet:
+              path: /connectors
+              port: 8083
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            # start_period equivalente para el primer arranque del worker.
+            timeoutSeconds: 5
+          resources:
+            requests:
+              cpu: 200m
+              memory: 512Mi
+            limits:
+              cpu: 1
+              memory: 2Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: debezium-connect
+  namespace: sap-integration
+  labels:
+    app.kubernetes.io/part-of: sap-integration
+spec:
+  selector:
+    app: debezium-connect
+  ports:
+    - name: rest
+      port: 8083
+      targetPort: 8083

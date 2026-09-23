@@ -1,7 +1,7 @@
 package com.poc.sap.customer.domain.feature.fiscal;
 
 /**
- * Datos fiscales del Customer (feature FISCAL, SPEC.md §3).
+ * Datos fiscales del Customer (feature FISCAL, OVERVIEW.md §2).
  *
  * @param taxId        NIF/CIF (obligatorio)
  * @param vatNumber    numero VAT para intracomunitario (opcional)

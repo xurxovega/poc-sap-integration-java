@@ -1,9 +1,10 @@
 package com.poc.sap.customer.application.address;
 
+import java.time.Clock;
 import com.poc.sap.common.domain.SyncState;
 import com.poc.sap.common.domain.SyncStateTransition;
 import com.poc.sap.common.domain.port.SyncStateRepositoryPort;
-import com.poc.sap.common.observability.SyncMetrics;
+import com.poc.sap.common.domain.port.MetricsPort;
 import com.poc.sap.customer.application.CustomerFixtures;
 import com.poc.sap.customer.domain.Customer;
 import org.junit.jupiter.api.BeforeEach;
@@ -24,13 +25,13 @@ import static org.mockito.Mockito.*;
 class ValidateAddressUseCaseTest {
 
     @Mock SyncStateRepositoryPort stateRepo;
-    @Mock SyncMetrics metrics;
+    @Mock MetricsPort metrics;
 
     private ValidateAddressUseCase useCase;
 
     @BeforeEach
     void setUp() {
-        useCase = new ValidateAddressUseCase(stateRepo, metrics);
+        useCase = new ValidateAddressUseCase(stateRepo, metrics, Clock.systemUTC());
     }
 
     @Test
@@ -57,10 +58,9 @@ class ValidateAddressUseCaseTest {
 
         useCase.execute(c, "hash-v");
 
-        verify(stateRepo, times(2)).transition(
-                eq("customer"),
-                eq("C-1:ADDRESS"),
-                any(SyncStateTransition.class));
+        // La entrada abre ciclo; el veredicto avanza dentro de el.
+        verify(stateRepo).beginCycle(eq("customer"), eq("C-1:ADDRESS"), any(SyncStateTransition.class));
+        verify(stateRepo, times(1)).transition(eq("customer"), eq("C-1:ADDRESS"), any(SyncStateTransition.class));
         verify(metrics).incrementState("customer", "VALIDATING");
         verify(metrics).incrementState("customer", "VALID");
     }

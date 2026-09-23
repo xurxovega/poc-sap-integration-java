@@ -8,7 +8,9 @@ import org.springframework.data.elasticsearch.annotations.FieldType;
 
 import java.time.Instant;
 
-@Document(indexName = "articles_history")
+// createIndex=false: el indice no se crea en el arranque (permite bootear sin ES;
+// ES lo crea en la primera escritura o lo gestiona operaciones con template propio)
+@Document(indexName = "articles_history", createIndex = false)
 public class ArticleHistoryDoc {
 
     @Id
@@ -27,6 +29,9 @@ public class ArticleHistoryDoc {
     private String category;
 
     @Field(type = FieldType.Keyword)
+    private String unit;
+
+    @Field(type = FieldType.Keyword)
     private String status;
 
     @Field(type = FieldType.Keyword)
@@ -37,11 +42,14 @@ public class ArticleHistoryDoc {
 
     public static ArticleHistoryDoc from(Article a, String payloadHash, Instant ts) {
         ArticleHistoryDoc d = new ArticleHistoryDoc();
-        d.id = a.id() + "-" + payloadHash;
+        // Un documento por INTENTO: un reenvio del mismo hash tras SAP_ERROR no
+        // sobrescribe la version anterior (idempotencia-y-dedupe R-5; auditoria A31).
+        d.id = a.id() + "-" + payloadHash + "-" + ts.toEpochMilli();
         d.articleId = a.id();
         d.sku = a.sku();
         d.description = a.description();
         d.category = a.category();
+        d.unit = a.unit();
         d.status = a.status() != null ? a.status().name() : null;
         d.payloadHash = payloadHash;
         d.timestamp = ts;
@@ -49,10 +57,12 @@ public class ArticleHistoryDoc {
     }
 
     public Article toDomain() {
-        return new Article(articleId, sku, description, category, null,
+        return new Article(articleId, sku, description, category, unit,
                 status != null ? Article.Status.valueOf(status) : null);
     }
 
     public String getId() { return id; }
     public String getArticleId() { return articleId; }
+    public String getPayloadHash() { return payloadHash; }
+    public Instant getTimestamp() { return timestamp; }
 }

@@ -6,7 +6,7 @@ import com.poc.sap.customer.domain.feature.contact.ContactData;
 import com.poc.sap.customer.domain.feature.fiscal.FiscalData;
 
 /**
- * Entidad Customer del dominio (SPEC.md §3), agregado raiz.
+ * Entidad Customer del dominio (OVERVIEW.md §2), agregado raiz.
  * Se compone de 4 features de datos independientes:
  * {@link AddressData}, {@link FiscalData}, {@link ContactData}, {@link BankingData}.
  *

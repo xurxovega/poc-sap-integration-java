@@ -1,0 +1,20 @@
+# Plan de accion Fase 8 (auditoria A22): actualizaciones de dependencias y de
+# acciones de GitHub como PRs semanales. La CI (ci.yml) las valida.
+version: 2
+updates:
+  - package-ecosystem: maven
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    groups:
+      spring:
+        patterns: ["org.springframework*"]
+      testing:
+        patterns: ["org.junit*", "org.mockito*", "org.assertj*", "org.testcontainers*", "org.wiremock*", "com.tngtech.archunit*"]
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday

@@ -43,6 +43,7 @@ class BtpFiscalAdapterTest {
         verify(sapClient).send(eq(SapDestination.BTP), eq(PATH), eq("C-1"), eq("h"),
                 body.capture());
         assertThat(body.getValue())
+                .contains("\"BusinessPartner\":\"C-1\"")
                 .contains("\"TaxNumber\":\"A12345678\"")
                 .contains("\"VATNumber\":\"\"")
                 .contains("\"LegalName\":\"Acme\"")

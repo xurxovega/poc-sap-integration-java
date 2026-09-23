@@ -2,16 +2,85 @@
 
 Integración de datos maestros (customer, article, supplier) desde sistemas
 legacy hacia **SAP S/4 Public Cloud**. Migración del POC Python a
-**Java 25 + Spring Boot 4.0 + Maven**.
+**Java 25 + Spring Boot 4.1 + Maven**.
+
+Nació como prueba de concepto y **es la aplicación final**: seguridad,
+retención de datos, alta disponibilidad y despliegue se deciden con ese
+criterio, no con el de un prototipo.
+
+> **Qué ha cambiado en cada revisión**, en lenguaje de negocio: [`CHANGELOG.md`](CHANGELOG.md).
+
+> **¿Vas a trabajar en este repo (persona o agente IA)?** Empieza por
+> [`AGENTS.md`](AGENTS.md): operativa obligatoria (SDD anchor + TDD), cómo está
+> montada la aplicación y reglas al modificar código.
 
 ## Documentación
 
-- [`docs/specs/SPEC.md`](docs/specs/SPEC.md) — especificación funcional agnóstica a tecnología: objetivo, dominios, fuentes de entrada, destinos SAP, máquina de estados, criterios de aceptación.
-- [`docs/specs/TECH.md`](docs/specs/TECH.md) — stack tecnológico: Java 25 + Spring Boot 4.0 + Maven, puertos y adaptadores, persistencia, observabilidad, testing.
-- [`docs/architecture/OVERVIEW.md`](docs/architecture/OVERVIEW.md) — mapas y esquemas del aplicativo: módulos, aggregate Customer, flujos CDC/REST/feature, puertos y adaptadores, máquina de estados, deployment, convención de paquetes.
-- [`docs/integrations/SAP_CLOUD_SDK.md`](docs/integrations/SAP_CLOUD_SDK.md) — guía de integración con SAP Cloud SDK: OData VDM (Business Partner), OpenAPI (APIs propias de SAP y callbacks), BTP destinations, arquitectura hexagonal, módulos Maven.
-- [`docs/testing/TESTING.md`](docs/testing/TESTING.md) — estrategia y catálogo de la suite de tests (191 tests, tipos, convenciones, contratos SAP, issues conocidos).
+La documentación está organizada por **para qué sirve cada cosa**:
+
+### Qué debe hacer el sistema — SDD
+
+- [`docs/sdd/README.md`](docs/sdd/README.md) — **punto de entrada del proyecto**: la regla del ancla spec↔código, índice de features con su estado, criterios de aceptación globales, changelog de brechas resueltas/pendientes y supuestos vigentes.
+- [`docs/sdd/<subproyecto>/<feature>.md`](docs/sdd/) — una carpeta por módulo Maven (`customer/`, `article/`, `supplier/`, `common/`) y un fichero por feature, nombrado por lo que hace: entradas, reglas de negocio, mapeo a SAP, estados, criterios de aceptación y trazabilidad al código. Ejemplo: [`customer/sincronizacion-direccion.md`](docs/sdd/customer/sincronizacion-direccion.md); plantilla en [`docs/sdd/_template/feature.md`](docs/sdd/_template/feature.md).
+- [`docs/sdd/sap-api-catalog.md`](docs/sdd/sap-api-catalog.md) — contratos externos: catálogo de las specs OpenAPI oficiales de S/4HANA Cloud usadas o previstas (Business Partner, mandato SEPA, producto, stock, precios, características, números de serie, bancos, activos fijos) con enlaces al [SAP Business Accelerator Hub](https://api.sap.com/package/SAPS4HANACloud/odata); las copias canónicas viven en `sap-api-models/specs/<dominio>/`.
+
+### Cómo se desarrolla — TDD
+
+- [`docs/architecture/DESARROLLO.md`](docs/architecture/DESARROLLO.md) — ciclo de trabajo: spec → test en rojo → código → refactor; orden de las capas, convenciones de test, definición de hecho y recetas para añadir un dominio o una feature.
+
+### Cómo está construido — arquitectura
+
+- [`docs/architecture/OVERVIEW.md`](docs/architecture/OVERVIEW.md) — objetivo y alcance, módulos, dominios y aggregate Customer, flujos CDC/REST/feature, puertos y adaptadores, máquina de estados, deployment y versionado, requisitos no funcionales, convención de paquetes.
+- [`docs/architecture/TECH.md`](docs/architecture/TECH.md) — stack tecnológico: Java 25 + Spring Boot 4.1 + Maven, capas hexagonales, entradas, persistencia, clientes SAP, observabilidad, testing.
+- [`docs/architecture/FLOWS.md`](docs/architecture/FLOWS.md) — flujos **implementados** con nombres de clase para navegar el código: CDC completo de punta a punta y mapa de rutas BTP vs OData directo.
+- [`docs/architecture/INTEGRATION-PATTERNS.md`](docs/architecture/INTEGRATION-PATTERNS.md) — esquemas visuales (Mermaid) de los patrones de integración con SAP: CDC→OData S/4 y CDC→BTP (implementados); pull desde BTP, batch disparado por topic Kafka y eventos S/4 (stock) como implementación futura.
+- [`docs/architecture/MAPA-FUNCIONAL.html`](docs/architecture/MAPA-FUNCIONAL.html) — mapa funcional navegable en un solo fichero HTML (ábrelo con doble clic): mapa clicable de todas las piezas y cómo se conectan, 16 diagramas de secuencia Mermaid por dominio con sus subentidades, tablas de referencia (puertos, topics, almacenes, endpoints, configuración) y la lista de brechas verificadas contra el código.
+
+### Cómo se arranca y se prueba
+
+- [`docs/QUICK_START.md`](docs/QUICK_START.md) — **arranque rápido**: requisitos, compilación, infraestructura local en contenedores, SAP simulado, arranque de cada app, primer smoke test, CDC end-to-end, herramientas de inspección (Postman, DBeaver, Kibana, Compass), modos **local vs test**, puertos y problemas frecuentes. Incluye [`scripts/start-all.sh`](scripts/start-all.sh) para levantarlo todo con un comando.
+- [`docs/testing/TESTING.md`](docs/testing/TESTING.md) — estrategia y catálogo de la suite de tests (447 `@Test` declarados en todos los módulos a 2026-09-19, cifra que vigila `TestCountMatchesDocsTest`; tipos, convenciones, contratos SAP, issues conocidos).
+- [`docs/testing/GUIA-PRUEBAS.md`](docs/testing/GUIA-PRUEBAS.md) — guía práctica de pruebas por niveles: suite automática, entorno local con mock de SAP, flujo REST, CDC end-to-end con Debezium, resiliencia (retry/DLT/CSRF), métricas y pruebas contra tenant real.
+
+### Integraciones y referencia
+
+- [`docs/tools-integrations/SAP_CLOUD_SDK.md`](docs/tools-integrations/SAP_CLOUD_SDK.md) — guía del SAP Cloud SDK (opción aparcada por [ADR-0001](docs/architecture/adr/0001-transporte-http-sap-restclient.md)): OData VDM (Business Partner), OpenAPI (APIs propias de SAP y callbacks), BTP destinations, arquitectura hexagonal, módulos Maven.
+- [`docs/tools-integrations/MCP.md`](docs/tools-integrations/MCP.md) — propuesta a futuro: servidor MCP de consulta para agentes IA (estado de sync, histórico, diff), con sus prerrequisitos de autenticación y ofuscación de datos sensibles.
+- [`docs/MEJORAS-Y-PROPUESTAS.md`](docs/MEJORAS-Y-PROPUESTAS.md) — **backlog vivo** de mejoras e ideas que aún no se han abordado: observabilidad, calidad, resiliencia, seguridad, utillaje, alcance y método. Incluye lo transversal a otros proyectos.
 - [`docs/GLOSSARY.md`](docs/GLOSSARY.md) — glosario de términos del proyecto con definiciones y enlaces.
+
+### Por subproyecto
+
+- [`common/README.md`](common/README.md) — shared kernel: máquina de estados, cliente SAP, auth, observabilidad, seguridad, persistencia compartida.
+- [`customer/README.md`](customer/README.md) — dominio de cliente.
+- [`article/README.md`](article/README.md) — dominio de artículo.
+- [`supplier/README.md`](supplier/README.md) — dominio de proveedor (placeholder).
+- [`it/README.md`](it/README.md) — pruebas de integración cross-dominio y contratos SAP.
+- [`sap-api-models/README.md`](sap-api-models/README.md) — modelos SAP generados desde specs OpenAPI oficiales.
+
+> **Cómo trabajamos**: SDD *anchor* + TDD. Si cambia el spec, cambia el código;
+> si cambia el código, se ajusta el spec — en el mismo PR. Y ningún código de
+> producción se escribe sin un test que falle antes. Detalle en
+> [`docs/architecture/DESARROLLO.md`](docs/architecture/DESARROLLO.md).
+
+## Features (con quickstart propio)
+
+Cada feature del proyecto tiene su carpeta en
+[`docs/features/`](docs/features/) con un `README.md` (alcance, estado,
+aceptación), un `quickstart.md` (cómo se verifica aislada) y un
+`feature-execution-graph.html` (grafo de la ejecución al cierre). La lista
+activa:
+
+| Código | Nombre | Estado | Quickstart |
+|---|---|---|---|
+| OBS-005 | Recolección y consumo de la observabilidad | ✅ Incorporada 2026-09-23 | [quickstart](docs/features/OBS-005/quickstart.md) |
+| UI-001 | Dashboard web: vista por entidad y búsqueda | ✅ Incorporada 2026-09-23 | [quickstart](docs/features/UI-001/quickstart.md) |
+| UI-002 | Vista grafo del flujo de integración | ⏸ Pausada 2026-09-23 | [quickstart](docs/features/UI-002/quickstart.md) |
+| OPS-010 | Broker de mensajería: Kafka → Redpanda | ✅ Incorporada 2026-09-23 | [quickstart](docs/features/OPS-010/quickstart.md) |
+
+Las resueltas y su trazabilidad viven en [`docs/sdd/README.md`](docs/sdd/README.md) §6;
+las ideas y mejoras aún no abordadas, en
+[`docs/MEJORAS-Y-PROPUESTAS.md`](docs/MEJORAS-Y-PROPUESTAS.md).
 
 ## Arquitectura
 
@@ -21,6 +90,7 @@ shared kernel `common`. Diagrama completo en
 
 ```
 sap-integration-java/
+├── sap-api-models/ # modelos SAP generados desde specs OpenAPI oficiales
 ├── common/      # shared kernel (jar): dominio base, clientes SAP, observabilidad
 ├── customer/    # customer-app (Spring Boot jar)
 ├── article/     # article-app
@@ -33,12 +103,20 @@ Cada dominio sigue capas por paquete:
 
 ## Requisitos
 
-- **JDK 23 LTS mínimo** (Java 25 LTS es el objetivo final).
-  - El reactor compila con el JDK que tengas en `JAVA_HOME`.
-  - Con JDK 23: compila con `<release>23` (por defecto).
-  - Con JDK 25: el profile `jdk25` se activa automáticamente y sube el release a 25.
-- Maven 3.9+ (o usar el wrapper incluido).
-- Docker (para Testcontainers en tests de integración).
+- **JDK 25 LTS, mínimo** (el parent compila con `release 25`; no hay perfil
+  ni fallback a un JDK anterior desde la Fase 2 de la auditoría).
+  - En WSL sin JDK 25 del sistema: descomprimir Temurin 25 en `~/.jdks` y usar
+    `JAVA_HOME=$HOME/.jdks/jdk-25.0.3+9 mvn ...`.
+- Maven: usa el **wrapper** del repo (`./mvnw`, `mvnw.cmd` en Windows): fija Maven 3.9.9
+  y lo descarga la primera vez. `maven-enforcer` rechaza Maven < 3.9 y JDK < 25.
+- Docker (para Testcontainers en tests de integración y para la
+  infraestructura local de `external-services/`, incluido Debezium/Kafka Connect).
+  - El broker de eventos es **Redpanda v25.3.9 LTS** ([ADR-0014](docs/architecture/adr/0014-redpanda-como-broker-de-mensajeria.md)),
+    single-binary escrito en C++ y *wire* Kafka 3.x. **No requiere JVM ni
+    ZooKeeper**, así que el compose local es ~30 % más ligero y arranca en
+    ~2 s en lugar de ~30 s. Los runbooks usan `rpk` en lugar de `kafka-*`;
+    la app cliente (Spring Kafka) no se ha tocado. Para K8s se opera con
+    el Redpanda Operator + CRD `cluster.redpanda.com/v1alpha2` `kind: Redpanda`.
 
 ## Comandos
 
@@ -46,37 +124,32 @@ Cada dominio sigue capas por paquete:
 mvn validate                              # validar reactor
 mvn -pl common install -DskipTests        # instalar shared kernel local
 mvn -pl customer package                  # empaquetar SOLO customer (jar ejecutable)
+set -a; source scripts/env/local.env; set +a   # credenciales de BD y allow-stub: sin ellas no arranca
 mvn -pl customer spring-boot:run          # arrancar customer en :8081
 mvn compile                               # compilar todos los módulos
 mvn test                                  # tests unitarios de todos los módulos
-mvn verify                                # unit + slice + integración (con Testcontainers)
-mvn -pl it verify                         # solo pruebas de integración cross-dominio
+mvn verify                                # unit + slice + contract reales + JaCoCo check (sin Docker)
+mvn -pl it verify -Ddocker.available=true # además los IT con Testcontainers (Mongo real)
 ```
 
-### Compilar con un JDK distinto
-
-El parent fija por defecto `<maven.compiler.release>23</m.compiler.release>`.
-Si tienes JDK 25 en `JAVA_HOME`, el profile `jdk25` se activa solo y sube a 25.
-Para forzar un release concreto sin tocar POMs:
-
-```bash
-mvn compile -Dmaven.compiler.release=21    # con JDK 21
-mvn compile -Dmaven.compiler.release=25     # forzar JDK 25 (requiere tenerlo)
-```
+Es lo mismo que ejecuta la CI ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)):
+un job `build` sin Docker y un job `e2e-docker` con él.
 
 ## Arrancar en local (per-dominio)
 
 Customer (cliente):
+
 ```bash
-mvn -pl customer -am spring-boot:run
+mvn -pl customer spring-boot:run
 # API: http://localhost:8081/customers
 # Actuator: http://localhost:8081/actuator/health
 # Prometheus: http://localhost:8081/actuator/prometheus
 ```
 
 Article (artículo):
+
 ```bash
-mvn -pl article -am spring-boot:run
+mvn -pl article spring-boot:run
 # API: http://localhost:8082/articles
 ```
 
@@ -88,6 +161,30 @@ mvn -pl article -am spring-boot:run
 > cd external-services
 > docker compose up -d
 > ```
+
+### Endpoints y contrato de API
+
+Cada app publica su contrato en un fichero OpenAPI estándar, importable en
+Postman/Insomnia o para generar clientes:
+[`customer/src/main/resources/openapi.yml`](customer/src/main/resources/openapi.yml) y
+[`article/src/main/resources/openapi.yml`](article/src/main/resources/openapi.yml).
+
+| App | Endpoint | Qué hace |
+|---|---|---|
+| customer | `POST /customers/sync` | ingesta síncrona; `409 Conflict` si otro ciclo (Kafka o REST) ya está procesando la misma entidad (`ConcurrentTransitionException`, ADR-0011) |
+| customer | `POST /customers/validate` | solo valida, no indexa ni envía a SAP |
+| customer | `GET /customers/{id}/history?full=` | versiones enviadas a SAP |
+| customer | `GET /customers/{id}/history/diff?from=&to=` | diff entre dos `payloadHash` |
+| customer | `GET /customers/{id}/state` | estado del agregado y de cada feature, con `lastCycle`: la traza paso a paso (línea, estado y detalle) del último ciclo de sincronización — `null` si es anterior a que existiera la traza |
+| article | `POST /articles/sync`, `GET /articles/{id}/history`, `/history/diff` | homólogos de customer |
+
+Estados posibles de una entidad/feature (máquina de estados,
+[`docs/sdd/common/maquina-de-estados.md`](docs/sdd/common/maquina-de-estados.md)):
+intermedios (`RECEIVED`, `FETCHING`, `INDEXING`, `SENDING_SAP`...), `SENT_SAP`
+(sincronizado), `SAP_ERROR` (falló contra SAP, se reintenta con el siguiente
+evento) y `ERROR`/`INVALID`/`BLOCKED` (dato inválido o baja). Las APIs REST
+requieren JWT de Keycloak salvo en local con `APP_SECURITY_ENABLED=false`
+([`docs/tools-integrations/KEYCLOAK.md`](docs/tools-integrations/KEYCLOAK.md)).
 
 ## Debug paso a paso en VS Code
 
@@ -102,7 +199,7 @@ mvn -pl article -am spring-boot:run
 Inicia la app en modo suspendido y conéctate desde VS Code:
 
 ```bash
-mvn -pl customer -am spring-boot:run \
+mvn -pl customer spring-boot:run \
   -Dspring-boot.run.jvmArguments="-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5005"
 ```
 
@@ -112,10 +209,12 @@ En VS Code: `Run and Debug` → crear `launch.json` → tipo `Java` →
 ### Opción C — Test unitarios / IT con debugger
 
 Para debuggear un test concreto:
+
 - Abre el fichero de test en VS Code.
 - Botón `Debug` (el triángulo con bug) sobre la clase o el método `@Test`.
 
 Para IT que usan Testcontainers (necesitan Docker daemon):
+
 ```bash
 mvn -pl customer verify -Dtest=CustomerValidationsTest -Dmaven.compiler.release=23
 ```
@@ -171,14 +270,21 @@ Asegura que VS Code usa el JDK correcto para la importación del proyecto:
 
 ## Perfil dev y secrets locales
 
-Por perfil `dev` se cargan `application-dev.yml` (cada dominio) o variables de
-entorno. **Nunca commitear secretos**. Copia `application-dev.yml.example` a
-`application-dev.yml` y ajústalo. En `application.yml` ya hay placeholders
-${...} para todo lo sensible.
+Los valores sensibles se inyectan por **variables de entorno** (ver la tabla en [`docs/QUICK_START.md`](docs/QUICK_START.md#4-arrancar-las-aplicaciones)) o, si
+lo prefieres, creando un `application-local.yml` en `src/main/resources` de cada
+dominio y arrancando con `--spring.profiles.active=local` (ese nombre ya está
+en `.gitignore`, junto con `application-secrets.yml` y `.env`). En
+`application.yml` y `application-common.yml` ya hay placeholders `${...}` para
+todo lo sensible. **Nunca commitear secretos.**
 
 ## Testing
 
-Suite de **191 tests** (unit, slice web, contract SAP, integration con Testcontainers).
+Suite de **457 tests** declarados (`@Test` en `common`, `customer`, `article` e
+`it`, medido el 2026-09-22; el build falla si la cifra documentada diverge):
+unit, slice web, contract SAP con WireMock, resiliencia del
+cliente SAP, smoke de contexto Spring por app, integration con Testcontainers.
+Cifra exacta y catálogo completo en
+[`docs/testing/TESTING.md`](docs/testing/TESTING.md).
 
 ```bash
 mvn test                              # unit tests de todos los módulos
@@ -188,5 +294,33 @@ mvn -pl it verify -Ddocker.available=true   # + Testcontainers (Kafka, Mongo)
 mvn clean verify                      # suite completa
 ```
 
+Los smoke tests `CustomerApplicationContextTest` / `ArticleApplicationContextTest`
+levantan el contexto Spring completo de cada app sin infraestructura externa:
+cazan beans que faltan, YAML inválido y roturas de compatibilidad con Boot 4
+antes de cualquier despliegue.
+
 Catálogo completo, convenciones, gaps y issues en
 [`docs/testing/TESTING.md`](docs/testing/TESTING.md).
+
+## Saneamiento 2026-07 (rama `feature/saneamiento-integracion-sap`)
+
+Cambios estructurales aplicados sobre `develop` — detalle y estado por brecha
+en [`docs/sdd/README.md`](docs/sdd/README.md) §6:
+
+- **Arranque**: config `sap.s4` duplicada fusionada; `SapIntegrationConfig`
+  (common) aporta `SapClient`, auth providers y registries Resilience4j;
+  repositorios Spring Data con `@Enable*Repositories`/`@EntityScan` explícitos.
+- **Compatibilidad Spring Boot 4**: `spring-boot-starter-kafka` (el
+  `spring-kafka` suelto no autoconfigura), Jackson 3 por defecto (se usa
+  `SapJsonMapper.mapper()` en vez del bean clásico), starter OTel eliminado
+  (incompatible con Boot 4 — usar el javaagent de OpenTelemetry), `@EntityScan`
+  en su nueva ubicación.
+- **Pipeline**: máquina de estados con estado inicial y re-sincronización
+  (`SENT_SAP/INVALID → RECEIVED`), dedupe de idempotencia por `payloadHash`,
+  DLT Kafka (`<topic>-dlt`) con backoff, `DELETE` cableado.
+- **Cliente SAP**: retry/circuit breaker funcionales (5xx y transporte),
+  timeouts, OAuth2 client-credentials real con caché, CSRF completo
+  (fetch + cookies + refresh en 403), payloads OData sin wrapper `d` y con
+  `BusinessPartner` real.
+- **Infra local**: Debezium/Kafka Connect en `external-services/` con tablas
+  outbox, triggers y conectores listos para registrar.

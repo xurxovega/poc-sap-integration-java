@@ -7,9 +7,12 @@ spring:
   config:
     import: "application-common.yml"
   datasource:
-    url: ${SQLSERVER_URL:jdbc:sqlserver://localhost:1433;databaseName=poc;encrypt=true;trustServerCertificate=true}
-    username: ${SQLSERVER_USER:sa}
-    password: ${SQLSERVER_PASSWORD:SqlServer_Pa55w0rd!}
+    # Sin defaults de credenciales ni trustServerCertificate en el YAML empaquetado
+    # (auditoria A8): usuario y clave vienen SIEMPRE del entorno
+    # (scripts/env/local.env en local). Sin ellos la app no arranca.
+    url: ${SQLSERVER_URL:jdbc:sqlserver://localhost:1433;databaseName=poc;encrypt=true}
+    username: ${SQLSERVER_USER}
+    password: ${SQLSERVER_PASSWORD}
     driver-class-name: com.microsoft.sqlserver.jdbc.SQLServerDriver
   jpa:
     hibernate:
@@ -17,18 +20,22 @@ spring:
     properties:
       hibernate:
         dialect: org.hibernate.dialect.SQLServerDialect
-  data:
-    mongodb:
-      uri: ${MONGO_URL:mongodb://localhost:27017/customer}
-    elasticsearch:
-      endpoints: ${ES_URL:http://localhost:9200}
+  # Boot 4 movio las propiedades de conexion a spring.mongodb.*; las de Spring
+  # Data (auto-index-creation) siguen en spring.data.mongodb.* (application-common.yml).
+  mongodb:
+    uri: ${MONGO_URL_CUSTOMER:${MONGO_URL:mongodb://localhost:27017/customer}}
+  elasticsearch:
+    uris: ${ES_URL:http://localhost:9200}
   kafka:
-    bootstrap-servers: ${KAFKA_BOOTSTRAP:kafka:9092}
+    bootstrap-servers: ${MESSAGING_BOOTSTRAP:localhost:19092}
     consumer:
       group-id: customer-consumer
       auto-offset-reset: earliest
       properties:
         isolation.level: read_committed
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
 
 management:
   endpoints:
@@ -37,17 +44,16 @@ management:
         include: health,info,prometheus,metrics
   endpoint:
     health:
-      show-details: always
+      show-details: when-authorized   # detalle solo con rol ADMIN (auditoria B4)
 
 customer:
   kafka:
     topic: outbox.CUSTOMER
     group: customer-consumer
+    # Hilos de consumo por instancia (ADR-0011). particiones >= instancias x concurrency.
+    concurrency: ${CUSTOMER_KAFKA_CONCURRENCY:3}
 
 sap:
   customer:
     btp:
       path: /sap/btp/odata/Customer
-  mandate:
-    s4:
-      path: /sap/opu/odata/sap/API_CUSTOMER_MANDATE

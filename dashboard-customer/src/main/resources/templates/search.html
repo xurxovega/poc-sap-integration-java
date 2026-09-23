@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{layout :: header}"></head>
+<body>
+<header th:replace="~{layout :: header}"></header>
+<main>
+    <h2>Buscar cliente por NIF/CIF</h2>
+    <form class="form-row" th:action="@{/customers/search}" method="get">
+        <input type="text" name="q" placeholder="B12345678" th:value="${query}">
+        <button type="submit">Buscar</button>
+    </form>
+
+    <div th:if="${matches != null and !#lists.isEmpty(matches)}">
+        <table class="card">
+            <thead><tr><th>Código</th><th>Nombre</th><th>NIF/CIF</th></tr></thead>
+            <tbody>
+            <tr th:each="m : ${matches}">
+                <td><a th:href="@{|/customers/${m.entityId()}|}" th:text="${m.code()}">code</a></td>
+                <td th:text="${m.name()}">n</td>
+                <td><code th:text="${m.fiscal() != null ? m.fiscal().taxId() : ''}">t</code></td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+    <p th:if="${matches == null or #lists.isEmpty(matches)}" class="muted" th:if="${query != null and query != ''}">
+        No hay resultados para "<span th:text="${query}">q</span>".
+    </p>
+</main>
+</body>
+</html>

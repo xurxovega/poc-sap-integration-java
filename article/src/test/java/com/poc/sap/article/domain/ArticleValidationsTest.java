@@ -41,4 +41,20 @@ class ArticleValidationsTest {
     void nullArticleFails() {
         assertThat(ArticleValidations.validate((Article) null).valid()).isFalse();
     }
+
+    @Test
+    void nullCategoryIsAllowed() {
+        Article a = new Article("A-1", "SKU-001", "Tornillo M6",
+                null, "UN", Article.Status.ACTIVE);
+        assertThat(ArticleValidations.validate(a).valid()).isTrue();
+    }
+
+    @Test
+    void blankCategoryFails() {
+        Article a = new Article("A-1", "SKU-001", "Tornillo M6",
+                "   ", "UN", Article.Status.ACTIVE);
+        ValidationResult r = ArticleValidations.validate(a);
+        assertThat(r.valid()).isFalse();
+        assertThat(r.errors()).anyMatch("category invalida"::equals);
+    }
 }

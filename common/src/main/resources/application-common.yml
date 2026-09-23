@@ -1,10 +1,78 @@
 # Configuracion comun SAP y observabilidad (TECH.md §8, §9)
 # Cada dominio sobreescribe lo que necesite en su application.yml.
 
+app:
+  kafka:
+    # Topologia y reintentos del consumo (ADR-0011, OVERVIEW.md §5).
+    retry:
+      # Backoff normal del DefaultErrorHandler: 1 s, x2, 3 intentos (1+2+4 s).
+      backoff-ms: ${APP_KAFKA_RETRY_BACKOFF_MS:1000}
+      max-attempts: ${APP_KAFKA_RETRY_MAX_ATTEMPTS:3}
+      # Backoff propio del circuito abierto: arranca en la ventana de apertura
+      # (sap.client.circuit-breaker.wait-duration-open-ms) para no agotar los
+      # reintentos con SAP aun caido. Peor caso 30+45+67,5 s.
+      circuit-open-backoff-ms: ${APP_KAFKA_RETRY_CIRCUIT_OPEN_BACKOFF_MS:30000}
+    topics:
+      # Particiones de outbox.<DOMINIO> y de su -dlt (el DLT necesita las mismas
+      # o la publicacion falla). 12 = 2 clusters x 2 instancias x concurrency 3.
+      partitions: ${APP_KAFKA_TOPICS_PARTITIONS:12}
+      # La app NUNCA crea topics: los crea la plataforma (IaC / script de
+      # external-services). Valor declarativo, ver deploy/README.md.
+      create: ${APP_KAFKA_TOPICS_CREATE:false}
+  notifications:
+    # Alertas de sincronizacion parcial (ADR-0010): ademas del WARN en el log, un
+    # mensaje JSON por entidad en este topic para quien tenga que actuar.
+    topic: ${SYNC_ALERTS_TOPIC:sap.sync.alerts}
+    kafka:
+      enabled: ${SYNC_ALERTS_KAFKA_ENABLED:true}
+  security:
+    # true (por defecto): las APIs exigen un JWT de Keycloak y cada endpoint declara
+    # con @PreAuthorize quien puede llamarlo. false: todo abierto, solo para el
+    # entorno local con el SAP simulado (scripts/env/local.env).
+    enabled: ${APP_SECURITY_ENABLED:true}
+    keycloak:
+      # Cliente de Keycloak cuyos roles de cliente (resource_access.<client>.roles)
+      # se suman a los del realm.
+      client-id: ${KEYCLOAK_CLIENT_ID:sap-integration}
+
 sap:
-  cloud-sdk:
-    local-destination:
-      enabled: ${SAP_CLOUD_SDK_LOCAL_DESTINATION_ENABLED:false}
+  odata:
+    address:
+      enabled: ${SAP_ODATA_ADDRESS_ENABLED:false}
+    fiscal:
+      enabled: ${SAP_ODATA_FISCAL_ENABLED:false}
+    contact:
+      enabled: ${SAP_ODATA_CONTACT_ENABLED:false}
+    banking:
+      enabled: ${SAP_ODATA_BANKING_ENABLED:false}
+    customer:
+      enabled: ${SAP_ODATA_CUSTOMER_ENABLED:false}
+    read:
+      enabled: ${SAP_ODATA_READ_ENABLED:false}
+    address-path: /sap/opu/odata/sap/API_BUSINESS_PARTNER/A_BusinessPartnerAddress
+    fiscal-path: /sap/opu/odata/sap/API_BUSINESS_PARTNER/A_BusinessPartnerTaxNumber
+    contact-path: /sap/opu/odata/sap/API_BUSINESS_PARTNER/A_BusinessPartnerContact
+    banking-path: /sap/opu/odata/sap/API_BUSINESS_PARTNER/A_BusinessPartnerBank
+    customer-path: /sap/opu/odata/sap/API_BUSINESS_PARTNER/A_BusinessPartner
+    bp-path: /sap/opu/odata/sap/API_BUSINESS_PARTNER/A_BusinessPartner
+    mandate-path: /sap/opu/odata/sap/API_APAR_SEPA_MANDATE_SRV/SEPAMandateSet
+  partial-failure:
+    # Fallo parcial (ADR-0010, D-15): si NINGUNA parte del ciclo llego a SAP y
+    # todas fallaron por comunicacion, se propaga la excepcion para que la ingesta
+    # reintente el mensaje entero; es demostrable que no se escribio nada. Si algo
+    # entro en SAP NO se propaga: reintentar duplicaria mientras no exista la
+    # verificacion previa. Se reevalua cuando el lookup previo sea fiable.
+    rethrow-when-nothing-reached-sap: ${SAP_PARTIAL_FAILURE_RETHROW:true}
+  sepa:
+    # Identificador de acreedor SEPA de la empresa: clave del mandato en S/4
+    # (SEPAMandateSet(Creditor, SEPAMandate)). Sin el, el adaptador de mandatos
+    # falla con un mensaje claro en la primera llamada.
+    creditor-id: ${SAP_SEPA_CREDITOR_ID:}
+    application: ${SAP_SEPA_APPLICATION:F}
+  auth:
+    # false (por defecto): sin credenciales SAP la app NO arranca. true: token
+    # stub con aviso en el log; solo para el SAP simulado (scripts/env/local.env).
+    allow-stub: ${SAP_AUTH_ALLOW_STUB:false}
   btp:
     base-url: ${SAP_BTP_BASE_URL:https://default-tenant.example.eu10.xsuaa.hana.ondemand.com}
     xsuaa:
@@ -13,6 +81,9 @@ sap:
       token-url: ${SAP_BTP_TOKEN_URL:}
   s4:
     base-url: ${SAP_S4_BASE_URL:https://my12345-api.s4hana.cloud.sap}
+    csrf:
+      enabled: ${SAP_S4_CSRF_ENABLED:false}
+      fetch-path: ${SAP_S4_CSRF_FETCH_PATH:/sap/opu/odata/sap/API_BUSINESS_PARTNER/A_BusinessPartner}
     auth:
       type: ${SAP_S4_AUTH_TYPE:oauth2}
       token-url: ${SAP_S4_TOKEN_URL:}
@@ -20,6 +91,45 @@ sap:
       client-secret: ${SAP_S4_CLIENT_SECRET:}
       username: ${SAP_S4_USERNAME:}
       password: ${SAP_S4_PASSWORD:}
+  client:
+    connect-timeout-ms: ${SAP_CLIENT_CONNECT_TIMEOUT_MS:3000}
+    response-timeout-ms: ${SAP_CLIENT_RESPONSE_TIMEOUT_MS:20000}
+    # Llamadas a SAP que puede provocar UN mensaje Kafka en el peor caso
+    # (cabecera del BP + 4 features). RetryBudgetGuard comprueba al arrancar que
+    # calls x (intentos x timeout + backoff) < max.poll.interval.ms (auditoria A10).
+    calls-per-message: ${SAP_CLIENT_CALLS_PER_MESSAGE:5}
+    retry:
+      max-attempts: ${SAP_CLIENT_RETRY_MAX_ATTEMPTS:3}
+      initial-backoff-ms: ${SAP_CLIENT_RETRY_INITIAL_BACKOFF_MS:500}
+      write:
+        # Intentos de una ESCRITURA no idempotente. Solo se consumen si el fallo
+        # ocurrio ANTES de que la peticion saliera (conexion rechazada, timeout de
+        # conexion, DNS): un timeout de respuesta o un 5xx NO se reintentan porque
+        # SAP pudo haberlos aplicado (resiliencia-cliente-sap.md R-1, R-8).
+        max-attempts: ${SAP_CLIENT_RETRY_WRITE_MAX_ATTEMPTS:2}
+        # false restaura el comportamiento anterior (reintentar cualquier fallo de
+        # una escritura). SOLO para diagnostico: duplica altas en SAP.
+        connect-only: ${SAP_CLIENT_RETRY_WRITE_CONNECT_ONLY:true}
+    lookup:
+      # Verificacion previa: antes de escribir se pregunta a SAP que tiene, y si no
+      # responde no se escribe nada (upsert-idempotente-sap.md R-1 a R-3).
+      # false = comportamiento anterior (alta directa): solo para el entorno local
+      # con el SAP simulado.
+      enabled: ${SAP_CLIENT_LOOKUP_ENABLED:true}
+      # Un lookup con mas de un resultado es «no concluyente», no «cojo el primero».
+      ambiguous-fails: ${SAP_CLIENT_LOOKUP_AMBIGUOUS_FAILS:true}
+      # Presupuesto de reintentos: un lookup es mas corto que una escritura y no
+      # debe consumir el presupuesto del mensaje (RetryBudgetGuard).
+      timeout-ms: ${SAP_CLIENT_LOOKUP_TIMEOUT_MS:5000}
+      calls-per-message: ${SAP_CLIENT_LOOKUP_CALLS_PER_MESSAGE:6}
+    upsert:
+      # Un 412 (el recurso cambio entre nuestro lookup y nuestro PATCH) permite
+      # repetir lookup + PATCH una unica vez.
+      refetch-on-precondition-failed: ${SAP_CLIENT_UPSERT_REFETCH_ON_412:true}
+    circuit-breaker:
+      failure-rate-threshold: ${SAP_CLIENT_CB_FAILURE_RATE:50}
+      sliding-window-size: ${SAP_CLIENT_CB_WINDOW:10}
+      wait-duration-open-ms: ${SAP_CLIENT_CB_WAIT_OPEN_MS:30000}
 
 management:
   endpoints:
@@ -31,19 +141,57 @@ management:
       enabled: true
   metrics:
     tags:
-      application: sap-integration
+      # Un valor por app (customer-app / article-app); antes era el mismo en las
+      # dos y sus series se mezclaban (auditoria A9).
+      application: ${spring.application.name}
+      # Tags de entorno y cluster para que las series de /actuator/prometheus
+      # sean agregables a traves de instancias y despliegues (OBS-005 AC-1).
+      # Por defecto "local" para que en CI y dev el tag nunca falte.
+      env: ${OBS_ENV:local}
+      cluster: ${OBS_CLUSTER:local}
+  # Trazas distribuidas (ADR-0009): starter oficial de OpenTelemetry de Boot 4.
+  # Apagadas por defecto; con TRACING_ENABLED=true exportan por OTLP/HTTP al
+  # colector o Tempo indicado y el traceId aparece en los logs (ECS).
   tracing:
+    enabled: ${TRACING_ENABLED:false}
     sampling:
-      probability: 1.0
+      probability: ${TRACING_SAMPLING:1.0}
+  otlp:
+    tracing:
+      export:
+        enabled: ${TRACING_ENABLED:false}
+      endpoint: ${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT:http://localhost:4318/v1/traces}
+    metrics:
+      export:
+        enabled: false   # las metricas las recoge Prometheus por scraping
 
-otel:
-  exporter:
-    otlp:
-      endpoint: ${OTEL_EXPORTER_OTLP_ENDPOINT:http://localhost:4317}
-  service:
-    name: sap-integration
+server:
+  # Parada ordenada: se dejan terminar las peticiones y los mensajes en curso
+  # (hasta timeout-per-shutdown-phase) antes de cerrar (auditoria A10).
+  shutdown: graceful
 
 spring:
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          # https://<keycloak>/realms/<realm>. Obligatorio con app.security.enabled=true.
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:}
+  lifecycle:
+    timeout-per-shutdown-phase: ${SHUTDOWN_TIMEOUT:30s}
+  kafka:
+    consumer:
+      # Lotes cortos: con virtual threads y hasta 11 llamadas a SAP por mensaje,
+      # un lote grande alarga el poll y presiona max.poll.interval.ms (ADR-0011).
+      max-poll-records: ${KAFKA_MAX_POLL_RECORDS:10}
+      properties:
+        # 15 min: por encima del presupuesto de reintentos por mensaje (5,1 min con
+        # los defaults del cliente SAP). Con los 5 min por defecto de Kafka un SAP
+        # degradado provocaba rebalanceos en cascada (auditoria A10).
+        max.poll.interval.ms: ${KAFKA_MAX_POLL_INTERVAL_MS:900000}
   threads:
     virtual:
       enabled: true
+  data:
+    mongodb:
+      auto-index-creation: true

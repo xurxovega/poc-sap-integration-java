@@ -43,6 +43,7 @@ class BtpAddressAdapterTest {
         verify(sapClient).send(eq(SapDestination.BTP), eq(PATH), eq("C-1"), eq("h"),
                 body.capture());
         assertThat(body.getValue())
+                .contains("\"BusinessPartner\":\"C-1\"")
                 .contains("\"Street\":\"Calle 1\"")
                 .contains("\"City\":\"Madrid\"")
                 .contains("\"PostalCode\":\"28001\"")

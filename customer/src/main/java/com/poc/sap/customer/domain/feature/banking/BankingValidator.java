@@ -5,7 +5,7 @@ import com.poc.sap.common.domain.ValidationResult;
 import java.util.regex.Pattern;
 
 /**
- * Validaciones de negocio para la feature BANKING (SPEC.md §3, §9).
+ * Validaciones de negocio para la feature BANKING (OVERVIEW.md §2).
  */
 public final class BankingValidator {
 

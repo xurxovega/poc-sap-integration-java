@@ -66,8 +66,9 @@ class S4ArticleAdapterTest {
         assertThat(body.getValue()).isEqualTo("{}");
     }
 
+    /** sincronizacion-articulo §5: un campo sin valor se OMITE, no viaja como "" (A19/C10). */
     @Test
-    void nullFieldsRenderAsEmptyStrings() {
+    void nullFieldsAreOmittedInsteadOfSentAsEmptyStrings() {
         Article a = new Article("A-1", "SKU-001", null, null, null,
                 Article.Status.DISCONTINUED);
         when(sapClient.send(any(), any(), any(), any(), anyString()))
@@ -79,9 +80,10 @@ class S4ArticleAdapterTest {
         verify(sapClient).send(eq(SapDestination.S4_NATIVE), eq(PATH), eq("A-1"), eq("h"),
                 body.capture());
         assertThat(body.getValue())
-                .contains("\"Description\":\"\"")
-                .contains("\"Category\":\"\"")
-                .contains("\"BaseUnit\":\"\"")
+                .doesNotContain("Description")
+                .doesNotContain("Category")
+                .doesNotContain("BaseUnit")
+                .contains("\"Product\":\"SKU-001\"")
                 .contains("\"Status\":\"DISCONTINUED\"");
     }
 }

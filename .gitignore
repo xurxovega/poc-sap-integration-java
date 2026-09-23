@@ -28,10 +28,14 @@ Thumbs.db
 # Logs
 *.log
 logs/
+# Acta de ejecucion local, no se comparte
+log.md
 
 # Env / secrets
 .env
 .env.local
+scripts/env/*.env
+!scripts/env/local.env
 *.secret
 application-local.yml
 application-secrets.yml
@@ -39,3 +43,7 @@ application-secrets.yml
 # Coverage
 coverage/
 *.exec
+
+# Repo git anidado e independiente (spike OpenAPI desechable). Contiene una
+# credencial real de tenant S/4 en su historial: nunca debe entrar en este repo.
+sap-sdk-client/

@@ -7,7 +7,7 @@ import org.junit.jupiter.api.Test;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Test unit del {@link SyncMetrics} (SPEC.md §7; TECH.md §9). Usa
+ * Test unit del {@link SyncMetrics} (OVERVIEW.md §9; TECH.md §9). Usa
  * {@link SimpleMeterRegistry} de Micrometer para no levantar Prometheus.
  */
 class SyncMetricsTest {
@@ -56,6 +56,17 @@ class SyncMetricsTest {
                         .tag("stage", "fetch")
                         .timer())
                 .isNotNull();
+    }
+
+    /** ADR-0010: el resultado por feature es visible como metrica. */
+    @Test
+    void featureResultsAreCountedPerFeatureAndResult() {
+        metrics.incrementFeatureResult("customer", "BANKING", "SAP_ERROR");
+        metrics.incrementFeatureResult("customer", "BANKING", "SAP_ERROR");
+
+        assertThat(registry.get("sap_sync_feature_result_total")
+                .tag("domain", "customer").tag("feature", "BANKING").tag("result", "SAP_ERROR")
+                .counter().count()).isEqualTo(2.0);
     }
 
     @Test

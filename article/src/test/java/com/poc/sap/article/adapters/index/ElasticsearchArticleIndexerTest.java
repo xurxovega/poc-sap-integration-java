@@ -40,12 +40,21 @@ class ElasticsearchArticleIndexerTest {
         ArgumentCaptor<ArticleHistoryDoc> captor =
                 ArgumentCaptor.forClass(ArticleHistoryDoc.class);
         verify(repo).save(captor.capture());
-        assertThat(captor.getValue().getId()).isEqualTo("A-1-hash-1");
+        assertThat(captor.getValue().getId()).startsWith("A-1-hash-1-");
         assertThat(captor.getValue().getArticleId()).isEqualTo("A-1");
     }
 
+    /** idempotencia-y-dedupe AC-4 (auditoria A31): un reenvio con el mismo hash es otro documento. */
     @Test
-    void historyMapsAndSortsById() {
+    void retriesWithTheSameHashKeepBothVersions() {
+        ArticleHistoryDoc first = ArticleHistoryDoc.from(valid(), "hash-1", Instant.parse("2026-01-01T00:00:00.000Z"));
+        ArticleHistoryDoc retry = ArticleHistoryDoc.from(valid(), "hash-1", Instant.parse("2026-01-01T00:00:00.500Z"));
+
+        assertThat(first.getId()).isNotEqualTo(retry.getId());
+    }
+
+    @Test
+    void historyKeepsTimestampDescOrderFromRepo() {
         ArticleHistoryDoc d2 = ArticleHistoryDoc.from(
                 new Article("A-2", "SKU-002", "Tuerca", "Hardware", "UN",
                         Article.Status.ACTIVE),
@@ -57,7 +66,8 @@ class ElasticsearchArticleIndexerTest {
 
         List<Article> history = indexer.history("A-1");
 
-        assertThat(history).extracting(Article::id).containsExactly("A-1", "A-2");
+        // el repo ya devuelve orden timestamp desc: el mas reciente primero
+        assertThat(history).extracting(Article::id).containsExactly("A-2", "A-1");
     }
 
     @Test

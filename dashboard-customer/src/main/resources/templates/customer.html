@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{layout :: header}"></head>
+<body>
+<header th:replace="~{layout :: header}"></header>
+<main>
+    <nav class="tabs">
+        <a class="active" th:href="@{|/customers/${entityId}|}">Resumen</a>
+        <a th:href="@{|/customers/${entityId}/history|}">Histórico</a>
+        <a th:href="@{|/customers/${entityId}/history/diff|}">Diff</a>
+        <a th:href="@{|/customers/${entityId}/state|}">Estado</a>
+    </nav>
+
+    <div class="card">
+        <h2 th:text="${snapshot != null ? snapshot.name() : entityId}">Cliente</h2>
+        <p class="muted">
+            <code th:text="${entityId}">id</code> ·
+            <span th:text="${snapshot != null ? snapshot.code() : ''}">code</span> ·
+            <span class="pill"
+                  th:classappend="${snapshot != null and snapshot.status() != null and snapshot.status().name() == 'ACTIVE'} ? 'ok' : 'warn'"
+                  th:text="${snapshot != null ? snapshot.status() : '?'}">status</span>
+        </p>
+    </div>
+
+    <div class="card" th:if="${snapshot != null and snapshot.fiscal() != null}">
+        <h3>Fiscal</h3>
+        <table>
+            <tr><th>NIF/CIF</th><td><code th:text="${snapshot.fiscal().taxId()}">tax</code></td></tr>
+            <tr><th>VAT</th><td><code th:text="${snapshot.fiscal().vatNumber()}">vat</code></td></tr>
+            <tr><th>Razón social</th><td th:text="${snapshot.fiscal().legalName()}">legal</td></tr>
+            <tr><th>Residencia</th><td th:text="${snapshot.fiscal().taxResidency()}">res</td></tr>
+        </table>
+    </div>
+
+    <div class="card" th:if="${snapshot != null and snapshot.banking() != null}">
+        <h3>Bancario</h3>
+        <table>
+            <tr><th>IBAN</th><td><code th:text="${snapshot.banking().iban()}">iban</code></td></tr>
+            <tr><th>BIC</th><td><code th:text="${snapshot.banking().bic()}">bic</code></td></tr>
+            <tr th:each="m : ${snapshot.banking().mandateIds()}"><th>Mandato</th><td><code th:text="${m}">m</code></td></tr>
+        </table>
+    </div>
+
+    <div class="card" th:if="${state != null}">
+        <h3>Estado de sincronización</h3>
+        <table>
+            <tr><th>Agregado</th>
+                <td><span class="pill"
+                          th:classappend="${state.aggregate() != null and state.aggregate().state() != null and state.aggregate().state().name() == 'SENT_SAP'} ? 'ok' : (${state.aggregate() != null and state.aggregate().state() != null and state.aggregate().state().name().startsWith('SAP_')} ? 'error' : 'warn')"
+                          th:text="${state.aggregate() != null ? state.aggregate().state() : '(sin transiciones)'}">state</span>
+                <span class="muted" th:if="${state.aggregate() != null and state.aggregate().payloadHash() != null}">hash <code th:text="${state.aggregate().payloadHash()}">h</code></span>
+                </td>
+            </tr>
+            <tr th:each="f : ${state.features()}">
+                <th><code th:text="${f.key}">FEATURE</code></th>
+                <td>
+                    <span class="pill"
+                          th:classappend="${f.value.state().name() == 'SENT_SAP'} ? 'ok' : (${f.value.state().name().startsWith('SAP_') or f.value.state().name() == 'ERROR'} ? 'error' : 'warn')"
+                          th:text="${f.value.state()}">s</span>
+                    <span class="muted" th:if="${f.value.payloadHash() != null}">hash <code th:text="${f.value.payloadHash()}">h</code></span>
+                    <div class="muted" th:if="${f.value.detail() != null}">detalle: <code th:text="${f.value.detail()}">detail</code></div>
+                </td>
+            </tr>
+        </table>
+    </div>
+
+    <div class="card" th:if="${state != null and state.lastCycle() != null}">
+        <h3>Traza del último ciclo <span class="pill" th:text="${state.lastCycle().cycleId()}">cyc</span></h3>
+        <table>
+            <thead><tr><th>Línea</th><th>Estado</th><th>Detalle</th><th>Instante</th></tr></thead>
+            <tbody>
+            <tr th:each="s : ${state.lastCycle().steps()}">
+                <td><code th:text="${s.line()}">line</code></td>
+                <td><span class="pill" th:text="${s.state()}">s</span></td>
+                <td><code th:text="${s.detail()}">d</code></td>
+                <td class="muted" th:text="${s.at()}">at</td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+</main>
+</body>
+</html>

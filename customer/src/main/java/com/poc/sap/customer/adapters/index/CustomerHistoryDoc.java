@@ -12,7 +12,9 @@ import org.springframework.data.elasticsearch.annotations.FieldType;
 
 import java.time.Instant;
 
-@Document(indexName = "customers_history")
+// createIndex=false: el indice no se crea en el arranque (permite bootear sin ES;
+// ES lo crea en la primera escritura o lo gestiona operaciones con template propio)
+@Document(indexName = "customers_history", createIndex = false)
 public class CustomerHistoryDoc {
 
     @Id
@@ -50,7 +52,9 @@ public class CustomerHistoryDoc {
 
     public static CustomerHistoryDoc from(Customer c, String payloadHash, Instant ts) {
         CustomerHistoryDoc d = new CustomerHistoryDoc();
-        d.id = c.id() + "-" + payloadHash;
+        // Un documento por INTENTO: un reenvio del mismo hash tras SAP_ERROR no
+        // sobrescribe la version anterior (idempotencia-y-dedupe R-5; auditoria A31).
+        d.id = c.id() + "-" + payloadHash + "-" + ts.toEpochMilli();
         d.customerId = c.id();
         d.code = c.code();
         d.name = c.name();

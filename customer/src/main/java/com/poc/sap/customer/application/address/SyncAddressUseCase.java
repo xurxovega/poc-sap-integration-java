@@ -1,68 +1,52 @@
 package com.poc.sap.customer.application.address;
 
-import com.poc.sap.common.domain.SyncState;
+import com.poc.sap.common.application.FeatureSyncPipeline;
+import com.poc.sap.common.domain.FeatureOutcome;
+import com.poc.sap.common.domain.port.MetricsPort;
+import com.poc.sap.common.sap.SapUpsertSettings;
 import com.poc.sap.common.domain.port.SyncStateRepositoryPort;
-import com.poc.sap.common.domain.SyncStateTransition;
-import com.poc.sap.common.domain.ValidationResult;
-import com.poc.sap.common.observability.SyncMetrics;
+import com.poc.sap.customer.application.CustomerFeatureSync;
 import com.poc.sap.customer.domain.Customer;
 import com.poc.sap.customer.domain.CustomerFeature;
 import com.poc.sap.customer.domain.feature.address.AddressData;
 import com.poc.sap.customer.domain.feature.address.AddressValidator;
 import com.poc.sap.customer.domain.port.AddressSapPort;
-import org.springframework.stereotype.Service;
 
-import java.time.Instant;
+import java.time.Clock;
 
 /**
- * Use case de la feature ADDRESS: valida y envia a SAP los datos de direccion
- * del Customer (SPEC.md §3, §5, §8). Idempotente por payloadHash.
+ * Feature ADDRESS del cliente: valida y envia a SAP los direccion sobre la linea de
+ * estado {@code customerId:ADDRESS} (sdd/customer/sincronizacion-direccion.md). El recorrido lo
+ * implementa {@link FeatureSyncPipeline}, comun a las cuatro features (Fase 7).
  */
-@Service
-public class SyncAddressUseCase {
+public class SyncAddressUseCase implements CustomerFeatureSync {
 
-    private static final String DOMAIN = "customer";
-    private static final String STAGE = "address";
+    private final FeatureSyncPipeline<AddressData> pipeline;
 
-    private final AddressSapPort sapPort;
-    private final SyncStateRepositoryPort stateRepo;
-    private final SyncMetrics metrics;
-
+    /** Con los interruptores de upsert por defecto (verificacion previa activa). */
     public SyncAddressUseCase(AddressSapPort sapPort,
-                               SyncStateRepositoryPort stateRepo,
-                               SyncMetrics metrics) {
-        this.sapPort = sapPort;
-        this.stateRepo = stateRepo;
-        this.metrics = metrics;
+                           SyncStateRepositoryPort stateRepo,
+                           MetricsPort metrics,
+                           Clock clock) {
+        this(sapPort, stateRepo, metrics, clock, SapUpsertSettings.defaults());
     }
 
-    public SyncState execute(Customer customer, String payloadHash) {
-        AddressData address = customer.address();
-        String featureEntityId = featureEntityId(customer.id());
+    public SyncAddressUseCase(AddressSapPort sapPort,
+                           SyncStateRepositoryPort stateRepo,
+                           MetricsPort metrics,
+                           Clock clock,
+                           SapUpsertSettings upsert) {
+        this.pipeline = new FeatureSyncPipeline<>("customer", CustomerFeature.ADDRESS.name(),
+                AddressValidator::validate, sapPort, stateRepo, metrics, clock, upsert);
+    }
 
-        ValidationResult v = AddressValidator.validate(address);
-        transition(featureEntityId, payloadHash, SyncState.VALIDATING,
-                v.valid() ? SyncState.VALID : SyncState.INVALID);
-        if (!v.valid()) {
-            return SyncState.INVALID;
-        }
-
-        transition(featureEntityId, payloadHash, SyncState.VALID, SyncState.SENDING_SAP);
-        var response = sapPort.send(customer.id(), payloadHash, address);
-        SyncState target = response.isSuccess() ? SyncState.SENT_SAP : SyncState.SAP_ERROR;
-        transition(featureEntityId, payloadHash, SyncState.SENDING_SAP, target);
-        return target;
+    @Override
+    public FeatureOutcome execute(Customer customer, String cycleId, String payloadHash) {
+        return pipeline.sync(customer.id(), cycleId, payloadHash, customer.address());
     }
 
     /** Identificador de la feature en el state repo: customerId:ADDRESS. */
     public static String featureEntityId(String customerId) {
-        return customerId + ":" + CustomerFeature.ADDRESS.name();
-    }
-
-    private void transition(String entityId, String payloadHash,
-                            SyncState from, SyncState to) {
-        stateRepo.transition(DOMAIN, entityId, new SyncStateTransition(
-                entityId, DOMAIN, from, to, STAGE, payloadHash, Instant.now()));
-        metrics.incrementState(DOMAIN, to.name());
+        return FeatureSyncPipeline.featureEntityId(customerId, CustomerFeature.ADDRESS.name());
     }
 }

@@ -1,0 +1,20 @@
+# Finales de linea normalizados: LF en el repo, sin depender del SO del checkout.
+# Motivo: 172 ficheros aparecian modificados solo por CRLF en checkouts WSL y el
+# blame se destruia con cada commit (auditoria 2026-09-10, A25).
+* text=auto eol=lf
+
+# Scripts y ficheros que se ejecutan en Linux: siempre LF
+*.sh text eol=lf
+*.env text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.sql text eol=lf
+*.js text eol=lf
+
+# Binarios
+*.png binary
+*.jpg binary
+*.jar binary
+# Maven wrapper: el script POSIX siempre LF, el .cmd siempre CRLF
+mvnw text eol=lf
+mvnw.cmd text eol=crlf

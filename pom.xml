@@ -13,36 +13,55 @@
     <description>Reactor multi-modulo para integracion con SAP S/4 Public Cloud</description>
 
     <modules>
+        <module>sap-api-models</module>
         <module>common</module>
         <module>customer</module>
         <module>article</module>
         <module>supplier</module>
+        <module>dashboard-customer</module>
         <module>it</module>
     </modules>
 
     <properties>
-        <java.version>23</java.version>
-        <maven.compiler.release>23</maven.compiler.release>
+        <java.version>25</java.version>
+        <maven.compiler.release>25</maven.compiler.release>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
 
-        <spring-boot.version>4.0.0</spring-boot.version>
-        <spring-cloud.version>2025.0.0</spring-cloud.version>
+        <spring-boot.version>4.1.1</spring-boot.version>
         <resilience4j.version>2.3.0</resilience4j.version>
         <testcontainers.version>1.21.1</testcontainers.version>
         <wiremock.version>3.13.0</wiremock.version>
         <jacoco.version>0.8.13</jacoco.version>
         <otel.version>1.44.0</otel.version>
         <otel-instrumentation.version>2.13.3</otel-instrumentation.version>
-        <failsafe.version>3.5.2</failsafe.version>
+        <failsafe.version>3.6.0</failsafe.version>
+        <surefire.version>3.6.0</surefire.version>
+        <archunit.version>1.5.0</archunit.version>
+        <!-- Suelo de cobertura de lineas en **/domain/** (JaCoCo check). Solo sube. -->
+        <jacoco.domain.line-minimum>0.75</jacoco.domain.line-minimum>
+        <!-- elasticsearch-java 9.4.x (Boot 4.1) arrastra opentelemetry-semconv 1.30.0-rc.1,
+             pero su instrumentacion OTel usa io.opentelemetry.semconv.DbAttributes, que
+             solo existe desde 1.34.0: sin fijarlo, la PRIMERA escritura en Elasticsearch
+             muere con ClassNotFoundException. Ningun test lo cazo (los slices no tocan ES;
+             solo lo habria cazado el e2e con Docker, TEST-1). Visto en vivo el 12-09-2026. -->
+        <opentelemetry-semconv.version>1.34.0</opentelemetry-semconv.version>
+        <enforcer.version>3.5.0</enforcer.version>
+        <elasticsearch-client.version>8.13.4</elasticsearch-client.version>
+        <project.image.registry>poc-sap</project.image.registry>
+        <project.image.tag>${project.version}</project.image.tag>
+        <cyclonedx.version>2.9.1</cyclonedx.version>
+        <dependency-plugin.version>3.8.1</dependency-plugin.version>
         <sap-cloud-sdk.version>5.32.0</sap-cloud-sdk.version>
     </properties>
 
     <dependencyManagement>
         <dependencies>
             <!--
-                SAP Cloud SDK BOM (modules only) importado ANTES del BOM de Spring Boot
-                para minimizar choques de versiones con Spring Boot 4.0.
+                SAP Cloud SDK BOM (modules only): solo lo usa sap-api-models
+                (openapi-core + generator de modelos). Ningun modulo lleva sdk-core
+                ni conectividad del SDK en runtime (ADR-0001). Importado ANTES del BOM
+                de Spring Boot para minimizar choques de versiones.
             -->
             <dependency>
                 <groupId>com.sap.cloud.sdk</groupId>
@@ -50,6 +69,12 @@
                 <version>${sap-cloud-sdk.version}</version>
                 <type>pom</type>
                 <scope>import</scope>
+            </dependency>
+
+            <dependency>
+                <groupId>io.opentelemetry.semconv</groupId>
+                <artifactId>opentelemetry-semconv</artifactId>
+                <version>${opentelemetry-semconv.version}</version>
             </dependency>
 
             <dependency>
@@ -67,11 +92,9 @@
             </dependency>
 
             <dependency>
-                <groupId>org.springframework.cloud</groupId>
-                <artifactId>spring-cloud-dependencies</artifactId>
-                <version>${spring-cloud.version}</version>
-                <type>pom</type>
-                <scope>import</scope>
+                <groupId>com.poc.sap</groupId>
+                <artifactId>sap-api-models</artifactId>
+                <version>${project.version}</version>
             </dependency>
 
             <dependency>
@@ -90,6 +113,12 @@
                 <scope>import</scope>
             </dependency>
 
+            <dependency>
+                <groupId>com.tngtech.archunit</groupId>
+                <artifactId>archunit-junit6</artifactId>
+                <version>${archunit.version}</version>
+                <scope>test</scope>
+            </dependency>
             <dependency>
                 <groupId>org.wiremock</groupId>
                 <artifactId>wiremock-standalone</artifactId>
@@ -110,15 +139,141 @@
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
+            <dependency>
+                <!-- Cliente HTTP low-level que requiere co.elastic.clients (rest-client). -->
+                <groupId>org.elasticsearch.client</groupId>
+                <artifactId>elasticsearch-rest-client</artifactId>
+                <version>${elasticsearch-client.version}</version>
+            </dependency>
         </dependencies>
     </dependencyManagement>
 
     <build>
+        <plugins>
+            <!-- Cadena de suministro (plan Fase 8, auditoria A22/A24): el build exige
+                 el Maven y el JDK que la documentacion promete y prohibe declarar dos
+                 veces la misma dependencia en un pom. -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-enforcer-plugin</artifactId>
+                <version>${enforcer.version}</version>
+                <executions>
+                    <execution>
+                        <id>enforce-toolchain</id>
+                        <goals><goal>enforce</goal></goals>
+                        <configuration>
+                            <rules>
+                                <requireMavenVersion>
+                                    <version>[3.9,)</version>
+                                    <message>Maven 3.9+ (usa ./mvnw)</message>
+                                </requireMavenVersion>
+                                <requireJavaVersion>
+                                    <version>[25,)</version>
+                                    <message>JDK 25 es el minimo del proyecto (release 25)</message>
+                                </requireJavaVersion>
+                                <banDuplicatePomDependencyVersions/>
+                            </rules>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <!-- SBOM CycloneDX agregado del reactor: target/bom.json (y .xml) en package.
+                 La CI lo sube como artefacto. Solo en el modulo raiz. -->
+            <plugin>
+                <groupId>org.cyclonedx</groupId>
+                <artifactId>cyclonedx-maven-plugin</artifactId>
+                <version>${cyclonedx.version}</version>
+                <inherited>false</inherited>
+                <executions>
+                    <execution>
+                        <id>sbom</id>
+                        <phase>package</phase>
+                        <goals><goal>makeAggregateBom</goal></goals>
+                        <configuration>
+                            <outputName>bom</outputName>
+                            <outputFormat>all</outputFormat>
+                            <includeTestScope>false</includeTestScope>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <!-- JaCoCo: agente en todos los modulos, report y check en verify
+                 (auditoria B7 / plan Fase 2.3). El check solo mira domain/**:
+                 medido el 12-09-2026 -> common 90 %, customer 78 %, article 88 %
+                 de lineas; el umbral 0.75 es el suelo medido con margen y solo
+                 sube. Si domain baja de ahi, `mvn verify` falla (probado con
+                 -Djacoco.domain.line-minimum=0.95). El dominio lo cubren tambien
+                 los tests de use case, asi que un unico test comentado no lo
+                 tumba: el check protege la cobertura agregada, no test a test.
+                 Los modulos sin clases de dominio (it, sap-api-models) quedan
+                 fuera por el include. -->
+            <plugin>
+                <groupId>org.jacoco</groupId>
+                <artifactId>jacoco-maven-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>prepare-agent</id>
+                        <goals><goal>prepare-agent</goal></goals>
+                    </execution>
+                    <execution>
+                        <id>report</id>
+                        <phase>verify</phase>
+                        <goals><goal>report</goal></goals>
+                    </execution>
+                    <execution>
+                        <id>check-domain</id>
+                        <phase>verify</phase>
+                        <goals><goal>check</goal></goals>
+                        <configuration>
+                            <includes>
+                                <include>com/poc/sap/**/domain/**</include>
+                            </includes>
+                            <rules>
+                                <rule>
+                                    <element>BUNDLE</element>
+                                    <limits>
+                                        <limit>
+                                            <counter>LINE</counter>
+                                            <value>COVEREDRATIO</value>
+                                            <minimum>${jacoco.domain.line-minimum}</minimum>
+                                        </limit>
+                                    </limits>
+                                </rule>
+                            </rules>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
         <pluginManagement>
             <plugins>
                 <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-surefire-plugin</artifactId>
+                    <version>${surefire.version}</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-failsafe-plugin</artifactId>
+                    <version>${failsafe.version}</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-dependency-plugin</artifactId>
+                    <version>${dependency-plugin.version}</version>
+                </plugin>
+                <plugin>
                     <groupId>org.springframework.boot</groupId>
                     <artifactId>spring-boot-maven-plugin</artifactId>
+                    <!-- Imagen OCI con buildpacks: ./mvnw -pl customer spring-boot:build-image
+                         (requiere Docker). Sin Dockerfile: la plataforma de despliegue
+                         esta por decidir (plan Fase 8, D-9). -->
+                    <configuration>
+                        <image>
+                            <!-- registro y tag sobreescribibles desde la CI (-Dproject.image.registry/.tag) -->
+                            <name>${project.image.registry}/poc-sap-${project.artifactId}:${project.image.tag}</name>
+                        </image>
+                    </configuration>
                     <version>${spring-boot.version}</version>
                 </plugin>
                 <plugin>
@@ -140,22 +295,5 @@
         </pluginManagement>
     </build>
 
-    <profiles>
-        <!--
-            Se activa automaticamente cuando el JDK en ejecucion es 25+.
-            Sube el release del compilador a 25 (LTS objetivo del proyecto).
-            Mientras tanto, el reactor compila con el JDK instalado (23 LTS).
-        -->
-        <profile>
-            <id>jdk25</id>
-            <activation>
-                <jdk>[25,)</jdk>
-            </activation>
-            <properties>
-                <java.version>25</java.version>
-                <maven.compiler.release>25</maven.compiler.release>
-            </properties>
-        </profile>
-    </profiles>
 
 </project>

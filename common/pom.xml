@@ -18,20 +18,47 @@
 
     <dependencies>
         <dependency>
-            <groupId>com.sap.cloud.sdk</groupId>
-            <artifactId>sdk-core</artifactId>
-        </dependency>
-        <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter</artifactId>
         </dependency>
+        <!-- Transporte HTTP hacia SAP: RestClient (spring-web) sobre el HttpClient
+             del JDK. Sin webflux/Reactor ni Cloud SDK en runtime (ADR-0001). -->
         <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-webflux</artifactId>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-web</artifactId>
+        </dependency>
+        <!-- Jackson 2 lo usan SapJsonMapper, JsonDiff y OAuth2TokenClient. Hasta
+             ahora llegaba de forma transitiva (webflux / sdk-core); se declara
+             explicito. La migracion a Jackson 3 (tools.jackson) es de la Fase 7. -->
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-data-mongodb</artifactId>
+        </dependency>
+        <!-- Trazas distribuidas (ADR-0009, D-7): starter oficial de OpenTelemetry de Boot 4.
+             Desactivadas por defecto (management.tracing.enabled=false); se activan con
+             TRACING_ENABLED=true y un endpoint OTLP (Tempo/colector). -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-opentelemetry</artifactId>
+        </dependency>
+        <!-- Seguridad de las APIs REST: resource server OAuth2 con los JWT de Keycloak
+             (common/security; auditoria B4, ADR-0007). -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-security</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-oauth2-resource-server</artifactId>
+        </dependency>
+        <!-- Manejo de errores Kafka compartido (common/kafka), antes duplicado por app. -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-kafka</artifactId>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -41,18 +68,11 @@
             <groupId>io.micrometer</groupId>
             <artifactId>micrometer-registry-prometheus</artifactId>
         </dependency>
-        <dependency>
-            <groupId>io.micrometer</groupId>
-            <artifactId>micrometer-tracing</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>io.opentelemetry.instrumentation</groupId>
-            <artifactId>opentelemetry-spring-boot-starter</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>io.github.resilience4j</groupId>
-            <artifactId>resilience4j-reactor</artifactId>
-        </dependency>
+        <!-- Trazas distribuidas: el opentelemetry-spring-boot-starter (2.x) solo
+             soporta Spring Boot 3 y rompe el arranque con Boot 4
+             (NoClassDefFoundError: DefaultKafkaProducerFactoryCustomizer).
+             Hasta que exista soporte oficial, usar el OpenTelemetry javaagent
+             (-javaagent:opentelemetry-javaagent.jar), agnostico del framework. -->
         <dependency>
             <groupId>io.github.resilience4j</groupId>
             <artifactId>resilience4j-circuitbreaker</artifactId>
@@ -60,6 +80,11 @@
         <dependency>
             <groupId>io.github.resilience4j</groupId>
             <artifactId>resilience4j-retry</artifactId>
+        </dependency>
+        <!-- Metricas de retry y circuit breaker en Micrometer (auditoria A9). -->
+        <dependency>
+            <groupId>io.github.resilience4j</groupId>
+            <artifactId>resilience4j-micrometer</artifactId>
         </dependency>
 
         <dependency>
@@ -75,7 +100,31 @@
         <dependency>
             <groupId>org.wiremock</groupId>
             <artifactId>wiremock-standalone</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.tngtech.archunit</groupId>
+            <artifactId>archunit-junit6</artifactId>
+            <scope>test</scope>
         </dependency>
     </dependencies>
+
+    <build>
+        <!-- OBS-005: los tests estructurales (DeployObservabilityStructureTest)
+             buscan dashboards / reglas / env-examples en rutas relativas a la
+             raiz del repo. Definimos la propiedad a nivel de modulo para que
+             `mvn -pl common test` la resuelva sin flags en CLI. -->
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <configuration>
+                    <systemPropertyVariables>
+                        <obs005.repo-root>${project.basedir}/..</obs005.repo-root>
+                    </systemPropertyVariables>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
 
 </project>

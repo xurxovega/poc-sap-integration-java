@@ -1,7 +1,7 @@
 package com.poc.sap.customer.domain.feature.address;
 
 /**
- * Datos de direccion del Customer (feature ADDRESS, SPEC.md §3).
+ * Datos de direccion del Customer (feature ADDRESS, OVERVIEW.md §2).
  * Value object inmutable.
  *
  * @param street     calle y numero

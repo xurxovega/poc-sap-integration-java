@@ -3,7 +3,7 @@ package com.poc.sap.article.domain;
 import com.poc.sap.common.domain.ValidationResult;
 
 /**
- * Validaciones de negocio del dominio Article (SPEC.md §3, §9).
+ * Validaciones de negocio del dominio Article (OVERVIEW.md §2).
  * Puro: sin Spring, sin IO.
  */
 public final class ArticleValidations {
@@ -20,7 +20,7 @@ public final class ArticleValidations {
                 "description obligatoria");
         r = r.and(v -> a.unit() != null && !a.unit().isBlank(), "unit obligatoria");
         r = r.and(v -> a.status() != null, "status obligatorio");
-        r = r.and(v -> a.category() == null || !a.category().isBlank() || true,
+        r = r.and(v -> a.category() == null || !a.category().isBlank(),
                 "category invalida");
         return r;
     }
