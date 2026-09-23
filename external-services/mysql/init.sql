@@ -144,6 +144,28 @@ FROM feature WHERE subproyecto='customer' AND slug='consulta-entidad-ui';
 -- nuevo, ADR-0011 revisado (consumer group por cluster K8s).
 -- 5 commits (H-0..H-5): tests rojos, renombrado de variable, compose,
 -- manifiestos K8s, doc + baseline pre-Redpanda.
+--
+-- IMPORTANTE: si el contenedor `mysql-sdd` YA tiene la BD inicializada
+-- (porque ya se levanto alguna vez), este bloque del init.sql NO se ejecuta.
+-- En ese caso, registrar la feature manualmente:
+--
+--   docker exec -i mysql-sdd mysql -usdd -psdd sdd_registry <<'SQL'
+--   INSERT INTO feature (subproyecto, slug, nombre, descripcion, spec_path,
+--                        estado, solicitada_por, solicitada_el)
+--   VALUES ('common','broker-de-mensajeria',
+--           'Broker de mensajeria: sustitucion Kafka+ZooKeeper por Redpanda',
+--           'docs/sdd/common/broker-de-mensajeria.md','implementada',
+--           'dev-implementer', CURDATE())
+--   ON DUPLICATE KEY UPDATE estado='implementada';
+--
+--   INSERT INTO feature_evento (feature_id, accion, resumen, detalle, autor, ocurrido_el)
+--   SELECT id,'ALTA','Spec inicial del broker de mensajeria: Redpanda v25.3.9 LTS',
+--          'Sustituye Kafka 3.x + ZooKeeper por Redpanda... (resumen arriba)',
+--          'dev-implementer', NOW()
+--   FROM feature WHERE subproyecto='common' AND slug='broker-de-mensajeria';
+--   SQL
+--
+-- Verificacion: `python scripts/sdd-registry-check.py` debe salir sin diferencias.
 -- -----------------------------------------------------------------------------
 INSERT INTO feature (subproyecto, slug, nombre, descripcion, spec_path, estado, solicitada_por, solicitada_el) VALUES
  ('common','broker-de-mensajeria','Broker de mensajeria: sustitucion Kafka+ZooKeeper por Redpanda','docs/sdd/common/broker-de-mensajeria.md','implementada','sdd-registry-check', CURDATE())
