@@ -102,6 +102,11 @@ public class SyncCustomerUseCase {
      * Ejecuta solo las features indicadas. Permite que una funcionalidad de
      * negocio (p.ej. un cambio solo en direccion) invoque ADDRESS sin tocar
      * FISCAL/BANKING.
+     *
+     * <p>Fuente del {@code Customer}: el legacy (SQL Server / PostgreSQL). Es
+     * el camino CDC y REST cuando el llamador solo aporta la identidad del
+     * cambio (mensaje fino, ADR-0013). Para fuente alternativa (payload REST),
+     * usar {@link #executeFromPayload(IngestionMessage, Customer, Set)}.
      */
     public SyncState execute(IngestionMessage message, Set<CustomerFeature> features) {
         if (features == null || features.isEmpty()) {
@@ -123,6 +128,56 @@ public class SyncCustomerUseCase {
         }
         Customer customer = fetched.get();
 
+        return runPipeline(message, customer, features);
+    }
+
+    /**
+     * Ejecuta el mismo pipeline que {@link #execute(IngestionMessage, Set)} pero
+     * <b>sin releer el legacy</b>: el {@code Customer} ya viene del llamador
+     * (p. ej. body de un PUT/PATCH manual de Business Partner, PRD-10). El
+     * resto es identico: hash sobre el snapshot, dedupe, maquina de estados,
+     * lookup + upsert en SAP.
+     *
+     * <p>Si el legacy no tiene la entidad, en CDC se devuelve
+     * {@link SyncState#ERROR}; aqui eso no aplica porque el caller ya ha
+     * decidido que la entidad existe (la esta creando o actualizando). Si el
+     * caller quiere borrar que use el flujo de baja, no este.
+     *
+     * <p>Difiere de {@link #execute(IngestionMessage, Set)} en un punto
+     * importante: {@code features} puede ser vacio, lo que significa
+     * "solo el agregado, sin subentidades". Es lo que hace el upsert manual
+     * de Business Partner: escribe el BP y nada mas; las features siguen
+     * sincronizandose por su propio flujo ({@code POST /customers/sync}).
+     *
+     * @param message  identificador del cambio; debe llevar {@code origin=REST}
+     *                 en este flujo, pero el orquestador no lo exige.
+     * @param sourced  snapshot construido por el caller; su hash es el del
+     *                 dedupe y el que viaja a SAP.
+     * @param features features a ejecutar (ADDRESS, FISCAL, CONTACT, BANKING).
+     *                 Vacio o {@code null} significa "solo el agregado".
+     */
+    public SyncState executeFromPayload(IngestionMessage message, Customer sourced,
+                                        Set<CustomerFeature> features) {
+        if (sourced == null) {
+            throw new IllegalArgumentException("sourced obligatorio");
+        }
+        if (features == null) {
+            features = EnumSet.noneOf(CustomerFeature.class);
+        }
+        log.info("SyncCustomer (payload) inicio entityId={} origin={} features={}",
+                message.entityId(), message.origin(), features);
+        return runPipeline(message, sourced, features);
+    }
+
+    /**
+     * Esqueleto comun: dado un {@code Customer} ya construido, ejecuta
+     * hash -> dedupe -> maquina de estados -> indexar -> enviar SAP ->
+     * imagen tras ACK -> aviso parcial. Es el mismo camino desde CDC y desde
+     * REST (PRD-10); la unica diferencia entre los dos puntos de entrada
+     * esta en como se obtiene el {@code Customer}.
+     */
+    private SyncState runPipeline(IngestionMessage message, Customer customer,
+                                  Set<CustomerFeature> features) {
         String payloadHash = PayloadHasher.hash(customer);
         if (message.payloadHash() != null && !message.payloadHash().equals(payloadHash)) {
             // Solo pista de diagnostico: el hash del mensaje puede venir de una

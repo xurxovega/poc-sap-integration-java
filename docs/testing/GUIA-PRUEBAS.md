@@ -18,7 +18,7 @@
 ## Nivel 1 — Suite automática (sin Docker)
 
 ```bash
-mvn clean test          # 559 tests: unit + slice + resiliencia + smoke de contexto
+mvn clean test          # 584 tests: unit + slice + resiliencia + smoke de contexto
 ```
 
 Qué valida cada bloque y dónde mirar si falla:

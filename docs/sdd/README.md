@@ -92,6 +92,7 @@ con ese nombre la primera vez que se toque la feature.
 | Baja de mandato SEPA | [`baja-mandato-sepa.md`](customer/baja-mandato-sepa.md) | ✅ | ⚠️ revoca por `PATCH` de estado (antes `POST` ficticio); sin llamador hasta que el legacy emita mandatos |
 | Dashboard de consulta de entidad (UI-001) | [consulta-entidad-ui.md](customer/consulta-entidad-ui.md) | ✅ implementado 2026-09-23 |
 | Consulta de Business Partner en SAP (PRD-9) | [consulta-business-partner-sap.md](customer/consulta-business-partner-sap.md) | ✅ implementado 2026-09-24 |
+| Upsert manual de Business Partner (PRD-10) | [upsert-business-partner-manual.md](customer/upsert-business-partner-manual.md) | ✅ implementado 2026-09-24 |
 | Vista grafo del flujo de integración (UI-002) | [consulta-entidad-grafo-ui.md](customer/consulta-entidad-grafo-ui.md) | ⏸ pausada 2026-09-23 — ver §10.bis para reapertura |
 
 ### `article/` — [ver carpeta](article/)
