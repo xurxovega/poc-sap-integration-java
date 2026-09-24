@@ -94,7 +94,7 @@
 | PRD-8 | `S3ImageStoreAdapter` sobre MinIO | extra | 💡 | MinIO está levantado y sin uso |
 | PRD-9 | **Consulta de Business Partner desde SAP** (GET, sin coste) | extra | ✅ 2026-09-24 | Implementado: [`sdd/customer/consulta-business-partner-sap.md`](sdd/customer/consulta-business-partner-sap.md). 4 endpoints GET (`/{code}`, `?category=&top=`, `/customers`, `/suppliers`), `LookupBusinessPartnerUseCase`, `BusinessPartnerController`, helper `PiiMasker.maskName`, OpenAPI al dia, 16 `@Test` nuevos. Pendiente: verificacion contra el tenant SAP de test (mismo criterio que `customer-contact` y `customer-banking`). |
 | PRD-11 | **Upsert idempotente** contra S/4: lookup → alta / `PATCH` con `If-Match`, con el `AddressID` persistido (auditoría B3) | proyecto | 🚧 en curso | **Hecho**: spec [`sdd/common/upsert-idempotente-sap.md`](sdd/common/upsert-idempotente-sap.md) y los seis adaptadores OData con `lookup`/`update`; el `AddressID` se guarda en la colección `sap_keys`, no en la imagen. **Matiz al enunciado**: el **ETag no se persiste** — envejece y produce `412` sin poder reintentar sin releer; se lee en el lookup inmediatamente anterior al `PATCH` (R-5). **Falta**: cablear `FeatureSyncPipeline.write(...)` y verificar contra el tenant ([`testing/CHECKLIST-TENANT-SAP.md`](testing/CHECKLIST-TENANT-SAP.md) §1-§3) |
-| PRD-10 | **Alta y actualización de Business Partner** desde nuestro lado (POST/PATCH, upsert con coste) | extra | 💡 | Ninguna de las clases existe. Detalle abajo |
+| PRD-10 | **Alta y actualización de Business Partner** desde nuestro lado (PUT/PATCH, upsert con coste) | extra | ✅ 2026-09-24 | Implementado: [`sdd/customer/upsert-business-partner-manual.md`](sdd/customer/upsert-business-partner-manual.md). Refactor del orquestador (`SyncCustomerUseCase#runPipeline` + `executeFromPayload`, cero duplicación), `BusinessPartnerUpsertException` (domain), `UpsertBusinessPartnerUseCase` + `BusinessPartnerWriteController` (PUT/PATCH, `@PreAuthorize hasRole(SAP_WRITE)`), OpenAPI al día con `x-required-role`, 25 `@Test` nuevos. Activación condicional (`@ConditionalOnBean(BusinessPartnerODataAdapter.class)`). R-1 anotada: PATCH de `category` se rechaza hasta ampliar el adapter. Pendiente: verificación contra el tenant SAP de test. |
 
 ### Detalle de los flujos propuestos
 
@@ -107,13 +107,18 @@ tabla arriba y spec [`sdd/customer/consulta-business-partner-sap.md`](sdd/custom
 Era: leer un Business Partner de SAP sin escribir, para comprobar si existe
 antes de dar de alta o para resolver dudas de datos.
 
-**PRD-10 · Alta y actualización de BP (POST/PATCH)** — hoy solo empujamos
-features sueltas; esto sería crear o modificar el Business Partner completo.
+**PRD-10 · Alta y actualización de BP (PUT/PATCH)** — ✅ implementado
+2026-09-24, ver fila de la tabla arriba y spec
+[`sdd/customer/upsert-business-partner-manual.md`](sdd/customer/upsert-business-partner-manual.md).
+Era: alta o modificación inmediata del Business Partner completo desde la
+API REST, con el mismo pipeline que el CDC. Como en PRD-9, el lookup
+previo + `PATCH` con `If-Match` decide si es alta o actualización; el
+cuerpo REST es la fuente del `Customer` (no se relee nada del legacy).
 
-- Faltaría: `CreateBusinessPartnerUseCase` y `UpdateBusinessPartnerUseCase`
-  (application), con sus controllers, sobre `A_BusinessPartner` de la API
-  `API_BUSINESS_PARTNER`.
-- Ojo al coste: cada upsert contra S/4 se factura, a diferencia del GET.
+Pendiente: ampliar `BusinessPartnerODataAdapter.update` para soportar
+`PATCH` de `category` (R-1 del spec) y verificación contra el tenant SAP
+de test ([`testing/CHECKLIST-TENANT-SAP.md`](testing/CHECKLIST-TENANT-SAP.md)
+§1-§3, mismo criterio que las features de contacto y datos bancarios).
 
 **PRD-4 · Modo pull** — SAP BTP orquesta el ciclo y nosotros publicamos lo
 pendiente en vez de empujarlo.
