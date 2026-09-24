@@ -1,20 +1,6 @@
-# Plan de accion Fase 8 (auditoria A22): actualizaciones de dependencias y de
-# acciones de GitHub como PRs semanales. La CI (ci.yml) las valida.
+# Dependabot desactivado (decisión 2026-09-24): el flujo del proyecto es
+# bumpear dependencias manualmente cuando toca cerrar una feature o un release,
+# no por PRs automáticos semanales que nadie revisaba. Si se reactiva,
+# restaurar el contenido previo desde git.
 version: 2
-updates:
-  - package-ecosystem: maven
-    directory: "/"
-    schedule:
-      interval: weekly
-      day: monday
-    open-pull-requests-limit: 5
-    groups:
-      spring:
-        patterns: ["org.springframework*"]
-      testing:
-        patterns: ["org.junit*", "org.mockito*", "org.assertj*", "org.testcontainers*", "org.wiremock*", "com.tngtech.archunit*"]
-  - package-ecosystem: github-actions
-    directory: "/"
-    schedule:
-      interval: weekly
-      day: monday
+updates: []
