@@ -50,6 +50,8 @@ tags:
     description: Disparar el pipeline de sincronizacion hacia SAP.
   - name: Consulta
     description: Historico, diff y estado de sincronizacion.
+  - name: Operacion
+    description: Operaciones manuales de escritura sobre Business Partners (facturables).
 
 paths:
 
@@ -508,6 +510,119 @@ paths:
         '403':
           $ref: '#/components/responses/SinPermiso'
 
+  /business-partners/{id}:
+    put:
+      tags: [Operacion]
+      operationId: upsertBusinessPartner
+      summary: Alta o actualizacion completa de un Business Partner
+      description: |
+        Crea un Business Partner nuevo en SAP S/4 Public Cloud o actualiza el
+        existente. Mismo pipeline que `POST /customers/sync`: la maquina de
+        estados, el dedupe por hash del snapshot y el upsert con `If-Match`
+        son identicos.
+
+        **Facturable**: a diferencia del `GET` de PRD-9, cada llamada es una
+        escritura contra SAP y se factura. Por eso el rol minimo es
+        `SAP_WRITE`; `SAP_EXTERNAL_READ` no puede llamar a este endpoint.
+
+        El `name` es obligatorio. `category` es opcional y por defecto `2`
+        (cliente). El orquestador calcula el hash sobre el snapshot
+        construido a partir del body: si llega un segundo PUT con los mismos
+        `name` y `category` el pipeline devuelve `SENT_SAP` sin reenviar.
+
+        Spec `docs/sdd/customer/upsert-business-partner-manual.md` (PRD-10).
+      x-required-role: SAP_WRITE
+      x-masked-for-external-read: false
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Clave de negocio del Business Partner en SAP (`BusinessPartner`).
+          schema:
+            type: string
+          example: C001
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BusinessPartnerUpsertRequest'
+            example:
+              name: Foo SL
+              category: '2'
+      responses:
+        '200':
+          description: Procesado; el estado final va en la respuesta (tambien si acabo en error de SAP).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SyncResponse'
+              example:
+                entityId: C001
+                state: SENT_SAP
+        '400':
+          $ref: '#/components/responses/PeticionMalFormada'
+        '401':
+          $ref: '#/components/responses/SinToken'
+        '403':
+          $ref: '#/components/responses/SinPermiso'
+        '409':
+          $ref: '#/components/responses/SincronizacionConcurrente'
+    patch:
+      tags: [Operacion]
+      operationId: patchBusinessPartner
+      summary: Actualizacion parcial de un Business Partner
+      description: |
+        Actualiza parcialmente un Business Partner ya creado. Hoy el unico
+        campo que el adaptador S/4 cubre en `PATCH` es el nombre
+        (`OrganizationBPName1`): si el body trae `category`, se rechaza con
+        400 hasta que se amplie el adapter (R-1 del spec).
+
+        Mismo pipeline que `POST /customers/sync` y `PUT` de esta misma
+        feature. **Facturable**: rol minimo `SAP_WRITE`.
+
+        El hash se calcula sobre el `Customer` construido a partir del body;
+        un PATCH identico repetido queda en `SENT_SAP` sin reenviar (mismo
+        criterio que el resto del pipeline, dedupe honesto).
+
+        Spec `docs/sdd/customer/upsert-business-partner-manual.md` (PRD-10).
+      x-required-role: SAP_WRITE
+      x-masked-for-external-read: false
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Clave de negocio del Business Partner en SAP (`BusinessPartner`).
+          schema:
+            type: string
+          example: C001
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BusinessPartnerPatchRequest'
+            example:
+              name: Foo SL
+      responses:
+        '200':
+          description: Procesado; el estado final va en la respuesta.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SyncResponse'
+              example:
+                entityId: C001
+                state: SENT_SAP
+        '400':
+          $ref: '#/components/responses/PeticionMalFormada'
+        '401':
+          $ref: '#/components/responses/SinToken'
+        '403':
+          $ref: '#/components/responses/SinPermiso'
+        '409':
+          $ref: '#/components/responses/SincronizacionConcurrente'
+
 components:
 
   securitySchemes:
@@ -841,3 +956,32 @@ components:
         status: { type: integer }
         detail: { type: string }
         instance: { type: string }
+
+    BusinessPartnerUpsertRequest:
+      type: object
+      description: |
+        Body de `PUT /business-partners/{id}` (PRD-10, spec
+        `docs/sdd/customer/upsert-business-partner-manual.md`). `name` es
+        obligatorio; `category` opcional (default `"2"`).
+      required: [name]
+      properties:
+        name:
+          type: string
+          description: Razon social del Business Partner.
+        category:
+          type: string
+          description: |
+            Categoria OData (`1` proveedores, `2` clientes, etc.). Default
+            `"2"` para cliente.
+
+    BusinessPartnerPatchRequest:
+      type: object
+      description: |
+        Body de `PATCH /business-partners/{id}` (PRD-10). Al menos un campo
+        presente. `category` se rechaza en esta version (R-1: el adapter
+        S/4 solo cubre `OrganizationBPName1` en PATCH).
+      properties:
+        name:
+          type: string
+        category:
+          type: string
