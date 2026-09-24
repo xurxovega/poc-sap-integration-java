@@ -20,6 +20,22 @@ identifican por fecha.
 
 ## [Sin publicar]
 
+### 2026-09-24 — Upsert manual de Business Partner (PRD-10, PUT/PATCH, facturable)
+
+Dos endpoints REST nuevos en `customer-app` para dar de alta o
+actualizar Business Partners en SAP S/4 Public Cloud manualmente
+(`PUT /business-partners/{id}` y `PATCH /business-partners/{id}`). A
+diferencia de PRD-9 (GET, sin coste), cada llamada es una escritura
+contra SAP y se factura, así que el rol mínimo es `sap-write` (no
+`external-read`). El pipeline es el mismo que el CDC: lookup previo,
+alta o `PATCH` con `If-Match`, dedupe por hash, máquina de estados. La
+única diferencia es la fuente del `Customer`: el body del REST en lugar
+del releído del legacy. Útil para el equipo de gestión de datos maestros
+que necesita crear o corregir un cliente al momento. Spec
+[`docs/sdd/customer/upsert-business-partner-manual.md`](docs/sdd/customer/upsert-business-partner-manual.md).
+Pendiente: ampliar el adapter OData para soportar `PATCH` de `category`
+(R-1 del spec) y verificación contra el tenant SAP de test.
+
 ### 2026-09-24 — Consulta de Business Partner en SAP (PRD-9, GET, sin coste)
 
 Cuatro endpoints REST GET nuevos en `customer-app` para leer Business
