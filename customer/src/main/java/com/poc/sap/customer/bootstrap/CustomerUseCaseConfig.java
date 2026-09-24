@@ -18,7 +18,9 @@ import com.poc.sap.customer.application.general.CustomerStateUseCase;
 import com.poc.sap.customer.application.general.LookupBusinessPartnerUseCase;
 import com.poc.sap.customer.application.general.DeleteCustomerUseCase;
 import com.poc.sap.customer.application.general.SyncCustomerUseCase;
+import com.poc.sap.customer.application.general.UpsertBusinessPartnerUseCase;
 import com.poc.sap.customer.application.general.ValidateCustomerUseCase;
+import com.poc.sap.customer.adapters.sap.odata.BusinessPartnerODataAdapter;
 import com.poc.sap.customer.domain.port.AddressSapPort;
 import com.poc.sap.customer.domain.port.BankingSapPort;
 import com.poc.sap.customer.domain.port.BusinessPartnerReadPort;
@@ -114,5 +116,25 @@ public class CustomerUseCaseConfig {
     @org.springframework.boot.autoconfigure.condition.ConditionalOnBean(BusinessPartnerReadPort.class)
     LookupBusinessPartnerUseCase lookupBusinessPartnerUseCase(BusinessPartnerReadPort port) {
         return new LookupBusinessPartnerUseCase(port);
+    }
+
+    /**
+     * Upsert manual de Business Partner (PRD-10). Solo se monta si
+     * {@link BusinessPartnerODataAdapter} esta activo: ese bean es el que
+     * decide si el destino S/4 esta habilitado para escritura
+     * ({@code sap.odata.customer.enabled=true}). Sin esa condicion, el
+     * adaptador BTP estaria activo en su lugar y el upsert por REST no tiene
+     * sentido (el controller BTP es de otra epoca y ya no se expone).
+     *
+     * <p>Mismo patron que {@link LookupBusinessPartnerUseCase}: el bean es
+     * condicional, el controller depende del bean, y ambos desaparecen si el
+     * puerto no esta activo. {@link BusinessPartnerWriteController} lleva su
+     * propio {@code @ConditionalOnBean} por si se monta el use case sin el
+     * controller.
+     */
+    @Bean
+    @org.springframework.boot.autoconfigure.condition.ConditionalOnBean(BusinessPartnerODataAdapter.class)
+    UpsertBusinessPartnerUseCase upsertBusinessPartnerUseCase(SyncCustomerUseCase syncCustomerUseCase) {
+        return new UpsertBusinessPartnerUseCase(syncCustomerUseCase);
     }
 }
