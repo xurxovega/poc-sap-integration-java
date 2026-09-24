@@ -322,6 +322,192 @@ paths:
         '403':
           $ref: '#/components/responses/SinPermiso'
 
+  /business-partners/{code}:
+    get:
+      tags: [Consulta]
+      operationId: lookupBusinessPartnerById
+      summary: Consultar un Business Partner por su clave
+      description: |
+        Lee un Business Partner ya creado en SAP S/4 Public Cloud (no escribe
+        nada; las lecturas OData no se facturan). Devuelve `{code, name,
+        category, masked}` o 404 si SAP no lo tiene.
+
+        A quien solo tiene `sap-external-read` se le enmascara el `name`
+        (R-4 de seguridad-api.md): los ultimos 4 caracteres visibles, el
+        resto a asteriscos. `code` y `category` no se enmascaran (no son
+        PII). El campo `masked` va a `true` cuando se ha enmascarado.
+
+        Solo se monta si el puerto `BusinessPartnerReadPort` esta activo
+        (`sap.odata.read.enabled=true` o `sap.odata.customer.enabled=true`,
+        decision D-18). Spec
+        `docs/sdd/customer/consulta-business-partner-sap.md` (PRD-9).
+      x-required-role: [SAP_READ, SAP_EXTERNAL_READ]
+      x-masked-for-external-read: true
+      parameters:
+        - name: code
+          in: path
+          required: true
+          description: Clave de negocio del Business Partner en SAP (`BusinessPartner`).
+          schema:
+            type: string
+          example: C001
+      responses:
+        '200':
+          description: BP encontrado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BusinessPartnerSummaryResponse'
+              example:
+                code: C001
+                name: Cliente de ejemplo S.L.
+                category: '2'
+                masked: false
+        '401':
+          $ref: '#/components/responses/SinToken'
+        '403':
+          $ref: '#/components/responses/SinPermiso'
+        '404':
+          $ref: '#/components/responses/NoEncontrado'
+
+  /business-partners:
+    get:
+      tags: [Consulta]
+      operationId: searchBusinessPartners
+      summary: Buscar Business Partners por categoria OData
+      description: |
+        Lista los primeros N Business Partners filtrados por
+        `BusinessPartnerCategory` (`1` proveedores, `2` clientes, etc.).
+        Devuelve `{results, masked}`; lista vacia si nada coincide
+        (no es 404).
+
+        `top` debe estar en `[1, 200]`: fuera de rango se rechaza con
+        400. Mismas reglas de PII que `/{code}`. Spec
+        `docs/sdd/customer/consulta-business-partner-sap.md` (PRD-9).
+      x-required-role: [SAP_READ, SAP_EXTERNAL_READ]
+      x-masked-for-external-read: true
+      parameters:
+        - name: category
+          in: query
+          required: true
+          description: Valor de `BusinessPartnerCategory` en SAP (p. ej. `2` para clientes).
+          schema:
+            type: string
+          example: '2'
+        - name: top
+          in: query
+          required: true
+          description: Numero maximo de resultados. Rango valido [1..200].
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+          example: 10
+      responses:
+        '200':
+          description: Lista de BPs encontrados (puede estar vacia).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BusinessPartnerSearchResponse'
+              example:
+                results:
+                  - code: C001
+                    name: Cliente de ejemplo S.L.
+                    category: '2'
+                  - code: C002
+                    name: Otro cliente S.A.
+                    category: '2'
+                masked: false
+        '400':
+          $ref: '#/components/responses/PeticionMalFormada'
+        '401':
+          $ref: '#/components/responses/SinToken'
+        '403':
+          $ref: '#/components/responses/SinPermiso'
+
+  /business-partners/customers:
+    get:
+      tags: [Consulta]
+      operationId: listBusinessPartnerCustomers
+      summary: Listar clientes (Business Partner con categoria 2)
+      description: |
+        Atajo de `GET /business-partners?category=2&top=<n>`. Devuelve la
+        misma forma `{results, masked}`. Spec
+        `docs/sdd/customer/consulta-business-partner-sap.md` (PRD-9).
+      x-required-role: [SAP_READ, SAP_EXTERNAL_READ]
+      x-masked-for-external-read: true
+      parameters:
+        - name: top
+          in: query
+          required: true
+          description: Numero maximo de resultados. Rango valido [1..200].
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+          example: 5
+      responses:
+        '200':
+          description: Lista de clientes (puede estar vacia).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BusinessPartnerSearchResponse'
+              example:
+                results:
+                  - code: C001
+                    name: Cliente de ejemplo S.L.
+                    category: '2'
+                masked: false
+        '400':
+          $ref: '#/components/responses/PeticionMalFormada'
+        '401':
+          $ref: '#/components/responses/SinToken'
+        '403':
+          $ref: '#/components/responses/SinPermiso'
+
+  /business-partners/suppliers:
+    get:
+      tags: [Consulta]
+      operationId: listBusinessPartnerSuppliers
+      summary: Listar proveedores (Business Partner con categoria 1)
+      description: |
+        Atajo de `GET /business-partners?category=1&top=<n>`. Devuelve la
+        misma forma `{results, masked}`. Spec
+        `docs/sdd/customer/consulta-business-partner-sap.md` (PRD-9).
+      x-required-role: [SAP_READ, SAP_EXTERNAL_READ]
+      x-masked-for-external-read: true
+      parameters:
+        - name: top
+          in: query
+          required: true
+          description: Numero maximo de resultados. Rango valido [1..200].
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+          example: 5
+      responses:
+        '200':
+          description: Lista de proveedores (puede estar vacia).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BusinessPartnerSearchResponse'
+              example:
+                results:
+                  - code: S001
+                    name: Acero del Norte S.A.
+                    category: '1'
+                masked: false
+        '400':
+          $ref: '#/components/responses/PeticionMalFormada'
+        '401':
+          $ref: '#/components/responses/SinToken'
+        '403':
+          $ref: '#/components/responses/SinPermiso'
+
 components:
 
   securitySchemes:
@@ -596,6 +782,49 @@ components:
             $ref: '#/components/schemas/LineState'
         lastCycle:
           $ref: '#/components/schemas/CycleTrace'
+
+    BusinessPartnerSummaryResponse:
+      type: object
+      description: |
+        Business Partner tal y como lo lee la API OData `A_BusinessPartner`.
+        Spec `docs/sdd/customer/consulta-business-partner-sap.md` (PRD-9).
+      properties:
+        code:
+          type: string
+          description: Clave de negocio del BP en SAP.
+        name:
+          type: string
+          description: |
+            Nombre del BP. Enmascarado para `sap-external-read` segun R-4 de
+            `seguridad-api.md`: solo los ultimos 4 caracteres visibles, el
+            resto a asteriscos.
+        category:
+          type: string
+          description: 'Categoria OData del BP (1 acreedor, 2 cliente, etc.).'
+        masked:
+          type: boolean
+          description: '`true` cuando el `name` se ha devuelto enmascarado.'
+
+    BusinessPartnerSearchResponse:
+      type: object
+      description: |
+        Resultado de busqueda por categoria OData de Business Partners.
+        Spec `docs/sdd/customer/consulta-business-partner-sap.md` (PRD-9).
+      properties:
+        results:
+          type: array
+          description: Lista de BPs (puede estar vacia).
+          items:
+            type: object
+            properties:
+              code: { type: string }
+              name:
+                type: string
+                description: 'Enmascarado para `sap-external-read` si `masked=true`.'
+              category: { type: string }
+        masked:
+          type: boolean
+          description: '`true` cuando los `name` se han devuelto enmascarados.'
 
     ErrorMessage:
       type: object

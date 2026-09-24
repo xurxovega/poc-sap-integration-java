@@ -68,6 +68,31 @@ public final class PiiMasker {
         return last(value, KEEP_PHONE);
     }
 
+    /**
+     * Enmascara el nombre de un Business Partner (o cualquier cadena personal sin
+     * digitos, p. ej. "ACME Internacional S.L.") dejando visibles los ultimos
+     * {@link #KEEP_LONG} caracteres. A diferencia del {@link #mask(String)}
+     * general, no exige que la cadena tenga al menos un digito: el nombre del BP
+     * es PII aunque sea todo letras.
+     *
+     * <p>Si la longitud efectiva (sin espacios) es menor o igual que
+     * {@link #KEEP_LONG}, se enmascara completo (no hay pista que conservar).
+     * Si la cadena es nula o vacia, se devuelve tal cual (defensivo, igual que
+     * el resto de helpers).
+     *
+     * <p>Spec: {@code docs/sdd/customer/consulta-business-partner-sap.md} R-4.
+     */
+    public static String maskName(String value) {
+        if (value == null || value.isBlank()) {
+            return value;
+        }
+        String t = value.replace(" ", "");
+        if (t.length() <= KEEP_LONG) {
+            return "*".repeat(t.length());
+        }
+        return "*".repeat(t.length() - KEEP_LONG) + t.substring(t.length() - KEEP_LONG);
+    }
+
     /** Enmascara un email dejando la inicial y el dominio (sdd/common/seguridad-api.md R-4). */
     public static String maskEmail(String value) {
         if (value == null) {

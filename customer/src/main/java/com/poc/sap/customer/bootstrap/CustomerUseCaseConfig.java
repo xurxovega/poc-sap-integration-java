@@ -15,11 +15,13 @@ import com.poc.sap.customer.application.fiscal.SyncFiscalUseCase;
 import com.poc.sap.customer.application.fiscal.ValidateFiscalUseCase;
 import com.poc.sap.customer.application.general.CustomerHistoryUseCase;
 import com.poc.sap.customer.application.general.CustomerStateUseCase;
+import com.poc.sap.customer.application.general.LookupBusinessPartnerUseCase;
 import com.poc.sap.customer.application.general.DeleteCustomerUseCase;
 import com.poc.sap.customer.application.general.SyncCustomerUseCase;
 import com.poc.sap.customer.application.general.ValidateCustomerUseCase;
 import com.poc.sap.customer.domain.port.AddressSapPort;
 import com.poc.sap.customer.domain.port.BankingSapPort;
+import com.poc.sap.customer.domain.port.BusinessPartnerReadPort;
 import com.poc.sap.customer.domain.port.ContactSapPort;
 import com.poc.sap.customer.domain.port.CustomerHistoryIndexerPort;
 import com.poc.sap.customer.domain.port.CustomerImageStorePort;
@@ -93,5 +95,24 @@ public class CustomerUseCaseConfig {
     @Bean
     CustomerHistoryUseCase customerHistoryUseCase(CustomerHistoryIndexerPort history) {
         return new CustomerHistoryUseCase(history);
+    }
+
+    /**
+     * Consulta puntual de Business Partners ya creados en SAP (PRD-9). Solo
+     * se monta si {@link BusinessPartnerReadPort} esta activo (lo decide
+     * {@code BusinessPartnerReadEnabled} a partir de
+     * {@code sap.odata.read.enabled} o {@code sap.odata.customer.enabled}); si
+     * no lo esta, el controller no se inyecta y Spring no registra los
+     * endpoints (R-5 del spec).
+     *
+     * <p>{@code @ConditionalOnBean} evita que este bean intente resolverse
+     * cuando el puerto todavia no existe (es condicional a su vez). Mismo
+     * patron que {@code CommonApplication} sigue con el resto de piezas
+     * opcionales del puerto.
+     */
+    @Bean
+    @org.springframework.boot.autoconfigure.condition.ConditionalOnBean(BusinessPartnerReadPort.class)
+    LookupBusinessPartnerUseCase lookupBusinessPartnerUseCase(BusinessPartnerReadPort port) {
+        return new LookupBusinessPartnerUseCase(port);
     }
 }

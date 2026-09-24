@@ -92,7 +92,7 @@
 | PRD-6 | Eventos entrantes desde S/4 (stock) | extra | 💡 | Pendiente de decisión del equipo SAP |
 | PRD-7 | **Servidor MCP** de consulta para agentes IA | extra | 💡 | Requiere SEC-1 y SEC-3. Propuesta en [`tools-integrations/MCP.md`](tools-integrations/MCP.md) |
 | PRD-8 | `S3ImageStoreAdapter` sobre MinIO | extra | 💡 | MinIO está levantado y sin uso |
-| PRD-9 | **Consulta de Business Partner desde SAP** (GET, sin coste) | extra | 💡 | Medio hecho: existen `BusinessPartnerReadPort` y `BusinessPartnerReadAdapter` (`sap.odata.read.enabled=true`). Faltan `LookupCustomerUseCase` y un endpoint que los exponga. Detalle abajo |
+| PRD-9 | **Consulta de Business Partner desde SAP** (GET, sin coste) | extra | ✅ 2026-09-24 | Implementado: [`sdd/customer/consulta-business-partner-sap.md`](sdd/customer/consulta-business-partner-sap.md). 4 endpoints GET (`/{code}`, `?category=&top=`, `/customers`, `/suppliers`), `LookupBusinessPartnerUseCase`, `BusinessPartnerController`, helper `PiiMasker.maskName`, OpenAPI al dia, 16 `@Test` nuevos. Pendiente: verificacion contra el tenant SAP de test (mismo criterio que `customer-contact` y `customer-banking`). |
 | PRD-11 | **Upsert idempotente** contra S/4: lookup → alta / `PATCH` con `If-Match`, con el `AddressID` persistido (auditoría B3) | proyecto | 🚧 en curso | **Hecho**: spec [`sdd/common/upsert-idempotente-sap.md`](sdd/common/upsert-idempotente-sap.md) y los seis adaptadores OData con `lookup`/`update`; el `AddressID` se guarda en la colección `sap_keys`, no en la imagen. **Matiz al enunciado**: el **ETag no se persiste** — envejece y produce `412` sin poder reintentar sin releer; se lee en el lookup inmediatamente anterior al `PATCH` (R-5). **Falta**: cablear `FeatureSyncPipeline.write(...)` y verificar contra el tenant ([`testing/CHECKLIST-TENANT-SAP.md`](testing/CHECKLIST-TENANT-SAP.md) §1-§3) |
 | PRD-10 | **Alta y actualización de Business Partner** desde nuestro lado (POST/PATCH, upsert con coste) | extra | 💡 | Ninguna de las clases existe. Detalle abajo |
 
@@ -102,13 +102,10 @@ Rescatado de `architecture/FLOWS.md`, que ahora solo documenta lo implementado.
 Son **clases que no existen**: el valor está en el diseño esbozado, no en tomarlo
 como plan cerrado.
 
-**PRD-9 · Consulta de BP (GET)** — leer un Business Partner de SAP sin escribir,
-para comprobar si existe antes de dar de alta o para resolver dudas de datos.
-
-- Existe: `BusinessPartnerReadPort` → `BusinessPartnerReadAdapter` → `SapClient.get()`
-  con query params OData (`$top`, `$filter`), tras `sap.odata.read.enabled=true`.
-- Faltaría: `LookupCustomerUseCase` (application) y `LookupCustomerController`
-  (bootstrap/web) para exponerlo.
+**PRD-9 · Consulta de BP (GET)** — ✅ implementado 2026-09-24, ver fila de la
+tabla arriba y spec [`sdd/customer/consulta-business-partner-sap.md`](sdd/customer/consulta-business-partner-sap.md).
+Era: leer un Business Partner de SAP sin escribir, para comprobar si existe
+antes de dar de alta o para resolver dudas de datos.
 
 **PRD-10 · Alta y actualización de BP (POST/PATCH)** — hoy solo empujamos
 features sueltas; esto sería crear o modificar el Business Partner completo.
